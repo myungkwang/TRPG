@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>LipSync Test</title>
+  <style>
+    body { margin: 0; background: #111; color: white; }
+    #viewer { width: 100vw; height: 100vh; }
+    #panel {
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      z-index: 10;
+      display: flex;
+      gap: 8px;
+    }
+    button { padding: 8px 12px; }
+  </style>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="panel">
+    <button onclick="testJaw()">JawOpen</button>
+    <button onclick="testAA()">aa_viseme</button>
+    <button onclick="startLipSync()">Start</button>
+    <button onclick="stopLipSync()">Stop</button>
+    <button onclick="debugMorph()">Debug</button>
+  </div>
+
+  <div id="viewer"></div>
+
+  <script type="module" src="/static/lipsync-test.js"></script>
+</body>
+</html>

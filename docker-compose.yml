@@ -1,0 +1,14 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: persona_ai_pgvector
+    environment:
+      POSTGRES_USER: persona
+      POSTGRES_PASSWORD: persona
+      POSTGRES_DB: persona_ai
+    ports:
+      - "5432:5432"
+    volumes:
+      - persona_pgdata:/var/lib/postgresql/data
+volumes:
+  persona_pgdata:
