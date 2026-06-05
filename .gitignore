@@ -1,0 +1,38 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.venv/
+venv/
+env/
+
+# Node / Vite
+node_modules/
+frontend_src/dist/
+.vite/
+
+# Local databases and generated data
+*.db
+*.sqlite
+*.sqlite3
+chroma/
+chroma_db/
+vectorstore/
+
+# Generated media / backups
+static/audio/
+static_backup/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
