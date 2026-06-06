@@ -6,7 +6,11 @@ from jose import jwt, JWTError
 from passlib.context import CryptContext
 from fastapi import HTTPException, Header
 
-SECRET_KEY = "change-this-secret-key"
+from config import JWT_SECRET_KEY
+
+if not JWT_SECRET_KEY:
+    raise RuntimeError("JWT_SECRET_KEY environment variable is required.")
+
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
 
@@ -44,7 +48,7 @@ def create_access_token(user_id: str, username: str) -> str:
         "username": username,
         "exp": expire,
     }
-    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+    return jwt.encode(payload, JWT_SECRET_KEY, algorithm=ALGORITHM)
 
 
 def get_user_id_from_token(authorization: str | None = Header(default=None)) -> str:
@@ -54,7 +58,7 @@ def get_user_id_from_token(authorization: str | None = Header(default=None)) -> 
     token = authorization.replace("Bearer ", "").strip()
 
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[ALGORITHM])
         user_id = payload.get("sub")
         UUID(user_id)
         return user_id
