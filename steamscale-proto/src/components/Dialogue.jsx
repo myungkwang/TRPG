@@ -14,7 +14,7 @@ const getLastNpcSpeaker = (log) => {
   return lastNpc?.who || CHARACTER_MODELS[0].speaker
 }
 
-export default function Dialogue({ onTriggerMap }) {
+export default function Dialogue({ runMapStep }) {
   const [log, setLog] = useState(SEED_DIALOGUE)
   const [input, setInput] = useState('')
   const [choiceMode, setChoiceMode] = useState(false)
@@ -24,6 +24,19 @@ export default function Dialogue({ onTriggerMap }) {
   const logRef = useRef(null)
   const judgeRef = useRef(null)     // {dc, stat, after} — 클로저 탈출용
   const judgeTimerRef = useRef(null)
+  const mappingRef = useRef(false)  // 지도 스텝 중복 방지
+
+  // 행동/판정이 끝나면 → 결과(dest)로 정해진 발판으로 지도 한 걸음 → 복귀 후 대사를 잇는다
+  const advanceOnMap = (dest) => {
+    if (!runMapStep || mappingRef.current) return
+    mappingRef.current = true
+    runMapStep(dest).then(({ ending, aborted, kind }) => {
+      mappingRef.current = false
+      if (aborted) return
+      if (ending) { push('gm', '…안갯속 길의 끝. 봉우리의 둥지가 모습을 드러낸다. (엔딩 노드 도달)'); return }
+      push('gm', `안개를 헤치고 ‘${kind}’ 발판에 닿았다. 다시 이야기가 이어진다.`)
+    })
+  }
 
   useEffect(() => {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight
@@ -39,8 +52,12 @@ export default function Dialogue({ onTriggerMap }) {
     }
   }
 
-  const triggerJudge = (dc = 11, stat = '지각', after) => {
-    judgeRef.current = { dc, stat, after }
+  // onSuccess/onFail = 판정 결과에 따라 이동할 발판 종류 키. 성공이면 onSuccess, 실패면 onFail로 자동 이동
+  const triggerJudge = (dc = 11, stat = '지각', opts = {}) => {
+    judgeRef.current = {
+      dc, stat, after: opts.after,
+      onSuccess: opts.onSuccess || 'shop', onFail: opts.onFail || 'event', success: null,
+    }
     setJudge({ dc, stat })
     setJudgeResult(null)
   }
@@ -48,6 +65,7 @@ export default function Dialogue({ onTriggerMap }) {
   const handleRollDone = (result) => {
     const dc = judgeRef.current?.dc ?? 0
     const success = result >= dc
+    if (judgeRef.current) judgeRef.current.success = success
     setJudgeResult({ result, success })
     clearTimeout(judgeTimerRef.current)
     judgeTimerRef.current = setTimeout(() => doCloseJudge(), 3000)  // 결과 표시 3초 후 자동 닫힘
@@ -56,12 +74,14 @@ export default function Dialogue({ onTriggerMap }) {
   // 실제 닫기 (가드 없음) — 결과가 나온 뒤에만 호출됨
   const doCloseJudge = () => {
     clearTimeout(judgeTimerRef.current)
-    const { after, stat } = judgeRef.current || {}
+    const ref = judgeRef.current || {}
     judgeRef.current = null
     setJudge(null)
     setJudgeResult(null)
-    if (after) after()
-    else if (stat) push('gm', `${stat} 판정이 끝났다. 결과에 따라 이야기가 갈라진다.`)
+    if (ref.after) ref.after()
+    else if (ref.stat) push('gm', `${ref.stat} 판정 ${ref.success ? '성공' : '실패'} — 길이 갈라진다.`)
+    const dest = ref.success ? ref.onSuccess : ref.onFail   // 결과로 도착 발판 결정
+    advanceOnMap(dest)
   }
 
   // 클릭으로 닫기 — 결과(성공/실패)가 나오기 전엔 무시
@@ -74,16 +94,16 @@ export default function Dialogue({ onTriggerMap }) {
     const t = input.trim(); if (!t) return
     push('player', t); setInput('')
     setChoiceMode(false)
-    setTimeout(() => push('lin', '…재밌는 손님이네요. 조금 더 말해 보세요.'), 450)
+    setTimeout(() => { push('lin', '…재밌는 손님이네요. 조금 더 말해 보세요.'); advanceOnMap() }, 450)
   }
 
   const pickChoice = (c) => {
     push('player', `[선택] ${c.text}`)
     setChoiceMode(false)
     if (c.judge) {
-      triggerJudge(c.dc, c.stat)
+      triggerJudge(c.dc, c.stat)   // 판정 → 모달 종료 시 doCloseJudge에서 지도 한 걸음
     } else {
-      setTimeout(() => push('lin', '그래요, 거래는 늘 환영이죠.'), 450)
+      setTimeout(() => { push('lin', '그래요, 거래는 늘 환영이죠.'); advanceOnMap() }, 450)
     }
   }
 
@@ -121,7 +141,7 @@ export default function Dialogue({ onTriggerMap }) {
         <div className="stage-tools">
           <button onClick={() => setChoiceMode(v => !v)}>선택지</button>
           <button onClick={() => triggerJudge(11, '지각')}>판정</button>
-          <button onClick={onTriggerMap}>🗺 지도</button>
+          <button onClick={advanceOnMap}>🗺 지도</button>
         </div>
         <div className="char-center">
           <Character3D key={activeCharacter.speaker} modelPath={activeCharacter.modelPath} />
