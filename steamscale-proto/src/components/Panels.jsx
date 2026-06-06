@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
+import Dice3D from './Dice3D.jsx'
 import {
   STATUS, INV_COLS, INV_ROWS, INV_ITEMS,
-  CODEX, MAP_NODES, MAP_EDGES, NODE_ICON,
 } from '../data.js'
 
 function Overlay({ title, onClose, className, children }) {
@@ -85,102 +85,142 @@ export function StatusPanel({ onClose }) {
   )
 }
 
-/* ---------- 인벤토리 (3x4 + 주사위 슬롯) ---------- */
+/* ---------- 인벤토리 (가방 + 우측 드롭아웃 주사위 창) ---------- */
 export function InventoryPanel({ onClose }) {
-  const CELL = 64, GAP = 6
-  const gw = INV_COLS * CELL + (INV_COLS - 1) * GAP
-  const gh = INV_ROWS * CELL + (INV_ROWS - 1) * GAP
+  const CELL = 86, GAPX = 9, GAPY = 18
+  const [diceOpen, setDiceOpen] = useState(false)
+  const gw = INV_COLS * CELL + (INV_COLS - 1) * GAPX
+  const gh = INV_ROWS * CELL + (INV_ROWS - 1) * GAPY
   return (
-    <Overlay title="인벤토리" onClose={onClose} className="inventory">
-      <div className="inv-wrap">
+    <div className="overlay bag-overlay">
+      <div className="bag">
+        <div className="bag-flap"><span className="bag-buckle" /></div>
+        <span className="bag-strap left" />
+        <span className="bag-strap right" />
+        <button className="bag-x" onClick={onClose}>✕</button>
+
         <div className="inv-grid" style={{ width: gw, height: gh }}>
           {Array.from({ length: INV_COLS * INV_ROWS }).map((_, i) => {
             const cx = i % INV_COLS, cy = Math.floor(i / INV_COLS)
             return <div key={i} className="inv-cell"
-              style={{ left: cx * (CELL + GAP), top: cy * (CELL + GAP), width: CELL, height: CELL }} />
+              style={{ left: cx * (CELL + GAPX), top: cy * (CELL + GAPY), width: CELL, height: CELL }} />
           })}
           {INV_ITEMS.map(it => (
             <div key={it.id} className="inv-item"
               title={it.name + (it.stack ? ` ×${it.stack}` : '')}
               style={{
-                left: it.x * (CELL + GAP), top: it.y * (CELL + GAP),
-                width: it.w * CELL + (it.w - 1) * GAP, height: it.h * CELL + (it.h - 1) * GAP,
+                left: it.x * (CELL + GAPX), top: it.y * (CELL + GAPY),
+                width: it.w * CELL + (it.w - 1) * GAPX, height: it.h * CELL + (it.h - 1) * GAPY,
               }}>
               <span className="inv-icon">{it.icon}</span>
               {it.stack != null && <span className="inv-stack">{it.stack}</span>}
             </div>
           ))}
         </div>
-        <div className="inv-side">
-          <div className="inv-dicebox">
-            <div className="inv-dlabel">주사위 슬롯</div>
-            <div className="inv-dice">⬢<span>d12</span></div>
-          </div>
-          <p className="inv-note">재화·영정은 칸당 최대 10개. 10을 넘으면 다음 칸으로 분할돼요. (영정 23 → 10·10·3)</p>
-        </div>
-      </div>
-    </Overlay>
-  )
-}
 
-/* ---------- 도감 (책 펼침 + 필름스트립) ---------- */
-export function CodexPanel({ onClose }) {
-  const [sel, setSel] = useState(CODEX[0])
-  return (
-    <Overlay title="도감" onClose={onClose} className="codex">
-      <div className="cx-book">
-        <div className="cx-left">
-          <div className="cx-portrait">{sel.got ? sel.name : '???'}</div>
-          <div className="cx-namecard">{sel.got ? sel.name : '???'}</div>
-        </div>
-        <div className="cx-right">
-          <div className="cx-tabs"><span className="active">인물</span><span>증거품</span></div>
-          <p className="cx-meta">{sel.got ? sel.no : '???'}</p>
-          <p className="cx-meta">{sel.got ? sel.age : '???'}</p>
-          <p className="cx-desc">{sel.got ? sel.desc : '아직 밝혀지지 않았다.'}</p>
-        </div>
-      </div>
-      <div className="cx-film">
-        {CODEX.map(c => (
-          <button key={c.id} className={'cx-frame' + (sel.id === c.id ? ' on' : '') + (c.got ? '' : ' locked')}
-            onClick={() => setSel(c)}>
-            {c.got ? c.name.slice(0, 2) : '?'}
+        {/* 좌하단 바깥 주사위 탭 — 클릭하면 아래로 주사위 창이 나타났다/사라짐 (인벤토리 고정) */}
+        <div className={'dice-drawer' + (diceOpen ? ' open' : '')}>
+          <button className="dice-tab" onClick={() => setDiceOpen(o => !o)} title="주사위">
+            <span className="dice-tab-ico">🎲</span>
+            <span className="dice-tab-arrow">{diceOpen ? '◀' : '▶'}</span>
           </button>
-        ))}
+          {diceOpen && (
+            <div className="dice-window">
+              <Dice3D size={104} />
+              <div className="dice-window-hint">클릭해서 굴리기</div>
+            </div>
+          )}
+        </div>
       </div>
-    </Overlay>
+    </div>
   )
 }
 
-/* ---------- 전체지도 (양피지 + 노드) ---------- */
-export function FullMapPanel({ onClose }) {
-  const pos = id => MAP_NODES.find(n => n.id === id)
-  const stateColor = { done: '#8a6d3b', cur: '#c0392b', open: '#5b4a2e', fog: '#b9aa86' }
+/* ---------- 전체지도 (여정 기록 기반 — 좌우 분기 반영 · 지나온 길 + 안 간 길 ???) ---------- */
+export function FullMapPanel({ onClose, journey = [] }) {
+  const ICON = { 전투: '⚔', 이벤트: '✦', 거래: '$', 미지: '?' }
+  const W = 480, rowH = 86, padTop = 72, padBottom = 84, step = 120
+  const levels = journey.length
+  const H = padTop + padBottom + Math.max(levels, 1) * rowH
+  const cx = W / 2
+  const yAt = lvl => H - padBottom - lvl * rowH         // lvl 0 = 출발(맨 아래)
+  const xOf = slot => cx + (slot || 0) * step
+  const posOf = i => ({ x: xOf(journey[i].slot), y: yAt(i + 1) })          // 방문 노드 i
+  const prevOf = i => (i === 0 ? { x: cx, y: yAt(0) } : posOf(i - 1))      // 그 직전 노드
+  const reachedEnd = journey[levels - 1]?.ending
+  const lastPos = levels === 0 ? { x: cx, y: yAt(0) } : posOf(levels - 1)
+
+  // 라벨(텍스트 배경 포함) — 선 위에 올려 가독성 확보
+  const Label = ({ x, y, text, color }) => (
+    <>
+      <rect x={x - (text.length * 6.6 + 6)} y={y - 11} width={text.length * 13.2 + 12} height="18" rx="4"
+        fill="#e8dcc0" opacity="0.92" />
+      <text x={x} y={y + 3} textAnchor="middle" fontSize="12" fill={color}>{text}</text>
+    </>
+  )
+
   return (
     <Overlay title="전체 지도" onClose={onClose} className="fullmap">
       <div className="fm-scroll">
-        <svg viewBox="0 0 700 560" className="fm-svg">
-          {MAP_EDGES.map(([a, b], i) => {
-            const p = pos(a), q = pos(b)
-            const fogged = p.state === 'fog' || q.state === 'fog'
-            return <line key={i} x1={p.x} y1={p.y} x2={q.x} y2={q.y}
-              stroke="#6b5836" strokeWidth="2" strokeDasharray="6 7"
-              opacity={fogged ? 0.22 : 0.7} />
+        <svg viewBox={`0 0 ${W} ${H}`} className="fm-svg">
+          {/* ===== 1패스: 엣지(선) 먼저 — 노드/텍스트보다 아래 ===== */}
+          {journey.map((s, i) => {
+            const a = prevOf(i), b = posOf(i)
+            return (
+              <g key={'e' + i}>
+                {s.siblingSlots.map((slot, k) => (
+                  <line key={k} x1={a.x} y1={a.y} x2={xOf(slot)} y2={b.y}
+                    stroke="#6b5836" strokeWidth="2" strokeDasharray="4 6" opacity="0.38" />
+                ))}
+                <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="#8a6d3b" strokeWidth="3" />
+              </g>
+            )
           })}
-          {MAP_NODES.map(n => (
-            <g key={n.id} opacity={n.state === 'fog' ? 0.35 : 1}>
-              <circle cx={n.x} cy={n.y} r="20" fill="#efe2c4" stroke={stateColor[n.state]} strokeWidth="3" />
-              <text x={n.x} y={n.y + 5} textAnchor="middle" fontSize="16" fill="#5b4a2e">
-                {n.state === 'fog' ? '?' : NODE_ICON[n.type]}
-              </text>
-              {n.state !== 'fog' && <text x={n.x} y={n.y + 38} textAnchor="middle" fontSize="12" fill="#5b4a2e">{n.label}</text>}
-              {n.state === 'cur' && <circle cx={n.x} cy={n.y} r="26" fill="none" stroke="#c0392b" strokeWidth="2" strokeDasharray="3 4" />}
+          {!reachedEnd && (
+            <line x1={lastPos.x} y1={lastPos.y} x2={lastPos.x} y2={lastPos.y - 46}
+              stroke="#6b5836" strokeWidth="2" strokeDasharray="4 6" opacity="0.45" />
+          )}
+
+          {/* ===== 2패스: 노드 + 아이콘 + 라벨 (선 위로) ===== */}
+          {/* 출발점 */}
+          <circle cx={cx} cy={yAt(0)} r="20" fill="#efe2c4" stroke="#5b4a2e" strokeWidth="3" />
+          <text x={cx} y={yAt(0) + 5} textAnchor="middle" fontSize="16" fill="#5b4a2e">⌂</text>
+          <Label x={cx} y={yAt(0) + 40} text="출발" color="#5b4a2e" />
+
+          {journey.map((s, i) => {
+            const b = posOf(i)
+            const icon = s.ending ? '☠' : (ICON[s.kind] || '?')
+            return (
+              <g key={'n' + i}>
+                {/* 안 간 갈림길 ??? */}
+                {s.siblingSlots.map((slot, k) => (
+                  <g key={k} opacity="0.42">
+                    <circle cx={xOf(slot)} cy={b.y} r="18" fill="#e6d9bb" stroke="#b9aa86" strokeWidth="2" />
+                    <text x={xOf(slot)} y={b.y + 5} textAnchor="middle" fontSize="15" fill="#8a7858">?</text>
+                    <Label x={xOf(slot)} y={b.y + 36} text="???" color="#8a7858" />
+                  </g>
+                ))}
+                {/* 지나온(방문) 노드 */}
+                <circle cx={b.x} cy={b.y} r="20" fill="#efe2c4" stroke={s.ending ? '#9b1c31' : '#8a6d3b'} strokeWidth="3" />
+                <text x={b.x} y={b.y + 5} textAnchor="middle" fontSize="16" fill="#5b4a2e">{icon}</text>
+                <Label x={b.x} y={b.y + 40} text={s.ending ? '엔딩' : s.kind} color="#5b4a2e" />
+              </g>
+            )
+          })}
+
+          {/* 아직 가지 않은 앞길 */}
+          {!reachedEnd && (
+            <g opacity="0.5">
+              <circle cx={lastPos.x} cy={lastPos.y - 58} r="18" fill="#e6d9bb" stroke="#b9aa86" strokeWidth="2" />
+              <text x={lastPos.x} y={lastPos.y - 53} textAnchor="middle" fontSize="15" fill="#8a7858">?</text>
             </g>
-          ))}
+          )}
+
+          {/* 현재 위치 강조 */}
+          <circle cx={lastPos.x} cy={lastPos.y} r="26" fill="none" stroke="#c0392b" strokeWidth="2" strokeDasharray="3 4" />
         </svg>
-        <div className="fm-fog" />
       </div>
-      <p className="fm-note">현재 위치 = 붉은 노드 · 안개 너머(?)는 아직 미발견. 대화 중 트리거로 한 칸씩 전진합니다.</p>
+      <p className="fm-note">실선 = 지나온 길(좌·중·우 분기 반영) · 흐린 ??? = 가지 않은 갈림길/미발견 · 붉은 원 = 현재 위치.</p>
     </Overlay>
   )
 }
