@@ -17,7 +17,16 @@ env/
 # Node / Vite
 node_modules/
 frontend_src/dist/
+steamscale-proto/dist/
 .vite/
+*.log
+
+# Built frontend assets (Vite output with hashed filenames)
+static/assets/
+
+# Binary / large files
+*.zip
+*.docx
 
 # Local databases and generated data
 *.db
