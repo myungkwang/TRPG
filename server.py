@@ -14,6 +14,8 @@ from openai import OpenAI
 
 from db import get_conn
 from gm_cli import create_session, gm_reply, load_session, recent_history
+import progression
+import dialogue
 from auth import (
     validate_signup,
     hash_password,
@@ -113,8 +115,9 @@ def new_session(user_id: str = Depends(get_user_id_from_token)) -> dict[str, Any
     session_id = create_session()
 
     intro = (
-        "영석 등불이 희미하게 깜빡이는 진료소. 당신은 기억을 잃은 채 눈을 뜬다. "
-        "의사가 낮은 목소리로 묻는다. ‘깨어났군요. 당신이 누군지… 기억나는 게 있습니까?’"
+        "GM: 영석 등불이 희미하게 깜빡이는 진료소. 당신은 기억을 잃은 채 눈을 뜬다. "
+        "한 사내가 당신을 들여다본다.\n"
+        "의사: \"깨어났군요. 당신이 누군지… 기억나는 게 있습니까?\""
     )
 
     with get_conn() as conn:
@@ -141,7 +144,11 @@ def new_session(user_id: str = Depends(get_user_id_from_token)) -> dict[str, Any
             ),
         )
 
-    return {"session": public_session(session_id), "intro": intro}
+    return {
+        "session": public_session(session_id),
+        "intro": intro,
+        "intro_segments": dialogue.split_segments(intro),
+    }
 
 
 @app.get("/api/session/{session_id}")
@@ -162,6 +169,16 @@ def get_session(
         raise HTTPException(status_code=404, detail=str(exc))
 
 
+@app.get("/api/codex/clues/{session_id}")
+def codex_clues(
+    session_id: str,
+    user_id: str = Depends(get_user_id_from_token),
+) -> dict[str, Any]:
+    """도감에서 확인하는 해금 단서(인벤토리 아이템 아님). 플래그로 열린 것만."""
+    assert_session_owner(session_id, user_id)
+    return {"clues": progression.unlocked_clues(session_id)}
+
+
 @app.post("/api/chat")
 def chat(
     req: ChatRequest,
@@ -178,6 +195,7 @@ def chat(
 
     return {
         "answer": answer,
+        "segments": dialogue.split_segments(answer),
         "session": public_session(req.session_id),
     }
 
@@ -211,6 +229,7 @@ def move(
 
     return {
         "answer": answer,
+        "segments": dialogue.split_segments(answer),
         "session": public_session(req.session_id),
     }
 
