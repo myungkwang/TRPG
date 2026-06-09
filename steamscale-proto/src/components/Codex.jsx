@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import {
   CODEX_CHARACTERS, CODEX_ITEMS, CODEX_CLUES, CODEX_ENDINGS, REP_RANGE,
 } from '../data.js'
+import { categoryLabel, priceLabel } from '../items.js'
 
 const CATS = [
   { key: 'chars',   label: '인물' },
@@ -65,6 +66,20 @@ function ListSpread({ list, sel, setSel, kindLabel }) {
             <div className="cx2-dicon">{cur.icon}</div>
             <div className="cx2-dno">NO.{cur.no}</div>
             <div className="cx2-dname">{cur.name}</div>
+            {cur.category && (
+              <div className="cx2-dmeta">
+                <div className="cx2-dmeta-row"><span>분류</span><b>{categoryLabel(cur)}</b></div>
+                {cur.effect && cur.effect !== '-' && (
+                  <div className="cx2-dmeta-row"><span>효과</span><b>{cur.effect}</b></div>
+                )}
+                {priceLabel(cur) && (
+                  <div className="cx2-dmeta-row"><span>가격</span><b>{priceLabel(cur)}</b></div>
+                )}
+                {cur.sources?.length > 0 && (
+                  <div className="cx2-dmeta-row"><span>획득처</span><b>{cur.sources.join(', ')}</b></div>
+                )}
+              </div>
+            )}
             <p className="cx2-ddesc">{cur.desc}</p>
           </>
         ) : (

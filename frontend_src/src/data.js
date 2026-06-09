@@ -2,9 +2,20 @@
 
 // 말풍선 색: GM=밤색, 린=진홍, 플레이어=회색
 export const SPEAKERS = {
-  gm:     { name: 'GM', color: '#7a4a2e', tint: 'rgba(122,74,46,0.18)' },     // 밤색
+  gm:     { name: 'GM', color: '#7a4a2e', tint: 'rgba(122,74,46,0.18)' },       // 밤색(시스템/서술)
   lin:    { name: "여우 ‘린’", color: '#9b1c31', tint: 'rgba(155,28,49,0.18)' }, // 진홍
-  player: { name: '나', color: '#7d858d', tint: 'rgba(125,133,141,0.16)' },   // 회색
+  uisa:   { name: '의사', color: '#3f6f5a', tint: 'rgba(63,111,90,0.18)' },     // 청록
+  gail:   { name: '가일', color: '#4a5a8a', tint: 'rgba(74,90,138,0.18)' },     // 군청
+  marta:  { name: '마르타', color: '#7a5a8a', tint: 'rgba(122,90,138,0.18)' },  // 자주
+  tobi:   { name: '토비', color: '#b07a3a', tint: 'rgba(176,122,58,0.18)' },    // 황토
+  kargas: { name: '카르가스', color: '#8a2f2f', tint: 'rgba(138,47,47,0.18)' }, // 적갈
+  player: { name: '나', color: '#7d858d', tint: 'rgba(125,133,141,0.16)' },     // 회색
+}
+
+// 백엔드 segment의 화자 이름 → SPEAKERS 키
+export const SPEAKER_KEY = {
+  '의사': 'uisa', '린': 'lin', '여우 린': 'lin',
+  '가일': 'gail', '마르타': 'marta', '토비': 'tobi', '카르가스': 'kargas',
 }
 
 export const SEED_DIALOGUE = [

@@ -1,4 +1,5 @@
 // ===== 임시 데이터 (나중에 서버/시트 데이터로 교체) =====
+import { ITEMS, ITEM_LIST } from './items.js'
 
 // 말풍선 색: GM=밤색, 린=진홍, 플레이어=회색
 export const SPEAKERS = {
@@ -8,9 +9,9 @@ export const SPEAKERS = {
 }
 
 export const SEED_DIALOGUE = [
-  { who: 'gm',     text: '낡은 영석 등불이 깜빡인다. 카운터 뒤의 여인이 고개를 들어 너를 본다.' },
-  { who: 'player', text: '사라진 광부들에 대해 알고 있나?' },
-  { who: 'lin',    text: '…어머. 그 얘길 묻는 손님은 오랜만이네요. 공짜는 아니랍니다. 뭘 내놓으시겠어요?' },
+  { who: 'gm', text: '아… 깨어나셨군요.' },
+  { who: 'gm', text: '꼬박 사흘 밤낮을 앓으셨습니다. 여기는 재끝 마을 진료소 — 다행히, 숨은 붙어 있군요.' },
+  { who: 'gm', text: '…이름은. 기억나는 게, 있으십니까?' },
 ]
 
 export const FLAVOR_CHOICE = '~ 선택의 기회가 주어지면, 후회할 선택은 하지 마세요. ~'
@@ -40,20 +41,38 @@ export const STATUS = {
   etc: ['특이: 기억상실 — 정체 불명', '사회성: 보통', '마법: 술식형 (영정 매개)'],
 }
 
+// 장착 장비 — 머리 / 몸통 / 무기 3칸.
+//   slot.ph = 빈 슬롯에 보이는 흐린 안내 아이콘
+//   EQUIPMENT 값은 items.js 마스터의 ITM_* ID (null = 빈 슬롯)
+export const EQUIP_SLOTS = [
+  { key: 'head',   label: '머리', ph: '🎩' },
+  { key: 'body',   label: '몸통', ph: '🧥' },
+  { key: 'weapon', label: '무기', ph: '⚔️' },
+]
+export const EQUIPMENT = { head: 'ITM_HEAD_GOGGLE', body: 'ITM_BODY_STEAMPLATE', weapon: 'ITM_WPN_ARM' }
+
 // 인벤토리: 3열 x 4행 + 주사위 슬롯 1칸
 export const INV_COLS = 3
 export const INV_ROWS = 4
-// 아이템: x,y(좌상단 셀), w,h(차지 셀), stack(겹침 수, 재화/영정은 10 초과 시 분할되어 이미 칸 나뉨)
-export const INV_ITEMS = [
-  { id: 'dagger', name: '낡은 단검', icon: '🗡️', x: 0, y: 0, w: 1, h: 2 },
-  { id: 'potion', name: '회복 물약', icon: '🧪', x: 1, y: 0, w: 1, h: 1, stack: 5 },
-  { id: 'lantern',name: '영석 등불', icon: '🏮', x: 2, y: 0, w: 1, h: 1 },
-  { id: 'stone',  name: '영석 조각', icon: '🪨', x: 1, y: 1, w: 1, h: 1 },
-  // 영정 23개 → 10/10/3 으로 칸 분할
-  { id: 'ess1',   name: '영정', icon: '✦', x: 0, y: 2, w: 1, h: 1, stack: 10, currency: true },
-  { id: 'ess2',   name: '영정', icon: '✦', x: 1, y: 2, w: 1, h: 1, stack: 10, currency: true },
-  { id: 'ess3',   name: '영정', icon: '✦', x: 2, y: 2, w: 1, h: 1, stack: 3,  currency: true },
+// 시작 인벤토리 — 아이템 마스터(items.js)를 ITM_* ID로 "참조"만 한다.
+//   ref: 마스터 ID / x,y: 좌상단 셀 / w,h: 차지 셀 / stack: 겹침 수
+//   (이름·아이콘은 마스터에서 자동으로 끌어옴 → 한 군데에서만 관리)
+const INV_LAYOUT = [
+  { ref: 'ITM_HP_AMPLE_HIGH', x: 0, y: 0, w: 1, h: 1, stack: 3 },
+  { ref: 'ITM_MP_AMPLE_HIGH', x: 1, y: 0, w: 1, h: 1, stack: 3 },
+  { ref: 'ITM_LANTERN',       x: 2, y: 0, w: 1, h: 1 },
+  { ref: 'ITM_ROPE',          x: 0, y: 1, w: 1, h: 1, stack: 2 },
+  { ref: 'ITM_COMPASS',       x: 1, y: 1, w: 1, h: 1 },
+  { ref: 'ITM_TOME',          x: 2, y: 1, w: 1, h: 1 },
+  // 영정 23개 → 10/10/3 으로 칸 분할 (희소 자원)
+  { ref: 'ITM_ESSENCE', x: 0, y: 2, w: 1, h: 1, stack: 10, currency: true },
+  { ref: 'ITM_ESSENCE', x: 1, y: 2, w: 1, h: 1, stack: 10, currency: true },
+  { ref: 'ITM_ESSENCE', x: 2, y: 2, w: 1, h: 1, stack: 3,  currency: true },
 ]
+export const INV_ITEMS = INV_LAYOUT.map((slot, i) => {
+  const m = ITEMS[slot.ref]
+  return { ...slot, id: `${slot.ref}_${i}`, name: m.name, icon: m.icon }
+})
 
 // 도감 인물 (이미지7 형식)
 export const CODEX = [
@@ -103,23 +122,17 @@ export const CODEX_CHARACTERS = [
     desc:'아직 만나지 못한 존재. 태고의 무언가가 봉우리 너머에서 숨 쉰다.' },
 ]
 
-// 아이템 — 미해금 시 NO.????? 로 표시
-export const CODEX_ITEMS = [
-  { id:'it1', no:1, name:'레치타티보 지팡이', got:true, icon:'🪄', desc:'공연의 서막을 여는 지휘봉. 영정을 매개로 술식을 증폭한다. 시나리오 진입 시 추가 획득.' },
-  { id:'it2', no:2, name:'아리아 리볼버', got:true, icon:'🔫', desc:'여섯 약실에 운명을 담는 권총. 레치타티보 지팡이와 공명하여 위력이 오른다.' },
-  { id:'it3', no:3, name:'낡은 단검', got:true, icon:'🗡️', desc:'어디서나 구할 수 있는 평범한 단검. 손에 익은 무게가 마음을 가라앉힌다.' },
-  { id:'it4', no:4, name:'회복 물약', got:true, icon:'🧪', desc:'영석 가루를 녹인 붉은 물약. 마시면 HP를 회복한다.' },
-  { id:'it5', no:5, name:'영석 등불', got:true, icon:'🏮', desc:'갱도를 밝히는 영석 등불. 안갯속에서도 좀처럼 꺼지지 않는다.' },
-  { id:'it6', no:6, name:'영석 조각', got:true, icon:'🪨', desc:'은은한 빛을 내는 광석 조각. 술식의 매개이자 화폐로도 쓰인다.' },
-  { id:'it7', no:7, name:'톱니 부적', got:true, icon:'⚙️', desc:'증기 장인이 만든 부적. 기계 장치에 깃든 가호를 빌린다.' },
-  { id:'it8', no:8, name:'안개 나침반', got:true, icon:'🧭', desc:'안갯속에서도 봉우리를 가리키는 나침반. 바늘이 가끔 떨린다.' },
-  { id:'it9',  no:9,  name:'?????', got:false },
-  { id:'it10', no:10, name:'?????', got:false },
-  { id:'it11', no:11, name:'?????', got:false },
-  { id:'it12', no:12, name:'?????', got:false },
-  { id:'it13', no:13, name:'?????', got:false },
-  { id:'it14', no:14, name:'?????', got:false },
-]
+// 아이템 — 아이템 마스터(items.js)에서 전체 생성. 미해금 시 NO.????? 로 표시.
+//   해금 규칙(데이터 기반): T2·T3 유일무기 / 해금 부품 / 남두의 권 비법서 = 잠김.
+//   그 외(소모품·일반 무기/장비·T1 시작무기 등)는 도감에 공개.
+const isLocked = (it) =>
+  (it.tier && it.tier >= 2) || it.category === '부품' || it.id === 'ITM_TOME_NAMDU'
+export const CODEX_ITEMS = ITEM_LIST.map((it, i) => ({
+  id: it.id, no: i + 1, name: it.name, icon: it.icon,
+  category: it.category, slot: it.slot, unique: it.unique, tier: it.tier,
+  effect: it.effect, price: it.price, sources: it.sources, desc: it.desc,
+  got: !isLocked(it),
+}))
 
 // 해금단서 — 아이템과 유사
 export const CODEX_CLUES = [
