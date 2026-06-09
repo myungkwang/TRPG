@@ -5,6 +5,7 @@ import MenuButton from './components/Menu.jsx'
 import { StatusPanel, InventoryPanel, CodexPanel, FullMapPanel, SettingsPanel } from './components/Panels.jsx'
 import MapOverlay from './components/MapOverlay.jsx'
 import { apiLoadSession, apiNewSession, requireAuth } from './api.js'
+import { SPEAKER_KEY } from './data.js'
 
 const SAVE_KEY = 'persona_session_id'
 
@@ -46,7 +47,22 @@ export default function App() {
 
   const applyLoaded = (data, shouldSpeak = false) => {
     setSession(data.session)
-    const loadedHistory = data.history || (data.intro ? [{ role: 'assistant', content: data.intro, speak: shouldSpeak }] : [])
+    let loadedHistory
+    if (data.history) {
+      loadedHistory = data.history
+    } else if (data.intro_segments?.length) {
+      // 도입부도 화자별 말풍선으로 펼친다 (GM 서술 + 의사 대사)
+      loadedHistory = data.intro_segments.map((seg, i, arr) => ({
+        role: 'assistant',
+        content: seg.text,
+        who: seg.role === 'npc' ? (SPEAKER_KEY[seg.speaker] || 'gm') : 'gm',
+        speak: shouldSpeak && i === arr.length - 1,
+      }))
+    } else if (data.intro) {
+      loadedHistory = [{ role: 'assistant', content: data.intro, speak: shouldSpeak }]
+    } else {
+      loadedHistory = []
+    }
     setHistory(loadedHistory)
     localStorage.setItem(SAVE_KEY, data.session.id)
     setHasSave(true)

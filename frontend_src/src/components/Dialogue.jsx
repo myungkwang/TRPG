@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { SPEAKERS, FLAVOR_CHOICE, CHOICES } from '../data.js'
+import { SPEAKERS, SPEAKER_KEY, FLAVOR_CHOICE, CHOICES } from '../data.js'
 import D12 from './D12.jsx'
 import Character3D from './Character3D.jsx'
 import { apiChat, apiTTS } from '../api.js'
@@ -10,10 +10,15 @@ const CHARACTER_MODELS = [
 ]
 
 const toUiLog = (history = []) => history.map((item) => ({
-  who: item.role === 'assistant' ? 'gm' : 'player',
+  // who(화자)가 있으면 그대로 쓰고, 없으면 role로 추론 (assistant→gm)
+  who: item.who || (item.role === 'assistant' ? 'gm' : 'player'),
   text: item.content || '',
   speak: Boolean(item.speak),
 }))
+
+// 백엔드 segment({role, speaker}) → 말풍선 화자 키
+const segToWho = (seg) =>
+  seg.role === 'npc' ? (SPEAKER_KEY[seg.speaker] || 'gm') : 'gm'
 
 const getLastNpcSpeaker = (log) => {
   const lastNpc = [...log].reverse().find((m) => m.who !== 'player' && CHARACTER_MODELS.some((c) => c.speaker === m.who))
@@ -90,7 +95,7 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
 
   const appendMessage = (who, text, options = {}) => {
     const role = who === 'player' ? 'user' : 'assistant'
-    onHistoryChange((prev) => [...prev, { role, content: text, speak: Boolean(options.speak) }])
+    onHistoryChange((prev) => [...prev, { role, content: text, who, speak: Boolean(options.speak) }])
   }
 
   const triggerJudge = (dc = 11, stat = '지각', after) => {
@@ -134,7 +139,13 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
     try {
       const data = await apiChat(session.id, text)
       onSessionChange(data.session)
-      appendMessage('gm', data.answer, { speak: true })
+      // 화자별 세그먼트로 말풍선을 나눠 추가 (GM=시스템/서술, 의사·린 등=각자 말풍선)
+      const segs = (data.segments && data.segments.length)
+        ? data.segments
+        : [{ role: 'gm', speaker: null, text: data.answer }]
+      segs.forEach((seg, i) => {
+        appendMessage(segToWho(seg), seg.text, { speak: i === segs.length - 1 })
+      })
     } catch (err) {
       appendMessage('gm', `오류: ${err.message}`, { speak: false })
     } finally {
