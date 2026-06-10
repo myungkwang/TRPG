@@ -502,17 +502,25 @@ def debug_ending(
     NAME_MAP = {"노멀": "END_NORMAL", "트루": "END_TRUE", "히든": "END_HIDDEN", "베드": "END_BAD"}
     from endings import ENDINGS
     target_id = NAME_MAP.get(req.ending, req.ending)
-    # 지정 엔딩의 텍스트를 찾아 반환 (없으면 베드 fallback)
+    ending_data = None
     for e in ENDINGS:
         if e["id"] == target_id:
-            return {
+            ending_data = {
                 "kind": "good", "id": e["id"], "name": e["name"],
                 "summary": e.get("summary", ""), "text": e.get("text", ""),
                 "progress": 100,
             }
-    # 베드 엔딩
-    return {"kind": "bad", "id": "END_BAD", "name": "베드", "progress": 0,
-            "text": "베드 엔딩(테스트)."}
+            break
+    if ending_data is None:
+        try:
+            ending_data = generate_ending(req.session_id)
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=str(exc))
+    try:
+        codex.record_ending_for_session(req.session_id, ending_data)
+    except Exception:
+        pass
+    return {"session": public_session(req.session_id), "ending": ending_data}
 
 
 @app.post("/api/tts")
@@ -564,7 +572,8 @@ def signup(req: SignupRequest):
                 """,
                 (username, hash_password(password), name, email),
             ).fetchone()
-        except Exception:
+        except Exception as _signup_exc:
+            logger.error("signup INSERT failed: %s", _signup_exc)
             raise HTTPException(400, "이미 사용 중인 아이디 또는 이메일입니다.")
 
     return {
