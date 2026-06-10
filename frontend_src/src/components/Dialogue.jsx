@@ -749,7 +749,10 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
   const [endingJumping, setEndingJumping] = useState(false)
   const jumpEnding = async (kind) => {
     if (!session?.id || endingJumping) return
+    stopSpeaking()
     setEndingJumping(true)
+    setSending(true)
+    setChoices([])
     push('gm', `(테스트) '${kind}' 엔딩을 생성하는 중입니다… 잠시만 기다려 주세요.`, { speak: false })
     try {
       const data = await apiDebugEnding(session.id, kind)
@@ -759,6 +762,7 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
       push('gm', `엔딩 테스트 오류: ${err.message}`, { speak: false })
     } finally {
       setEndingJumping(false)
+      setSending(false)
     }
   }
 
