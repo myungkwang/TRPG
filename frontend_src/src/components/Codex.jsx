@@ -131,7 +131,7 @@ export default function CodexPanel({ onClose }) {
   const [codexData, setCodexData] = useState(null)
 
   useEffect(() => {
-    if (cat === 'endings' && !codexData) {
+    if (cat === 'endings') {
       apiGetCodex().then(setCodexData).catch(() => {})
     }
   }, [cat])
