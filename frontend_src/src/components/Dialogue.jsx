@@ -156,6 +156,20 @@ const getTtsInstructions = (persona, emotion) => {
   return `${base} ${extra}`.trim()
 }
 
+// 텍스트에서 인라인 톤 지시문 (괄호/대괄호) 추출.
+// 반환: { cleanText: 지시문 제거된 발화 텍스트, toneHint: 지시문들을 합친 문자열 }
+const extractToneHint = (text) => {
+  const hints = []
+  const clean = String(text || '')
+    .replace(/[(\[（【][^)\]）】]{1,60}[)\]）】]/g, (m) => {
+      hints.push(m.slice(1, -1).trim())
+      return ' '
+    })
+    .replace(/\s+/g, ' ')
+    .trim()
+  return { cleanText: clean, toneHint: hints.join(', ') }
+}
+
 let currentAudio = null
 let currentUtterance = null
 let speechRunId = 0
@@ -461,7 +475,13 @@ async function speakNpc(text, speaker = 'gm', options = {}) {
       if (runId !== speechRunId) return
 
       const persona = getPersonaForSpeaker(segment.speaker)
-      const fallbackDuration = estimateSpeechDuration(segment.text)
+      const { cleanText, toneHint } = extractToneHint(segment.text)
+      const spokenText = cleanText || segment.text
+      const ttsInstructions = toneHint
+        ? `${getTtsInstructions(persona)} ${toneHint}`.trim()
+        : getTtsInstructions(persona)
+      const cleanSegment = { ...segment, text: spokenText }
+      const fallbackDuration = estimateSpeechDuration(spokenText)
       options.onSegmentStart?.(segment)
       revealedCount += 1
       await new Promise(resolve => setTimeout(resolve, 60))
@@ -469,7 +489,7 @@ async function speakNpc(text, speaker = 'gm', options = {}) {
 
       if (USE_BROWSER_TTS) {
         try {
-          await speakWithBrowserTts(segment, fallbackDuration)
+          await speakWithBrowserTts(cleanSegment, fallbackDuration)
 
           if (runId !== speechRunId) return
           await new Promise(resolve => setTimeout(resolve, 80))
@@ -480,10 +500,10 @@ async function speakNpc(text, speaker = 'gm', options = {}) {
       }
 
       try {
-        const data = await apiTTS(segment.text, {
+        const data = await apiTTS(spokenText, {
           speaker: persona.id,
           voice: persona.tts?.voice,
-          instructions: getTtsInstructions(persona),
+          instructions: ttsInstructions,
         })
         console.log('TTS RESPONSE:', data)
 
@@ -493,8 +513,8 @@ async function speakNpc(text, speaker = 'gm', options = {}) {
         currentAudio = audio
 
         audio.onplay = () => {
-          window.playLinPerformance?.(segment.text, data.emotion, audio.duration)
-          window.startLinLipSync?.(audio, segment.text)
+          window.playLinPerformance?.(spokenText, data.emotion, audio.duration)
+          window.startLinLipSync?.(audio, spokenText)
         }
 
         await new Promise((resolve, reject) => {
@@ -515,8 +535,8 @@ async function speakNpc(text, speaker = 'gm', options = {}) {
           currentAudio.pause()
           currentAudio = null
         }
-        window.playLinPerformance?.(segment.text, 'talk', fallbackDuration)
-        window.startLinFallbackLipSync?.(segment.text, fallbackDuration)
+        window.playLinPerformance?.(spokenText, 'talk', fallbackDuration)
+        window.startLinFallbackLipSync?.(spokenText, fallbackDuration)
         await new Promise(resolve => setTimeout(resolve, fallbackDuration * 1000))
         window.stopLinLipSync?.()
         await new Promise(resolve => setTimeout(resolve, 120))
