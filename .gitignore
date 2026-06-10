@@ -49,6 +49,13 @@ vectorstore/
 static/audio/
 static_backup/
 
+# 엔딩 이미지: 런타임 생성물(uuid.png)은 무시, 고정 일러스트만 커밋
+static/endings/*
+!static/endings/normal.png
+!static/endings/true.png
+!static/endings/hidden.png
+!static/endings/bad.png
+
 # OS / editor
 .DS_Store
 Thumbs.db
