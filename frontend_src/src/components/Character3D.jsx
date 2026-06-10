@@ -296,6 +296,7 @@ export default function Character3D({
   motionIntensity = 1,
   cameraPosition = null,
   cameraTarget = null,
+  cameraFov = 50,
 }) {
   const hostRef = useRef(null)
   const [status, setStatus] = useState('Loading 3D model...')
@@ -1044,7 +1045,7 @@ export default function Character3D({
     scene = new THREE.Scene()
     scene.background = null
 
-    camera = new THREE.PerspectiveCamera(50, 1, 0.1, 5000)
+    camera = new THREE.PerspectiveCamera(cameraFov, 1, 0.1, 5000)
     camera.position.set(...(cameraPosition || CAMERA_POSITION))
 
     renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
