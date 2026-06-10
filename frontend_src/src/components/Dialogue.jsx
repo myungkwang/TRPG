@@ -900,8 +900,9 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
               modelScale={CHARACTER_MODELS[0].modelScale}
               modelOffset={CHARACTER_MODELS[0].modelOffset}
               motionIntensity={CHARACTER_MODELS[0].motionIntensity}
-              cameraPosition={[0, 660, 480]}
-              cameraTarget={[0, 640, 0]}
+              cameraPosition={[0, 830, 150]}
+              cameraTarget={[0, 820, 0]}
+              cameraFov={25}
             />
           </div>
         )}
