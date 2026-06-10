@@ -173,6 +173,7 @@ const extractToneHint = (text) => {
 let currentAudio = null
 let currentUtterance = null
 let speechRunId = 0
+let _onGmSpeakChange = null
 
 const estimateSpeechDuration = (text) => {
   const length = Array.from(String(text || '')).length
@@ -448,6 +449,7 @@ const splitSpeechSegments = (text, fallbackSpeaker = 'gm') => {
 }
 const stopSpeaking = () => {
   speechRunId++
+  _onGmSpeakChange?.(false)
   if (currentAudio) {
     currentAudio.pause()
     currentAudio.currentTime = 0
@@ -473,6 +475,8 @@ async function speakNpc(text, speaker = 'gm', options = {}) {
 
     for (const segment of segments) {
       if (runId !== speechRunId) return
+
+      _onGmSpeakChange?.(segment.speaker === 'gm')
 
       const persona = getPersonaForSpeaker(segment.speaker)
       const { cleanText, toneHint } = extractToneHint(segment.text)
@@ -550,6 +554,8 @@ async function speakNpc(text, speaker = 'gm', options = {}) {
     window.playLinAnimation?.('idle')
     options.onFallback?.(splitSpeechSegments(text, speaker).slice(revealedCount))
     window.playLinEmotion?.(text)
+  } finally {
+    _onGmSpeakChange?.(false)
   }
 }
 
@@ -564,6 +570,7 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
   const [sending, setSending] = useState(false)
   const [choices, setChoices] = useState([])
   const [npcTestRunning, setNpcTestRunning] = useState(false)
+  const [gmSpeaking, setGmSpeaking] = useState(false)
   const logRef = useRef(null)
   const judgeRef = useRef(null)
   const judgeTimerRef = useRef(null)
@@ -668,6 +675,10 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
 
   useEffect(() => () => stopSpeaking(), [])
   useEffect(() => () => clearTimeout(judgeTimerRef.current), [])
+  useEffect(() => {
+    _onGmSpeakChange = setGmSpeaking
+    return () => { _onGmSpeakChange = null }
+  }, [])
 
   const triggerJudge = (dc = 11, stat = '지각', opts = {}) => {
     judgeRef.current = {
@@ -867,17 +878,33 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
             </button>
           ))}
         </div>
-        <div className="char-center">
-          <Character3D
-            key={activeCharacter.speaker}
-            modelPath={activeCharacter.modelPath}
-            modelRotation={activeCharacter.modelRotation}
-            modelScale={activeCharacter.modelScale}
-            modelOffset={activeCharacter.modelOffset}
-            preferEmbeddedAnimations={activeCharacter.preferEmbeddedAnimations}
-            motionIntensity={activeCharacter.motionIntensity}
-          />
-        </div>
+        {activeSpeaker !== 'gm' && (
+          <div className="char-center">
+            <Character3D
+              key={activeCharacter.speaker}
+              modelPath={activeCharacter.modelPath}
+              modelRotation={activeCharacter.modelRotation}
+              modelScale={activeCharacter.modelScale}
+              modelOffset={activeCharacter.modelOffset}
+              preferEmbeddedAnimations={activeCharacter.preferEmbeddedAnimations}
+              motionIntensity={activeCharacter.motionIntensity}
+            />
+          </div>
+        )}
+
+        {gmSpeaking && (
+          <div className="gm-face-popup">
+            <Character3D
+              key="gm-popup"
+              modelPath={CHARACTER_MODELS[0].modelPath}
+              modelScale={CHARACTER_MODELS[0].modelScale}
+              modelOffset={CHARACTER_MODELS[0].modelOffset}
+              motionIntensity={CHARACTER_MODELS[0].motionIntensity}
+              cameraPosition={[0, 660, 480]}
+              cameraTarget={[0, 640, 0]}
+            />
+          </div>
+        )}
       </div>
 
       <div className="chat-section">
