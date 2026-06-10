@@ -92,8 +92,8 @@ def get_codex(user_id: str) -> dict:
         return {"clues": [], "endings": [], "characters": []}
     with get_conn() as conn:
         rows = conn.execute(
-            "SELECT kind, key, data, unlocked_at FROM user_codex "
-            "WHERE user_id = %s ORDER BY unlocked_at",
+            "SELECT kind, key, data, created_at FROM user_codex "
+            "WHERE user_id = %s ORDER BY created_at",
             (user_id,),
         ).fetchall()
 
