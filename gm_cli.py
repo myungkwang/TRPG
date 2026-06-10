@@ -2,14 +2,17 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import uuid
 from db import get_conn
 import dialogue
 from llm import chat, chat_with_tools
 from rag import retrieve_context
 from game_logic import perform_roll
+from personas import PERSONA_CONTEXT
 import progression
 import endings
+import codex
 
 SYSTEM_PROMPT = """
 너는 한국어 AI TRPG 게임 '증기와 비늘'의 AI 게임마스터다.
@@ -18,7 +21,17 @@ SYSTEM_PROMPT = """
 2. 모르는 설정은 단정하지 말고, 세계관에 어울리게 작게 보완한다.
 3. 플레이어의 자유 입력을 존중하되, 핵심 사건 비트와 결말로 자연스럽게 유도한다.
 4. NPC는 목적과 비밀을 가진 인격처럼 말한다. 린은 거짓과 진실을 섞을 수 있다.
-5. 응답은 4~8문장 정도로 짧게 유지하고, 마지막에는 플레이어가 할 수 있는 행동을 열어둔다.
+5. 응답은 3~6문장 정도로 짧고 빠르게 유지한다. 늘어지지 말 것.
+5-1. 플레이어는 NPC/GM이 말하는 도중에도 끼어들 수 있다. 직전 대화(네가 하던 말)와
+     방금 플레이어가 한 말의 맥락을 함께 파악해, 끊긴 흐름을 자연스럽게 이어 반응한다.
+     (필요하면 인물이 하던 말을 멈추고 플레이어 쪽으로 주의를 돌리는 식으로 연출한다.)
+
+[GM 서술 어조 — 매우 중요]
+- GM 서술은 '나레이터'처럼 정중한 존댓말(합쇼체, …습니다/…ㅂ니다/…십니까)로 쓴다.
+  예) "영석 등불이 흔들립니다. 낯선 사내가 당신을 들여다봅니다."
+      "당신의 선택이 어떤 결과를 가져올지, 진정한 엔딩은 당신의 행동에 달려 있습니다."
+- 반말 평서체('흔들린다/들여다본다/달려있다')를 GM 서술에 쓰지 않는다.
+- NPC '대사'는 그 인물의 말투를 따른다(린·마르타는 존댓말, 토비는 서툰 반말 등). 이건 별개다.
 
 [도구 사용 — 이야기가 자연스럽게 진행을 건드리게 하라]
 6. 행동 결과가 불확실하면 roll_check 도구로 판정한 뒤, 성공/실패를 서사에 반영한다.
@@ -29,21 +42,30 @@ SYSTEM_PROMPT = """
 8. 플레이어가 주요 장면(이벤트 노드)을 실제로 통과하면 visit_event 도구로 기록한다.
    예) 봉우리에서 카르가스와 대면→EVT_PEAK_CONFRONT.
    호감도(NPC 관계)는 이 이벤트 통과로만 오른다. 임의로 호감도를 올리지 말 것.
-   (visit_event 결과의 relations_changed에 오른 수치가 나오니 서사에 반영하라.)
 9. 플레이어가 단서/아이템을 손에 넣으면 give_item 도구로 인벤토리에 넣는다.
-   예) 가일이 숨긴 광부 명부를 입수→"은폐된 명부".
-10. 엔딩은 플래그·이벤트·아이템·관계의 조합으로 열린다. 도구 결과에 ending_reached가
+10. 장면의 장소가 바뀌면(이동·이벤트로) set_location 도구로 현재 위치를 바꿔 배경을 전환한다.
+    예) 진료소→여관, 여관→광산, 광산→갱도 심부, 절정→봉우리.
+11. 엔딩은 플래그·이벤트·아이템·관계의 조합으로 열린다. 도구 결과에 ending_reached가
     오면, 그 엔딩 장면을 연출하고 이야기를 마무리한다.
 
 [출력 형식 — 화자별로 줄을 나눠라]
 - 모든 줄은 화자 라벨로 시작한다. 라벨 뒤에 콜론(:)을 쓴다.
-- 서술·장면 묘사·판정 결과·안내(시스템)는 'GM:' 으로 시작한다.
+- 서술·장면 묘사·판정 결과·안내(시스템)는 'GM:' 으로 시작한다(존댓말 나레이션).
 - NPC가 직접 입으로 말하는 대사는 그 인물 이름으로 시작한다.
   쓸 수 있는 이름: 의사, 린, 가일, 마르타, 토비, 카르가스.
-- 한 응답에 GM 서술과 여러 NPC 대사가 번갈아 나와도 된다. 예:
-    GM: 진료소의 등불이 흔들린다. 낯선 사내가 당신을 들여다본다.
+- 절대 NPC 라벨 줄에 장면 묘사·나레이션을 넣지 않는다. NPC 줄에는 그 인물이 입으로 하는 말(따옴표 대사)만 적는다.
+  장소·분위기·행동 묘사는 전부 'GM:' 줄로 뺀다.
+- 예:
+    GM: 진료소의 등불이 흔들립니다. 낯선 사내가 당신을 들여다봅니다.
     의사: "깨어나셨군요. 기억나는 게 있습니까?"
-- NPC의 '대사'만 그 인물 라벨로, 행동·묘사는 GM 라벨로 둔다.
+
+[선택지 — 매번 끝에 붙여라]
+- 응답의 맨 끝에, 플레이어가 지금 취할 수 있는 행동 2~4개를 아래 형식으로 제시한다.
+- 반드시 이 형식을 그대로 지킨다(다른 말 없이):
+    [선택지]
+    - 마르타를 찾아간다
+    - 린에게서 정보를 얻는다
+- 선택지는 짧은 행동 문장으로. 플레이어는 이 중 하나를 고르거나 자유롭게 입력할 수 있다.
 """.strip()
 
 # AI GM이 부를 수 있는 도구. 대화 맥락에서 스스로 호출해 진행을 건드린다.
@@ -100,6 +122,21 @@ TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "set_location",
+            "description": "장면의 장소가 바뀌면 현재 위치를 갱신한다(배경 이미지가 따라 바뀐다).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "location": {"type": "string", "enum": list(progression.LOCATIONS),
+                                 "description": "바뀐 현재 장소"},
+                },
+                "required": ["location"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "give_item",
             "description": "플레이어가 이야기 중 아이템/단서를 손에 넣었을 때 인벤토리에 추가한다. 일부 엔딩의 조건(예: '은폐된 명부').",
             "parameters": {
@@ -115,6 +152,28 @@ TOOLS = [
 ]
 
 MAX_TOOL_ROUNDS = 4
+
+# GM 응답 끝의 "[선택지]" 블록을 떼어내 선택지 리스트로 만든다.
+_CHOICE_HEADER = re.compile(r"\n?\s*\[\s*선택지\s*\]\s*", re.IGNORECASE)
+_CHOICE_LINE = re.compile(r"^\s*(?:[-*•]|\d+[.)])\s*(.+?)\s*$")
+
+
+def split_choices(text: str) -> tuple[str, list[str]]:
+    """본문과 선택지를 분리한다. 반환: (선택지 블록을 뺀 본문, 선택지 문자열 리스트)."""
+    if not text:
+        return "", []
+    parts = _CHOICE_HEADER.split(text, maxsplit=1)
+    if len(parts) < 2:
+        return text.strip(), []
+    body, tail = parts[0], parts[1]
+    choices: list[str] = []
+    for line in tail.splitlines():
+        m = _CHOICE_LINE.match(line)
+        if m:
+            choices.append(m.group(1).strip())
+        elif line.strip() and choices:
+            break  # 선택지 블록이 끝났다
+    return body.strip(), choices
 
 
 def create_session() -> str:
@@ -190,6 +249,13 @@ def _execute_tool(session_id: str, session: dict, tool_call) -> dict:
             payload["relations_changed"] = res["relations_changed"]  # 이벤트로 오른 호감도
         return _with_ending(session_id, payload)
 
+    if name == "set_location":
+        try:
+            loc = progression.set_location(session_id, args.get("location"))
+        except ValueError as exc:
+            return {"error": str(exc)}
+        return {"ok": True, "location": loc}
+
     if name == "give_item":
         item = args.get("item", "").strip()
         if not item:
@@ -202,6 +268,11 @@ def _execute_tool(session_id: str, session: dict, tool_call) -> dict:
 
 def _with_ending(session_id: str, result: dict) -> dict:
     """상태 변경 후 전체 상태로 엔딩을 다시 판정해 결과에 실어준다."""
+    # 플래그로 해금된 단서를 계정 도감에 영구 적재(회차가 바뀌어도 누적).
+    try:
+        codex.sync_clues_from_session(session_id)
+    except Exception:
+        pass
     ending = endings.check_session_ending(session_id)
     if ending:
         result["ending_reached"] = {
@@ -210,7 +281,7 @@ def _with_ending(session_id: str, result: dict) -> dict:
     return result
 
 
-def gm_reply(session_id: str, user_input: str) -> str:
+def gm_reply(session_id: str, user_input: str) -> dict:
     session = load_session(session_id)
     contexts = retrieve_context(user_input, limit=5)
 
@@ -243,6 +314,7 @@ def gm_reply(session_id: str, user_input: str) -> str:
 
     messages: list = [
         {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "system", "content": PERSONA_CONTEXT},
         {"role": "system", "content": f"현재 세션 상태:\n{state_text}"},
         {"role": "system", "content": f"RAG 컨텍스트:\n{context_text}"},
         *recent_history(session_id),
@@ -276,9 +348,90 @@ def gm_reply(session_id: str, user_input: str) -> str:
         for t in tool_log:
             print(f"   · [도구] {t['tool']}({t['args']}) → {t['result']}", flush=True)
 
+    body, choices = split_choices(answer)
     save_event(session_id, "user", user_input, {})
-    save_event(session_id, "assistant", answer, {"contexts": contexts, "tools": tool_log})
-    return answer
+    save_event(session_id, "assistant", body,
+               {"contexts": contexts, "tools": tool_log, "choices": choices})
+    return {"answer": body, "choices": choices}
+
+
+BAD_ENDING_SYSTEM = """
+너는 한국어 AI TRPG '증기와 비늘'의 게임마스터다. 지금은 이 회차의 '베드 엔딩'을 쓰는 순간이다.
+플레이어는 충분한 단서를 모으거나 핵심 합의에 이르지 못한 채 이야기가 끝났다.
+
+[반드시 '증기와 비늘' 세계관 안에서만 쓴다 — 이탈 금지]
+- 무대: 잿빛 변경의 광산 마을 '재끝 마을', 영석(영정) 광산, 안갯속 봉우리.
+- 핵심 존재/인물: 봉우리의 태고 드래곤 '카르가스', 여관 주인이자 구미호 '린', 채굴 감독 '가일',
+  노파 '마르타', 소년 광부 '토비', 진료소 '의사'. 주인공은 기억을 잃은 채 깨어난 자.
+- 제공된 RAG '세계관 정본'과 페르소나를 우선한다. 현대·SF·타 세계관 요소는 절대 쓰지 않는다.
+
+[작성 규칙]
+- 아래 '여정 요약'의 달성/누락 비트와 NPC 관계를 반영해, 그 플레이어만의 실패 결말을 써라.
+- 재끝 마을과 인물들에게 닥친 결과를 잿빛·스팀펑크 톤으로 묘사한다.
+- 작위적 구원 없이 실패의 무게를 남긴다. 6~9문장. 정중한 존댓말 나레이션.
+- 마지막 한 줄로, 결정적으로 놓친 비트가 무엇이었는지 여운처럼 암시한다.
+- 'GM:' 으로 시작해 서술한다.
+""".strip()
+
+
+def _journey_summary(session: dict, pct: int) -> dict:
+    flags = progression.as_dict(session["flags"])
+    return {
+        "진행도": f"{pct}%",
+        "달성한 핵심비트": [progression.beat_label(b) for b in progression.PROGRESS_BEATS if flags.get(b)],
+        "놓친 핵심비트": [progression.beat_label(b) for b in progression.PROGRESS_BEATS if not flags.get(b)],
+        "NPC 관계": progression.as_dict(session["relations"]),
+        "마을 파괴": bool(flags.get("FLG_TOWN_DESTROYED")),
+    }
+
+
+def generate_ending(session_id: str) -> dict:
+    """정산 시점: 엔딩 분기를 확정하고 서술을 돌려준다.
+
+    - 정규(노멀/트루/히든): 고정 정본 텍스트를 그대로 사용 (LLM 호출 없음).
+    - 베드: 그 플레이어 여정에 맞춰 AI가 생성.
+    반환: {kind, id, name, progress, text}  (이미지는 서버가 별도 생성)
+    """
+    session = load_session(session_id)
+    resolved = endings.resolve_ending(session)
+    pct = resolved["progress"]
+
+    # 정규 엔딩은 고정 텍스트 — 쿼터가 없어도 항상 동작한다.
+    if resolved["kind"] == "good":
+        text = resolved.get("text") or resolved.get("summary") or ""
+        save_event(session_id, "assistant", text,
+                   {"type": "ending", "ending": resolved["id"], "progress": pct})
+        return {**resolved, "text": text}
+
+    # 베드 엔딩만 AI가 생성한다. 세계관 정본(RAG)+페르소나로 우리 세계관에 고정한다.
+    summary = _journey_summary(session, pct)
+    try:
+        lore = retrieve_context(
+            "증기와 비늘 재끝 마을 영석 광산 봉우리 카르가스 광부 실종 결말", limit=4)
+        lore_text = "\n\n".join(
+            f"[{c['document_title']} / {c['section_title']}]\n{c['content']}" for c in lore)
+    except Exception:
+        lore_text = ""
+    messages = [
+        {"role": "system", "content": BAD_ENDING_SYSTEM},
+        {"role": "system", "content": PERSONA_CONTEXT},
+        {"role": "system", "content": "세계관 정본(RAG):\n" + lore_text},
+        {"role": "system", "content": "여정 요약:\n" + json.dumps(summary, ensure_ascii=False, indent=2)},
+        *recent_history(session_id, limit=20),
+        {"role": "user", "content": "이 여정에 맞는 베드 엔딩을 써줘. 반드시 위 세계관 정본과 페르소나 안에서만."},
+    ]
+    try:
+        text = chat(messages)
+    except Exception:
+        # API 쿼터 소진 등으로 생성 실패 시에도 엔딩이 뜨도록 기본 텍스트로 대체.
+        text = (
+            "안개는 끝내 걷히지 않았습니다. 놓친 단서와 닿지 못한 합의가 재끝 마을 위로 잿빛 "
+            "그림자를 드리웁니다. 사라진 이들은 돌아오지 않았고, 봉우리의 비늘은 다시 어둠 속에서 "
+            "숨을 고릅니다. 당신의 이야기는, 미처 꿰지 못한 한 가닥의 실로 닫힙니다."
+        )
+    save_event(session_id, "assistant", text,
+               {"type": "ending", "ending": resolved["id"], "progress": pct})
+    return {**resolved, "text": text}
 
 
 def main() -> None:
@@ -292,12 +445,14 @@ def main() -> None:
             break
         if not user_input:
             continue
-        answer = gm_reply(session_id, user_input)
+        result = gm_reply(session_id, user_input)
         print()
         # 화자별 말풍선을 콘솔에서도 구분해 보여준다.
-        for seg in dialogue.split_segments(answer):
+        for seg in dialogue.split_segments(result["answer"]):
             who = "GM(시스템)" if seg["role"] == "gm" else seg["speaker"]
             print(f"[{who}] {seg['text']}")
+        for i, c in enumerate(result["choices"], 1):
+            print(f"  ({i}) {c}")
 
 if __name__ == "__main__":
     main()

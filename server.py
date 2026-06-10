@@ -13,9 +13,13 @@ from pydantic import BaseModel
 from openai import OpenAI
 
 from db import get_conn
-from gm_cli import create_session, gm_reply, load_session, recent_history
+from gm_cli import create_session, gm_reply, load_session, recent_history, generate_ending
+from llm import generate_image
 import progression
+import endings
 import dialogue
+import codex
+import llm
 from auth import (
     validate_signup,
     hash_password,
@@ -27,6 +31,8 @@ BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
 AUDIO_DIR = STATIC_DIR / "audio"
 AUDIO_DIR.mkdir(exist_ok=True)
+ENDING_DIR = STATIC_DIR / "endings"
+ENDING_DIR.mkdir(exist_ok=True)
 openai_client = OpenAI()
 
 app = FastAPI(title="증기와 비늘 Web Test")
@@ -83,6 +89,10 @@ def public_session(session_id: str) -> dict[str, Any]:
         "inventory": _json_safe(session["inventory"]),
         "flags": _json_safe(session["flags"]),
         "relations": _json_safe(session["relations"]),
+        "progress": progression.progress_pct(_json_safe(session["flags"]) or {}),
+        "stage": progression.current_stage(_json_safe(session["flags"]) or {}),
+        "settle_threshold": progression.SETTLE_THRESHOLD,
+        "ending_locked": session.get("ending") is not None,
     }
 def assert_session_owner(session_id: str, user_id: str) -> None:
     with get_conn() as conn:
@@ -169,6 +179,157 @@ def get_session(
         raise HTTPException(status_code=404, detail=str(exc))
 
 
+class EndingRequest(BaseModel):
+    session_id: str
+
+
+def _ending_image_prompt(ending: dict) -> str:
+    """확정된 엔딩으로 일러스트 프롬프트를 만든다(우리 세계관에 고정)."""
+    snippet = (ending.get("text") or "").replace("GM:", " ").strip()[:280]
+    return (
+        "steampunk gaslit mining town 'Jaekkeut' in a gray foggy frontier valley, "
+        "blue ether-crystal(영석) glow, misty peak with an ancient dragon's nest, "
+        f"ending mood: {ending['name']}. scene: {snippet} "
+        "19th-century steampunk, cinematic digital painting, atmospheric, no text, no letters."
+    )
+
+
+# 정규 엔딩(고정 텍스트)에 대응하는 '미리 만들어 둔' 고정 일러스트.
+#   static/endings/ 에 이 파일들을 두면 런타임 생성 없이 그대로 쓴다(비용 0·GPU 불필요).
+FIXED_ENDING_IMAGES = {
+    "노멀": "normal.png",
+    "트루": "true.png",
+    "히든": "hidden.png",
+}
+BAD_FALLBACK_IMAGE = "bad.png"   # 베드 생성 실패 시 폴백 일러스트
+
+
+def _static_image_url(filename: str | None) -> str | None:
+    """static/endings/ 에 파일이 실제로 있으면 그 URL을, 없으면 None."""
+    if filename and (ENDING_DIR / filename).exists():
+        return f"/static/endings/{filename}"
+    return None
+
+
+def _finalize_ending(session_id: str) -> dict:
+    """엔딩 분기를 확정해 서술 + 일러스트를 정하고 세션·도감에 저장한다.
+
+    - 정규(노멀/트루/히든): 미리 만든 고정 이미지를 그대로 사용(런타임 생성 X).
+    - 베드: 생성 시도 → 실패 시 고정 폴백 이미지.
+    """
+    result = generate_ending(session_id)  # {kind, id, name, progress, text}
+
+    if result["kind"] == "good":
+        # 정규 엔딩 — 고정 일러스트(있으면)만 연결, 생성 안 함.
+        image_url = _static_image_url(FIXED_ENDING_IMAGES.get(result["name"]))
+    else:
+        # 베드 — 라이브 생성기(comfyui/openai)가 켜져 있을 때만 생성 시도, 아니면 고정 폴백.
+        image_url = None
+        if llm.IMAGE_PROVIDER in llm.LIVE_IMAGE_PROVIDERS:
+            try:
+                img = generate_image(_ending_image_prompt(result))
+                filename = f"{uuid.uuid4()}.png"
+                (ENDING_DIR / filename).write_bytes(img)
+                image_url = f"/static/endings/{filename}"
+            except Exception:
+                image_url = None
+        if not image_url:
+            image_url = _static_image_url(BAD_FALLBACK_IMAGE)
+
+    ending = {
+        "kind": result["kind"], "id": result["id"], "name": result["name"],
+        "progress": result["progress"], "text": result["text"], "image_url": image_url,
+    }
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE game_sessions SET ending = %s, updated_at = now() WHERE id = %s",
+            (json.dumps(ending, ensure_ascii=False), session_id),
+        )
+
+    # 도달한 엔딩을 계정 도감에 영구 적재(회차가 바뀌어도 누적).
+    try:
+        codex.record_ending_for_session(session_id, ending)
+    except Exception:
+        pass
+
+    return ending
+
+
+@app.post("/api/ending/lock")
+def lock_ending(
+    req: EndingRequest,
+    user_id: str = Depends(get_user_id_from_token),
+) -> dict[str, Any]:
+    """70% 정산: 엔딩 분기를 확정하고, 서술 + 일러스트를 생성해 세션에 저장한다.
+
+    정규(노멀/트루/히든) 트리거 충족 시 그 엔딩, 미달이면 베드. 둘 다 LLM이 여정 반영해 서술.
+    이미지 생성은 시간이 걸리므로, 남은 30% 진행 동안 미리 만들어 두는 용도.
+    """
+    assert_session_owner(req.session_id, user_id)
+    ending = _finalize_ending(req.session_id)
+    return {"ending": ending, "segments": dialogue.split_segments(ending["text"])}
+
+
+class DebugEndingRequest(BaseModel):
+    session_id: str
+    ending: str | None = None   # '노멀'|'트루'|'히든'|'베드' (없으면 현재 플래그대로 판정)
+
+
+# 디버그용: 각 엔딩 조건을 즉석에서 만족시키는 플래그/이벤트 (endings.py와 일치).
+_DEBUG_ENDING_TARGETS = {
+    "노멀": {"flags": ["FLG_KARGAS_ALLY"], "events": ["EVT_PEAK_CONFRONT"]},
+    "트루": {"flags": ["FLG_LIN_PLOT_SEEN", "FLG_KARGAS_ALLY"], "events": ["EVT_PEAK_CONFRONT"]},
+    "히든": {"flags": ["FLG_LIN_ALLY", "FLG_MEMORY_RECOVERED"], "events": ["EVT_LIN_TALK"]},
+    "베드": {"flags": [], "events": []},
+}
+# 진행도 100%를 만들기 위한 스토리 단계 마커(progression.STORY_STAGES와 일치).
+_DEBUG_STAGE_EVENTS = [
+    "EVT_INTRO", "EVT_MINE_INVESTIGATE", "EVT_MINE_DEEP", "EVT_PEAK_CONFRONT", "EVT_EPILOGUE",
+]
+
+
+@app.post("/api/debug/ending")
+def debug_ending(
+    req: DebugEndingRequest,
+    user_id: str = Depends(get_user_id_from_token),
+) -> dict[str, Any]:
+    """[테스트 전용] 원하는 엔딩으로 즉시 점프한다.
+
+    선택한 엔딩 조건의 플래그/이벤트를 켜고, 진행도를 100%로 만든 뒤 엔딩을 생성한다.
+    자기 세션에만 적용(assert_session_owner). 정상 플레이를 거치지 않고 엔딩만 확인할 때 사용.
+    """
+    assert_session_owner(req.session_id, user_id)
+
+    # 100% 진행을 위해 모든 단계 마커를 켠다.
+    for ev in _DEBUG_STAGE_EVENTS:
+        progression.visit_event(req.session_id, ev)
+
+    target = _DEBUG_ENDING_TARGETS.get(req.ending or "")
+    if target:
+        for fl in target["flags"]:
+            progression.set_flag(req.session_id, fl, True)
+        for ev in target["events"]:
+            progression.visit_event(req.session_id, ev)
+
+    ending = _finalize_ending(req.session_id)
+    return {"ending": ending, "session": public_session(req.session_id)}
+
+
+@app.get("/api/ending/{session_id}")
+def get_ending(
+    session_id: str,
+    user_id: str = Depends(get_user_id_from_token),
+) -> dict[str, Any]:
+    """100% 공개: 70%에서 확정·저장해 둔 엔딩(서술+이미지)을 그대로 돌려준다."""
+    assert_session_owner(session_id, user_id)
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT ending FROM game_sessions WHERE id = %s", (session_id,)
+        ).fetchone()
+    ending = _json_safe(row[0]) if row and row[0] else None
+    return {"ending": ending}
+
+
 @app.get("/api/codex/clues/{session_id}")
 def codex_clues(
     session_id: str,
@@ -177,6 +338,14 @@ def codex_clues(
     """도감에서 확인하는 해금 단서(인벤토리 아이템 아님). 플래그로 열린 것만."""
     assert_session_owner(session_id, user_id)
     return {"clues": progression.unlocked_clues(session_id)}
+
+
+@app.get("/api/codex")
+def get_account_codex(
+    user_id: str = Depends(get_user_id_from_token),
+) -> dict[str, Any]:
+    """계정 단위로 누적된 도감(단서·엔딩·인물). 회차가 바뀌어도 사라지지 않는다."""
+    return codex.get_codex(user_id)
 
 
 @app.post("/api/chat")
@@ -191,11 +360,12 @@ def chat(
 
     assert_session_owner(req.session_id, user_id)
 
-    answer = gm_reply(req.session_id, message)
+    result = gm_reply(req.session_id, message)
 
     return {
-        "answer": answer,
-        "segments": dialogue.split_segments(answer),
+        "answer": result["answer"],
+        "segments": dialogue.split_segments(result["answer"]),
+        "choices": result["choices"],
         "session": public_session(req.session_id),
     }
 
@@ -222,14 +392,15 @@ def move(
             (location, req.session_id, user_id),
         )
 
-    answer = gm_reply(
+    result = gm_reply(
         req.session_id,
         f"나는 {location}으로 이동한다. 그곳의 상황을 묘사해줘.",
     )
 
     return {
-        "answer": answer,
-        "segments": dialogue.split_segments(answer),
+        "answer": result["answer"],
+        "segments": dialogue.split_segments(result["answer"]),
+        "choices": result["choices"],
         "session": public_session(req.session_id),
     }
 
