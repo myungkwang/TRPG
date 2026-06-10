@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GM 튜닝 립싱크 + Text-to-Motion 테스트</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { width:100%; height:100%; margin:0; overflow:hidden; background:#111; color:#f7efe4; font-family:system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    #viewer { width:100vw; height:100vh; }
+    #panel { position:fixed; top:14px; left:14px; width:min(520px, calc(100vw - 28px)); max-height:calc(100vh - 28px); overflow:auto; padding:14px; border:1px solid rgba(255,255,255,.16); border-radius:12px; background:rgba(20,16,12,.92); box-shadow:0 16px 50px rgba(0,0,0,.45); backdrop-filter:blur(8px); }
+    h1 { margin:0 0 8px; font-size:18px; }
+    h2 { margin:14px 0 8px; font-size:14px; color:#ffd68a; }
+    p { margin:6px 0; color:#d8cbbb; font-size:13px; line-height:1.45; }
+    .row { display:flex; flex-wrap:wrap; gap:8px; margin:8px 0; }
+    button { border:1px solid rgba(255,216,150,.35); border-radius:8px; background:#b87935; color:#fff7ed; padding:8px 10px; font-weight:700; cursor:pointer; }
+    button.secondary { background:#30241a; }
+    button.danger { background:#663027; }
+    button:disabled { opacity:.5; cursor:wait; }
+    input, textarea, select { width:100%; border:1px solid rgba(255,216,150,.28); border-radius:8px; background:#1f1812; color:#fff; padding:9px; }
+    textarea { min-height:70px; resize:vertical; }
+    #status { white-space:pre-line; padding:8px; border-radius:8px; background:rgba(255,255,255,.06); }
+    #morphButtons button { min-width:88px; }
+    #animButtons button { min-width:120px; }
+    code { color:#ffd68a; }
+  </style>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="viewer"></div>
+  <section id="panel">
+    <h1>튜닝 립싱크 + Text-to-Motion 테스트</h1>
+    <p id="status">로딩 준비 중...</p>
+
+    <h2>1. Shape Key 직접 테스트</h2>
+    <div id="morphButtons" class="row"></div>
+    <div class="row">
+      <button class="secondary" id="debugMorphBtn">Morph / Animation Debug</button>
+      <button class="danger" id="resetMorphBtn">입모양 초기화</button>
+    </div>
+
+    <h2>2. 튜닝 립싱크 테스트</h2>
+    <textarea id="ttsText">깨어났군요. 증기와 비늘의 세계에 온 것을 환영합니다.</textarea>
+    <div class="row">
+      <select id="lipMode" style="max-width:210px">
+        <option value="volume" selected>음량 기반만 (권장)</option>
+        <option value="volumeText">음량 + 텍스트 Viseme (실험)</option>
+      </select>
+      <button id="ttsBtn">/api/tts 재생</button>
+      <button class="secondary" id="fakeSpeechBtn">TTS 없이 테스트</button>
+      <button class="danger" id="stopAllBtn">정지</button>
+    </div>
+    <p>권장값은 <code>음량 기반만</code>입니다. 현재 Shape Key 5개 모델에서는 텍스트 Viseme를 얹으면 오히려 과장될 수 있어 비교용으로만 남겼습니다.</p>
+
+    <h2>3. 내장 전신 애니메이션</h2>
+    <div id="animButtons" class="row"></div>
+
+    <h2>4. Text-to-Motion 연결 테스트</h2>
+    <textarea id="motionPrompt">GM이 고개를 끄덕이며 차분하게 수긍한다.</textarea>
+    <div class="row">
+      <button id="motionSuggestBtn">텍스트 → 모션 선택/로드</button>
+      <button class="secondary" id="playLastMotionBtn">마지막 모션 재생</button>
+    </div>
+    <p>현재는 실제 Text-to-Motion 생성기가 아니라 <code>/api/text-to-motion</code> 어댑터입니다. 손 들기 같은 새 동작은 자동 생성되지 않으며, 생성된 GLB를 <code>static/text_motions/raise_hand.glb</code>처럼 넣어야 재생됩니다.</p>
+  </section>
+  <script type="module" src="/static/src/tuned-lipsync-motion-test.js"></script>
+</body>
+</html>
