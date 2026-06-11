@@ -1,31 +1,4 @@
-<<<<<<< HEAD
 import React, { useEffect, useRef, useState } from 'react'
-import { SPEAKERS, FLAVOR_CHOICE, CHOICES } from '../data.js'
-import D12 from './D12.jsx'
-import Character3D from './Character3D.jsx'
-import { apiChat, apiTTS } from '../api.js'
-
-const CHARACTER_MODELS = [
-  { speaker: 'gm', name: 'GM', modelPath: '/static/models/gm_model.glb' },
-  { speaker: 'lin', name: '린', modelPath: '/static/models/gm_model.glb' },
-]
-
-const toUiLog = (history = []) => history.map((item) => ({
-  who: item.role === 'assistant' ? 'gm' : 'player',
-  text: item.content || '',
-  speak: Boolean(item.speak),
-}))
-
-const getLastNpcSpeaker = (log) => {
-  const lastNpc = [...log].reverse().find((m) => m.who !== 'player' && CHARACTER_MODELS.some((c) => c.speaker === m.who))
-  return lastNpc?.who || CHARACTER_MODELS[0].speaker
-}
-
-let currentAudio = null
-
-async function speakGM(text) {
-=======
-﻿import React, { useEffect, useRef, useState } from 'react'
 import { SPEAKERS, FLAVOR_CHOICE, CHOICES } from '../data.js'
 import D12 from './D12.jsx'
 import Character3D from './Character3D.jsx'
@@ -44,6 +17,26 @@ const NPC_DIALOGUE_TEST_LINES = [
   { speaker: 'lin', text: '두 분 다 잠깐만요. 지금은 손님이 따라올 수 있게 천천히 말하는 게 좋겠어요.' },
 ]
 
+<<<<<<< HEAD
+=======
+const SHORT_TTS_TEST_LINES = [
+  { speaker: 'doctor', text: '니가 날 알어' },
+  { speaker: 'doctor', text: '나와 함께 포커 게임 할래' },
+  { speaker: 'lin', text: '월요일 날씨' },
+  { speaker: 'lin', text: '게임 찾아줘' },
+  { speaker: 'tobi', text: '내일 아침 여덟 시 알람해줘' },
+  { speaker: 'tobi', text: '적절한 시기의 난방 수준' },
+]
+
+const NPC_TEST_SPEAKERS = ['doctor', 'lin', 'gail', 'tobi']
+const NPC_TEST_STAGE_X = {
+  doctor: -420,
+  lin: -140,
+  gail: 140,
+  tobi: 420,
+}
+
+>>>>>>> 5ca47c3bd24137f2af35ea7ae01aa357f40ec0e5
 const CHARACTER_MODELS = [
   {
     speaker: 'gm',
@@ -59,9 +52,16 @@ const CHARACTER_MODELS = [
     personaId: 'lin',
     name: PERSONAS.lin.name,
     modelPath: '/static/models/Lin_ack_shrtleg_decntarm.glb',
+<<<<<<< HEAD
     modelScale: 0.75,
     modelOffset: [0, -120, 0],
     preferEmbeddedAnimations: true,
+=======
+    modelScale: 0.82,
+    modelOffset: [0, -120, 0],
+    preferEmbeddedAnimations: true,
+    motionIntensity: 0.9,
+>>>>>>> 5ca47c3bd24137f2af35ea7ae01aa357f40ec0e5
   },
   {
     speaker: 'gail',
@@ -76,7 +76,11 @@ const CHARACTER_MODELS = [
     speaker: 'marta',
     personaId: 'marta',
     name: PERSONAS.marta.name,
+<<<<<<< HEAD
     modelPath: '/static/models/static/models/Tobi_01.glb',
+=======
+    modelPath: '/static/models/Marta_01.glb',
+>>>>>>> 5ca47c3bd24137f2af35ea7ae01aa357f40ec0e5
     modelScale: 0.75,
     modelOffset: [0, 80, 0],
   },
@@ -86,8 +90,13 @@ const CHARACTER_MODELS = [
     name: PERSONAS.tobi.name,
     modelPath: '/static/models/Tobi_01.glb',
     modelRotation: [-Math.PI / 2, Math.PI, Math.PI],
+<<<<<<< HEAD
     modelScale: 0.45,
     modelOffset: [0, 80, 0],
+=======
+    modelScale: 0.15,
+    modelOffset: [0, 60, 0],
+>>>>>>> 5ca47c3bd24137f2af35ea7ae01aa357f40ec0e5
   },
   {
     speaker: 'doctor',
@@ -97,7 +106,11 @@ const CHARACTER_MODELS = [
     modelScale: 0.75,
     modelOffset: [0, -120, 0],
     preferEmbeddedAnimations: true,
+<<<<<<< HEAD
     motionIntensity: 2.5,
+=======
+    motionIntensity: 0.45,
+>>>>>>> 5ca47c3bd24137f2af35ea7ae01aa357f40ec0e5
   },
   {
     speaker: 'kargas',
@@ -143,7 +156,12 @@ const toUiLog = (history = []) => {
       }]
     }
 
+<<<<<<< HEAD
     return splitSpeechSegments(item.content || '', item.speaker || 'gm').map(segment => ({
+=======
+    const segments = normalizeStorySegments(item.segments, item.content || '', item.speaker || 'gm')
+    return segments.map(segment => ({
+>>>>>>> 5ca47c3bd24137f2af35ea7ae01aa357f40ec0e5
       who: segment.speaker,
       text: segment.text,
       speak: false,
@@ -187,17 +205,24 @@ const getTtsInstructions = (persona, emotion) => {
 // 반환: { cleanText: 지시문 제거된 발화 텍스트, toneHint: 지시문들을 합친 문자열 }
 const extractToneHint = (text) => {
   const hints = []
+<<<<<<< HEAD
   const original = String(text || '').trim()
   const clean = original
+=======
+  const clean = String(text || '')
+>>>>>>> 5ca47c3bd24137f2af35ea7ae01aa357f40ec0e5
     .replace(/[(\[（【][^)\]）】]{1,60}[)\]）】]/g, (m) => {
       hints.push(m.slice(1, -1).trim())
       return ' '
     })
     .replace(/\s+/g, ' ')
     .trim()
+<<<<<<< HEAD
   if (!clean && original) {
     return { cleanText: original, toneHint: '' }
   }
+=======
+>>>>>>> 5ca47c3bd24137f2af35ea7ae01aa357f40ec0e5
   return { cleanText: clean, toneHint: hints.join(', ') }
 }
 
@@ -373,7 +398,30 @@ const splitSegmentSentences = (segment) => {
 }
 
 const splitSegmentsIntoSentences = (segments) => {
+<<<<<<< HEAD
   return segments.flatMap(splitSegmentSentences)
+=======
+  const parts = segments.flatMap(splitSegmentSentences)
+
+  return parts.map((segment, index) => {
+    if (segment.speaker !== 'gm' || index === 0) return segment
+
+    if (/^(당신(?:은|이|에게|을|를)?|그는|그녀는|그들(?:은)?|주변|장소|공기|분위기|여관|진료소|광산|갱도|정제소)/.test(segment.text)) {
+      return { ...segment, speaker: 'gm' }
+    }
+
+    const previous = parts[index - 1]?.text || ''
+    const inferred = inferSpeakerFromContext(previous, 'gm')
+    const previousIntroducesSpeech = /(묻|말|대답|속삭|웃으며|미소|건네|목소리)/.test(previous)
+    const looksLikeDialogue = /[?？]$|(?:요|까|나요|습니까)[.!?。！？]?$/.test(segment.text)
+
+    if (inferred !== 'gm' && previousIntroducesSpeech && looksLikeDialogue) {
+      return { ...segment, speaker: inferred }
+    }
+
+    return segment
+  })
+>>>>>>> 5ca47c3bd24137f2af35ea7ae01aa357f40ec0e5
 }
 
 const mergeShortSpeechSegments = (segments) => {
@@ -459,6 +507,24 @@ const splitSpeechSegments = (text, fallbackSpeaker = 'gm') => {
 
   return splitSegmentsIntoSentences(segments.length ? segments : [{ speaker: fallbackSpeaker, text: source }])
 }
+<<<<<<< HEAD
+=======
+
+const normalizeStorySegments = (segments, fallbackText = '', fallbackSpeaker = 'gm') => {
+  if (!Array.isArray(segments) || segments.length === 0) {
+    return splitSpeechSegments(fallbackText, fallbackSpeaker)
+  }
+
+  const normalized = segments
+    .map(segment => ({
+      speaker: segment.speaker || (segment.role === 'gm' ? 'gm' : fallbackSpeaker),
+      text: String(segment.text || '').trim(),
+    }))
+    .filter(segment => segment.text)
+
+  return splitSegmentsIntoSentences(normalized.length ? normalized : [{ speaker: fallbackSpeaker, text: fallbackText }])
+}
+>>>>>>> 5ca47c3bd24137f2af35ea7ae01aa357f40ec0e5
 const stopSpeaking = () => {
   speechRunId++
   _onGmSpeakChange?.(false)
@@ -474,48 +540,25 @@ async function speakNpc(text, speaker = 'gm', options = {}) {
   const runId = ++speechRunId
   let revealedCount = 0
 
->>>>>>> main
   try {
     if (currentAudio) {
       currentAudio.pause()
       currentAudio.currentTime = 0
       currentAudio = null
     }
-<<<<<<< HEAD
-
-    window.playLinAnimation?.('talk')
-
-    const data = await apiTTS(text)
-    const audio = new Audio(data.audio_url)
-    currentAudio = audio
-
-    audio.onplay = () => window.playLinAnimation?.('talk')
-    audio.onended = () => {
-      window.playLinAnimation?.('idle')
-      if (currentAudio === audio) currentAudio = null
-    }
-    audio.onerror = () => {
-      window.playLinAnimation?.('idle')
-      if (currentAudio === audio) currentAudio = null
-    }
-
-    await audio.play()
-  } catch (err) {
-    console.warn('TTS error:', err)
-    window.playLinEmotion?.(text)
-  }
-}
-
-export default function Dialogue({ session, history, onHistoryChange, onSessionChange, onTriggerMap }) {
-=======
     cancelBrowserSpeech()
 
+<<<<<<< HEAD
     const segments = mergeShortSpeechSegments(splitSpeechSegments(text, speaker))
+=======
+    const segments = mergeShortSpeechSegments(normalizeStorySegments(options.segments, text, speaker))
+>>>>>>> 5ca47c3bd24137f2af35ea7ae01aa357f40ec0e5
     console.log('TTS SEGMENTS:', segments)
 
     for (const segment of segments) {
       if (runId !== speechRunId) return
 
+<<<<<<< HEAD
       const persona = getPersonaForSpeaker(segment.speaker)
       const { cleanText, toneHint } = extractToneHint(segment.text)
       const spokenText = cleanText || segment.text
@@ -524,11 +567,23 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
 
       _onGmSpeakChange?.(segment.speaker === 'gm')
 
+=======
+      _onGmSpeakChange?.(segment.speaker === 'gm')
+
+      const persona = getPersonaForSpeaker(segment.speaker)
+      const { cleanText, toneHint } = extractToneHint(segment.text)
+      const spokenText = cleanText || segment.text
+>>>>>>> 5ca47c3bd24137f2af35ea7ae01aa357f40ec0e5
       const ttsInstructions = toneHint
         ? `${getTtsInstructions(persona)} ${toneHint}`.trim()
         : getTtsInstructions(persona)
       const cleanSegment = { ...segment, text: spokenText }
       const fallbackDuration = estimateSpeechDuration(spokenText)
+<<<<<<< HEAD
+=======
+      options.onSegmentStart?.(segment)
+      revealedCount += 1
+>>>>>>> 5ca47c3bd24137f2af35ea7ae01aa357f40ec0e5
       await new Promise(resolve => setTimeout(resolve, 60))
       if (runId !== speechRunId) return
 
@@ -580,6 +635,17 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
           currentAudio.pause()
           currentAudio = null
         }
+<<<<<<< HEAD
+=======
+        try {
+          await speakWithBrowserTts(cleanSegment, fallbackDuration)
+          if (runId !== speechRunId) return
+          await new Promise(resolve => setTimeout(resolve, 120))
+          continue
+        } catch (browserFallbackErr) {
+          console.warn('Browser TTS fallback failed:', segment.speaker, browserFallbackErr)
+        }
+>>>>>>> 5ca47c3bd24137f2af35ea7ae01aa357f40ec0e5
         window.playLinPerformance?.(spokenText, 'talk', fallbackDuration)
         window.startLinFallbackLipSync?.(spokenText, fallbackDuration)
         await new Promise(resolve => setTimeout(resolve, fallbackDuration * 1000))
@@ -601,43 +667,20 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
 }
 
 export default function Dialogue({ session, history, onHistoryChange, onSessionChange, onEnding, runMapStep }) {
->>>>>>> main
   const [log, setLog] = useState(() => toUiLog(history))
   const [input, setInput] = useState('')
   const [choiceMode, setChoiceMode] = useState(false)
   const [activeSpeaker, setActiveSpeaker] = useState(() => getLastNpcSpeaker(toUiLog(history)))
-<<<<<<< HEAD
-  const [judge, setJudge] = useState(null)
-  const [judgeResult, setJudgeResult] = useState(null)
-  const [sending, setSending] = useState(false)
-  const logRef = useRef(null)
-  const judgeRef = useRef(null)
-  const judgeTimerRef = useRef(null)
-  const spokenRef = useRef(new Set())
-
-  useEffect(() => {
-    const next = toUiLog(history)
-    setLog(next)
-    setActiveSpeaker(getLastNpcSpeaker(next))
-
-    const last = next[next.length - 1]
-    const key = `${next.length}:${last?.text || ''}`
-    if (last?.who !== 'player' && last?.speak && !spokenRef.current.has(key)) {
-      spokenRef.current.add(key)
-      setTimeout(() => {
-        window.playLinEmotion?.(last.text)
-        speakGM(last.text)
-      }, 250)
-    }
-  }, [history])
-
-=======
   const [stageLocation, setStageLocation] = useState(null)
   const [judge, setJudge] = useState(null)
   const [judgeResult, setJudgeResult] = useState(null)
   const [sending, setSending] = useState(false)
   const [choices, setChoices] = useState([])
   const [npcTestRunning, setNpcTestRunning] = useState(false)
+<<<<<<< HEAD
+=======
+  const [shortTtsTestRunning, setShortTtsTestRunning] = useState(false)
+>>>>>>> 5ca47c3bd24137f2af35ea7ae01aa357f40ec0e5
   const [gmSpeaking, setGmSpeaking] = useState(false)
   const logRef = useRef(null)
   const judgeRef = useRef(null)
@@ -658,6 +701,10 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
       spokenRef.current.add(key)
       setTimeout(() => {
         speakNpc(last.content || '', speaker, {
+<<<<<<< HEAD
+=======
+          segments: normalizeStorySegments(last.segments, last.content || '', speaker),
+>>>>>>> 5ca47c3bd24137f2af35ea7ae01aa357f40ec0e5
           onSegmentStart: (segment) => {
             setActiveSpeaker(segment.speaker)
             setLog(prev => [...prev, { who: segment.speaker, text: segment.text, speak: false }])
@@ -685,13 +732,27 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
 
     if (onHistoryChange) {
       const role = who === 'player' ? 'user' : 'assistant'
+<<<<<<< HEAD
       onHistoryChange(prev => [...prev, { role, speaker: who, content: text, speak: Boolean(options.speak) }])
+=======
+      onHistoryChange(prev => [...prev, {
+        role,
+        speaker: who,
+        content: text,
+        segments: options.segments,
+        speak: Boolean(options.speak),
+      }])
+>>>>>>> 5ca47c3bd24137f2af35ea7ae01aa357f40ec0e5
     } else {
       const next = who === 'player'
         ? [{ who, text, speak: Boolean(options.speak) }]
         : splitSpeechSegments(text, who).map(segment => ({ who: segment.speaker, text: segment.text, speak: false }))
       if (who !== 'player' && options.speak) {
         speakNpc(text, who, {
+<<<<<<< HEAD
+=======
+          segments: options.segments,
+>>>>>>> 5ca47c3bd24137f2af35ea7ae01aa357f40ec0e5
           onSegmentStart: (segment) => {
             setActiveSpeaker(segment.speaker)
             setLog(l => [...l, { who: segment.speaker, text: segment.text, speak: false }])
@@ -737,22 +798,10 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
     }
   }, [session?.stage?.index])
 
->>>>>>> main
   useEffect(() => {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight
   }, [log, choiceMode])
 
-<<<<<<< HEAD
-  useEffect(() => () => clearTimeout(judgeTimerRef.current), [])
-
-  const appendMessage = (who, text, options = {}) => {
-    const role = who === 'player' ? 'user' : 'assistant'
-    onHistoryChange((prev) => [...prev, { role, content: text, speak: Boolean(options.speak) }])
-  }
-
-  const triggerJudge = (dc = 11, stat = '지각', after) => {
-    judgeRef.current = { dc, stat, after }
-=======
   useEffect(() => () => stopSpeaking(), [])
   useEffect(() => () => clearTimeout(judgeTimerRef.current), [])
   useEffect(() => {
@@ -765,7 +814,6 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
       dc, stat, after: opts.after,
       onSuccess: opts.onSuccess || 'shop', onFail: opts.onFail || 'event', success: null,
     }
->>>>>>> main
     setJudge({ dc, stat })
     setJudgeResult(null)
   }
@@ -773,10 +821,7 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
   const handleRollDone = (result) => {
     const dc = judgeRef.current?.dc ?? 0
     const success = result >= dc
-<<<<<<< HEAD
-=======
     if (judgeRef.current) judgeRef.current.success = success
->>>>>>> main
     setJudgeResult({ result, success })
     clearTimeout(judgeTimerRef.current)
     judgeTimerRef.current = setTimeout(() => doCloseJudge(), 3000)
@@ -784,14 +829,6 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
 
   const doCloseJudge = () => {
     clearTimeout(judgeTimerRef.current)
-<<<<<<< HEAD
-    const { after, stat } = judgeRef.current || {}
-    judgeRef.current = null
-    setJudge(null)
-    setJudgeResult(null)
-    if (after) after()
-    else if (stat) appendMessage('gm', `${stat} 판정이 끝났다. 결과에 따라 이야기가 갈라진다.`, { speak: true })
-=======
     const ref = judgeRef.current || {}
     judgeRef.current = null
     setJudge(null)
@@ -800,7 +837,6 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
     else if (ref.stat) push('gm', `${ref.stat} 판정 ${ref.success ? '성공' : '실패'} - 길이 갈라진다.`, { speak: true })
     const dest = ref.success ? ref.onSuccess : ref.onFail
     advanceOnMap(dest)
->>>>>>> main
   }
 
   const closeJudgeModal = () => {
@@ -808,25 +844,12 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
     doCloseJudge()
   }
 
-<<<<<<< HEAD
-  const send = async () => {
-    const text = input.trim()
-    if (!text || !session?.id || sending) return
-
-    appendMessage('player', text)
-    setInput('')
-    setChoiceMode(false)
-    setSending(true)
-
-    try {
-      const data = await apiChat(session.id, text)
-      onSessionChange(data.session)
-      appendMessage('gm', data.answer, { speak: true })
-    } catch (err) {
-      appendMessage('gm', `오류: ${err.message}`, { speak: false })
-=======
   const runNpcDialogueTest = async () => {
+<<<<<<< HEAD
     if (npcTestRunning) return
+=======
+    if (npcTestRunning || shortTtsTestRunning) return
+>>>>>>> 5ca47c3bd24137f2af35ea7ae01aa357f40ec0e5
     setNpcTestRunning(true)
     setChoiceMode(false)
     setLog(prev => [
@@ -857,6 +880,41 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
     }
   }
 
+<<<<<<< HEAD
+=======
+  const runShortTtsTest = async () => {
+    if (npcTestRunning || shortTtsTestRunning) return
+    setShortTtsTestRunning(true)
+    setChoiceMode(false)
+    setLog(prev => [
+      ...prev,
+      { who: 'gm', text: '[짧은 TTS 테스트 시작]', speak: false },
+    ])
+
+    try {
+      for (const line of SHORT_TTS_TEST_LINES) {
+        // eslint-disable-next-line no-await-in-loop
+        await speakNpc(line.text, line.speaker, {
+          onSegmentStart: (segment) => {
+            setActiveSpeaker(segment.speaker)
+            setLog(prev => [...prev, { who: segment.speaker, text: segment.text, speak: false }])
+          },
+          onFallback: (segments) => {
+            setLog(prev => [
+              ...prev,
+              ...segments.map(segment => ({ who: segment.speaker, text: segment.text, speak: false })),
+            ])
+          },
+        })
+        // eslint-disable-next-line no-await-in-loop
+        await new Promise(resolve => setTimeout(resolve, 220))
+      }
+    } finally {
+      setShortTtsTestRunning(false)
+    }
+  }
+
+>>>>>>> 5ca47c3bd24137f2af35ea7ae01aa357f40ec0e5
   const sendText = async (raw) => {
     const text = String(raw || '').trim()
     if (!text || sending) return
@@ -876,32 +934,22 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
     try {
       const data = await apiChat(session.id, text)
       onSessionChange?.(data.session)
+<<<<<<< HEAD
       push('gm', data.answer, { speak: true })
+=======
+      push('gm', data.answer, {
+        speak: true,
+        segments: normalizeStorySegments(data.segments, data.answer, 'gm'),
+      })
+>>>>>>> 5ca47c3bd24137f2af35ea7ae01aa357f40ec0e5
       setChoices(Array.isArray(data.choices) ? data.choices : [])
     } catch (err) {
       push('gm', `오류: ${err.message}`, { speak: false })
->>>>>>> main
     } finally {
       setSending(false)
     }
   }
 
-<<<<<<< HEAD
-  const pickChoice = (choice) => {
-    appendMessage('player', `[선택] ${choice.text}`)
-    setChoiceMode(false)
-    if (choice.judge) {
-      triggerJudge(choice.dc, choice.stat)
-    } else {
-      appendMessage('gm', '선택이 기록되었다. GM이 그 결과를 이야기 속에 반영한다.', { speak: true })
-    }
-  }
-
-  const activeCharacter = CHARACTER_MODELS.find((c) => c.speaker === activeSpeaker) || CHARACTER_MODELS[0]
-
-  return (
-    <div className="dialogue">
-=======
   const send = () => sendText(input)
 
   const [endingJumping, setEndingJumping] = useState(false)
@@ -938,6 +986,16 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
   }
 
   const activeCharacter = CHARACTER_MODELS.find(c => c.speaker === activeSpeaker) || CHARACTER_MODELS[0]
+<<<<<<< HEAD
+=======
+  const npcTestCharacters = NPC_TEST_SPEAKERS
+    .map(speaker => CHARACTER_MODELS.find(c => c.speaker === speaker))
+    .filter(Boolean)
+  const stagedNpcTestCharacters = npcTestCharacters
+    .filter(character => character.speaker !== activeSpeaker)
+    .concat(npcTestCharacters.filter(character => character.speaker === activeSpeaker))
+  const testStageRunning = npcTestRunning || shortTtsTestRunning
+>>>>>>> 5ca47c3bd24137f2af35ea7ae01aa357f40ec0e5
   const locationBackground = getLocationBackground(stageLocation || session?.location)
   const isMineLocation = locationBackground?.includes('/mine.png')
 
@@ -967,17 +1025,12 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
       className={`dialogue${locationBackground ? ' has-location-bg' : ''}`}
       style={locationBackground ? { '--location-bg': `url("${locationBackground}")` } : undefined}
     >
->>>>>>> main
       <div className="bg-embers" />
 
       {judge && (
         <div className="dice-modal-overlay" onClick={closeJudgeModal}>
           <div className="dice-modal">
-<<<<<<< HEAD
-            <button className="dice-modal-close" onClick={closeJudgeModal}>✕</button>
-=======
             <button className="dice-modal-close" onClick={closeJudgeModal}>×</button>
->>>>>>> main
             <div className="dice-modal-title">{judge.stat} 판정 · DC {judge.dc}</div>
             <D12 size={130} autoRoll={{ dc: judge.dc }} onDone={handleRollDone} />
             {judgeResult && (
@@ -985,15 +1038,10 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
                 <div className={`dice-modal-result ${judgeResult.success ? 'success' : 'fail'}`}>
                   {judgeResult.success ? '성공!' : '실패'}
                 </div>
-<<<<<<< HEAD
-                <div className="dice-modal-roll-num">{judgeResult.result} / DC {judge.dc}</div>
-                <div className="dice-modal-hint">클릭하거나 3초 후 자동으로 닫힙니다</div>
-=======
                 <div className="dice-modal-roll-num">
                   {judgeResult.result} / DC {judge.dc}
                 </div>
                 <div className="dice-modal-hint">클릭하거나 3초 뒤 자동으로 닫힙니다</div>
->>>>>>> main
               </>
             )}
           </div>
@@ -1002,21 +1050,21 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
 
       <div className="vn-stage">
         <div className="stage-tools">
-<<<<<<< HEAD
-          <button onClick={() => setChoiceMode((v) => !v)}>선택지</button>
-          <button onClick={() => triggerJudge(11, '지각')}>판정</button>
-          <button onClick={onTriggerMap}>🗺 지도</button>
-        </div>
-        <div className="char-center">
-          <Character3D key={activeCharacter.speaker} modelPath={activeCharacter.modelPath} />
-        </div>
-=======
           <button onClick={() => setChoiceMode(v => !v)}>선택지</button>
           <button onClick={() => triggerJudge(11, '지각')}>판정</button>
           <button onClick={() => advanceOnMap()}>지도</button>
+<<<<<<< HEAD
           <button onClick={runNpcDialogueTest} disabled={npcTestRunning}>
             {npcTestRunning ? '대화중' : 'NPC 테스트'}
           </button>
+=======
+          <button onClick={runNpcDialogueTest} disabled={testStageRunning}>
+            {npcTestRunning ? '대화중' : 'NPC 테스트'}
+          </button>
+          <button onClick={runShortTtsTest} disabled={testStageRunning}>
+            {shortTtsTestRunning ? 'TTS중' : '짧은TTS'}
+          </button>
+>>>>>>> 5ca47c3bd24137f2af35ea7ae01aa357f40ec0e5
           {['노멀', '트루', '히든', '베드'].map(k => (
             <button key={k} onClick={() => jumpEnding(k)} disabled={endingJumping || !session?.id}
               title={`${k} 엔딩으로 즉시 점프 (테스트)`}>
@@ -1024,7 +1072,37 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
             </button>
           ))}
         </div>
+<<<<<<< HEAD
         {activeSpeaker !== 'gm' && (
+=======
+        {testStageRunning ? (
+          <div className="char-ensemble">
+            {stagedNpcTestCharacters.map((character) => {
+              const active = character.speaker === activeSpeaker
+              return (
+                <div
+                  key={character.speaker}
+                  className={`char-slot${active ? ' active' : ''}`}
+                  data-speaker={character.speaker}
+                  style={{ '--slot-x': `${NPC_TEST_STAGE_X[character.speaker] || 0}px` }}
+                >
+                  <Character3D
+                    modelPath={character.modelPath}
+                    modelRotation={character.modelRotation}
+                    modelScale={character.modelScale}
+                    modelOffset={character.modelOffset}
+                    framingOffsetY={character.framingOffsetY}
+                    framingScale={character.framingScale}
+                    preferEmbeddedAnimations={character.preferEmbeddedAnimations}
+                    motionIntensity={active ? character.motionIntensity : 0.12}
+                    registerGlobalControls={active}
+                  />
+                </div>
+              )
+            })}
+          </div>
+        ) : activeSpeaker !== 'gm' && (
+>>>>>>> 5ca47c3bd24137f2af35ea7ae01aa357f40ec0e5
           <div className="char-center">
             <Character3D
               key={activeCharacter.speaker}
@@ -1032,6 +1110,11 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
               modelRotation={activeCharacter.modelRotation}
               modelScale={activeCharacter.modelScale}
               modelOffset={activeCharacter.modelOffset}
+<<<<<<< HEAD
+=======
+              framingOffsetY={activeCharacter.framingOffsetY}
+              framingScale={activeCharacter.framingScale}
+>>>>>>> 5ca47c3bd24137f2af35ea7ae01aa357f40ec0e5
               preferEmbeddedAnimations={activeCharacter.preferEmbeddedAnimations}
               motionIntensity={activeCharacter.motionIntensity}
             />
@@ -1052,32 +1135,10 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
             />
           </div>
         )}
->>>>>>> main
       </div>
 
       <div className="chat-section">
         <div className="chatlog" ref={logRef}>
-<<<<<<< HEAD
-          {log.length === 0 && (
-            <div className="msg left">
-              <div className="role" style={{ color: SPEAKERS.gm.color }}>GM</div>
-              <div className="bubble" style={{ borderColor: SPEAKERS.gm.color, background: SPEAKERS.gm.tint }}>
-                타이틀 화면에서 게임 시작을 눌러 이야기를 시작하세요.
-              </div>
-            </div>
-          )}
-
-          {log.map((m, i) => {
-            const speaker = SPEAKERS[m.who] || SPEAKERS.gm
-            const side = m.who === 'player' ? 'right' : 'left'
-            return (
-              <div key={`${i}-${m.text.slice(0, 8)}`} className={`msg ${side}`}>
-                <div className="role" style={{ color: speaker.color }}>{speaker.name}</div>
-                <div className="bubble" style={{
-                  borderColor: speaker.color,
-                  background: speaker.tint,
-                  boxShadow: `inset ${side === 'right' ? '-3px' : '3px'} 0 0 ${speaker.color}, 0 3px 10px #0005`,
-=======
           {log.map((m, i) => {
             const sp = getSpeakerPresentation(m.who)
             const side = m.who === 'player' ? 'right' : 'left'
@@ -1087,7 +1148,6 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
                 <div className="bubble" style={{
                   borderColor: sp.color, background: sp.tint,
                   boxShadow: `inset ${side === 'right' ? '-3px' : '3px'} 0 0 ${sp.color}, 0 3px 10px #0005`,
->>>>>>> main
                 }}>{m.text}</div>
               </div>
             )
@@ -1097,18 +1157,6 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
         {choiceMode && (
           <div className="choice-block">
             <div className="choice-flavor">{FLAVOR_CHOICE}</div>
-<<<<<<< HEAD
-            {CHOICES.map((choice) => (
-              <button key={choice.id}
-                className={'choice-row' + (choice.tag && choice.tag.includes('위험') ? ' danger' : '')}
-                onClick={() => pickChoice(choice)}>
-                <span className="cn">{choice.id}</span>
-                <span>{choice.text}</span>
-                {choice.tag && <span className="ctag">{choice.tag}</span>}
-              </button>
-            ))}
-            <div className="choice-note">※ 입력창에 직접 써서 다른 행동을 하거나 그냥 넘길 수도 있습니다.</div>
-=======
             {CHOICES.map(c => (
               <button key={c.id}
                 className={'choice-row' + (c.tag && c.tag.includes('위험') ? ' danger' : '')}
@@ -1134,7 +1182,6 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
               </button>
             ))}
             <div className="choice-note">또는 아래 입력창에 자유롭게 행동을 적어도 됩니다.</div>
->>>>>>> main
           </div>
         )}
 
@@ -1142,19 +1189,11 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
           <input
             value={input}
             disabled={sending || !session?.id}
-<<<<<<< HEAD
-            onChange={(event) => setInput(event.target.value)}
-            onKeyDown={(event) => event.key === 'Enter' && send()}
-            placeholder={session?.id ? '메세지를 입력하세요' : '타이틀에서 게임 시작을 눌러주세요'}
-          />
-          <button className="send" onClick={send} disabled={sending || !session?.id}>➤</button>
-=======
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && send()}
             placeholder={session?.id ? '메시지를 입력하세요' : '타이틀에서 게임을 시작해 주세요'}
           />
           <button className="send" onClick={send} disabled={sending || !session?.id}>▶</button>
->>>>>>> main
         </div>
       </div>
     </div>

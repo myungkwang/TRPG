@@ -1,8 +1,5 @@
 // ===== 임시 데이터 (나중에 서버/시트 데이터로 교체) =====
-<<<<<<< HEAD
-=======
 import { ITEMS, ITEM_LIST } from './items.js'
->>>>>>> main
 
 // 말풍선 색: GM=밤색, 린=진홍, 플레이어=회색
 export const SPEAKERS = {
@@ -12,15 +9,9 @@ export const SPEAKERS = {
 }
 
 export const SEED_DIALOGUE = [
-<<<<<<< HEAD
-  { who: 'gm',     text: '낡은 영석 등불이 깜빡인다. 카운터 뒤의 여인이 고개를 들어 너를 본다.' },
-  { who: 'player', text: '사라진 광부들에 대해 알고 있나?' },
-  { who: 'lin',    text: '…어머. 그 얘길 묻는 손님은 오랜만이네요. 공짜는 아니랍니다. 뭘 내놓으시겠어요?' },
-=======
   { who: 'gm', text: '아… 깨어나셨군요.' },
   { who: 'gm', text: '꼬박 사흘 밤낮을 앓으셨습니다. 여기는 재끝 마을 진료소 — 다행히, 숨은 붙어 있군요.' },
   { who: 'gm', text: '…이름은. 기억나는 게, 있으십니까?' },
->>>>>>> main
 ]
 
 export const FLAVOR_CHOICE = '~ 선택의 기회가 주어지면, 후회할 선택은 하지 마세요. ~'
@@ -50,22 +41,6 @@ export const STATUS = {
   etc: ['특이: 기억상실 — 정체 불명', '사회성: 보통', '마법: 술식형 (영정 매개)'],
 }
 
-<<<<<<< HEAD
-// 인벤토리: 3열 x 4행 + 주사위 슬롯 1칸
-export const INV_COLS = 3
-export const INV_ROWS = 4
-// 아이템: x,y(좌상단 셀), w,h(차지 셀), stack(겹침 수, 재화/영정은 10 초과 시 분할되어 이미 칸 나뉨)
-export const INV_ITEMS = [
-  { id: 'dagger', name: '낡은 단검', icon: '🗡️', x: 0, y: 0, w: 1, h: 2 },
-  { id: 'potion', name: '회복 물약', icon: '🧪', x: 1, y: 0, w: 1, h: 1, stack: 5 },
-  { id: 'lantern',name: '영석 등불', icon: '🏮', x: 2, y: 0, w: 1, h: 1 },
-  { id: 'stone',  name: '영석 조각', icon: '🪨', x: 1, y: 1, w: 1, h: 1 },
-  // 영정 23개 → 10/10/3 으로 칸 분할
-  { id: 'ess1',   name: '영정', icon: '✦', x: 0, y: 2, w: 1, h: 1, stack: 10, currency: true },
-  { id: 'ess2',   name: '영정', icon: '✦', x: 1, y: 2, w: 1, h: 1, stack: 10, currency: true },
-  { id: 'ess3',   name: '영정', icon: '✦', x: 2, y: 2, w: 1, h: 1, stack: 3,  currency: true },
-]
-=======
 // 장착 장비 — 머리 / 몸통 / 무기 3칸.
 //   slot.ph = 빈 슬롯에 보이는 흐린 안내 아이콘
 //   EQUIPMENT 값은 items.js 마스터의 ITM_* ID (null = 빈 슬롯)
@@ -101,7 +76,6 @@ export const INV_ITEMS = INV_LAYOUT.map((slot, i) => {
   const m = ITEMS[slot.ref]
   return { ...slot, id: `${slot.ref}_${i}`, name: m.name, icon: m.icon }
 })
->>>>>>> main
 
 // 도감 인물 (이미지7 형식)
 export const CODEX = [
@@ -131,8 +105,6 @@ export const MAP_EDGES = [
   ['n3','n6'],['n4','n6'],['n4','n7'],['n5','n7'],['n6','n8'],['n7','n8'],
 ]
 export const NODE_ICON = { start:'⌂', battle:'⚔', event:'✦', shop:'$', unknown:'?', boss:'☠' }
-<<<<<<< HEAD
-=======
 
 // ===== 도감 데이터 (계정당 영구 — 추후 서버/계정 저장으로 교체) =====
 export const REP_RANGE = { min: -50, max: 50 }
@@ -190,4 +162,3 @@ export const CODEX_ENDINGS = [
   { id:'en5', no:5, name:'???', got:false, art:'❔', summary:'아직 도달하지 못한 결말.', footnotes:[] },
   { id:'en6', no:6, name:'???', got:false, art:'❔', summary:'아직 도달하지 못한 결말.', footnotes:[] },
 ]
->>>>>>> main
