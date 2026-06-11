@@ -86,6 +86,19 @@ COSYVOICE_SPEAKERS = {
     "tavern_clerk": "char_tavern_clerk",
 }
 
+COSYVOICE_STYLE_INSTRUCTIONS = {
+    "char_doctor": "You are a helpful assistant. Please speak calmly and slowly.<|endofprompt|>",
+    "char_gm": "You are a helpful assistant. Please speak calmly and narrate clearly.<|endofprompt|>",
+    "char_gail": "You are a helpful assistant. Please speak in a deep, stern voice.<|endofprompt|>",
+    "char_kargas": "You are a helpful assistant. Please speak very slowly in a deep and powerful voice.<|endofprompt|>",
+    "char_marta": "You are a helpful assistant. Please speak slowly and gently.<|endofprompt|>",
+    "char_rin": "You are a helpful assistant. Please speak softly and calmly.<|endofprompt|>",
+    "char_toby": "You are a helpful assistant. Please speak brightly and quickly.<|endofprompt|>",
+    "char_nurse": "You are a helpful assistant. Please speak gently and clearly.<|endofprompt|>",
+    "char_miner": "You are a helpful assistant. Please speak naturally and clearly.<|endofprompt|>",
+    "char_tavern_clerk": "You are a helpful assistant. Please speak warmly and naturally.<|endofprompt|>",
+}
+
 TTS_PROVIDER = os.getenv("TTS_PROVIDER", "edge").strip().lower()
 
 EDGE_TTS_VOICES = {
@@ -124,6 +137,7 @@ class TTSRequest(BaseModel):
     text: str
     voice: str | None = None
     instructions: str | None = None
+    tone_instructions: str | None = None
     speaker: str | None = None
 
 
@@ -181,6 +195,12 @@ def _edge_speaker(req: TTSRequest) -> str:
     return (req.speaker or req.voice or "gm").strip().lower()
 
 
+def _tts_tone_instructions(req: TTSRequest, speaker: str) -> str:
+    if os.getenv("COSYVOICE_USE_CLIENT_TONE", "").strip().lower() in {"1", "true", "yes", "on"}:
+        return (req.tone_instructions or req.instructions or COSYVOICE_DEFAULT_INSTRUCTION).strip()
+    return COSYVOICE_STYLE_INSTRUCTIONS.get(speaker, COSYVOICE_DEFAULT_INSTRUCTION).strip()
+
+
 async def _synthesize_edge_tts_async(text: str, voice: str, out_path: Path) -> None:
     import edge_tts
 
@@ -215,7 +235,7 @@ def synthesize_cosyvoice(req: TTSRequest, out_path: Path) -> str:
     model = get_cosyvoice_client()
     speaker = _cosyvoice_speaker(req)
     text = req.text.strip()
-    instruction = (req.instructions or COSYVOICE_DEFAULT_INSTRUCTION).strip()
+    instruction = _tts_tone_instructions(req, speaker)
     if "<|endofprompt|>" not in instruction:
         instruction = f"{instruction}<|endofprompt|>"
 
