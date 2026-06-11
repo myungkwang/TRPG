@@ -103,7 +103,12 @@ export async function apiMove(sessionId, location) {
 export async function apiTTS(text, options = {}) {
   const body = typeof options === 'string'
     ? { text, voice: options }
-    : { text, ...options }
+    : {
+      text,
+      ...options,
+      tone_instructions: options.tone_instructions ?? options.instructions,
+    }
+  delete body.instructions
 
   return fetchJson('/api/tts', {
     method: 'POST',

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import Auth from './components/Auth.jsx'
 import Title from './components/Title.jsx'
+import Intro from './components/Intro.jsx'
 import Dialogue from './components/Dialogue.jsx'
 import MenuButton from './components/Menu.jsx'
 import { StatusPanel, InventoryPanel, FullMapPanel, SettingsPanel } from './components/Panels.jsx'
@@ -10,7 +11,7 @@ import MapOverlay from './components/MapOverlay.jsx'
 const SAVE_KEY = 'steamscale_save_v1'
 
 export default function App() {
-  const [screen, setScreen] = useState('auth')         // 'auth' | 'title' | 'game'
+  const [screen, setScreen] = useState('auth')         // 'auth' | 'title' | 'intro' | 'game'
   const [user, setUser] = useState(null)               // 로그인한 계정 이름
   const [overlay, setOverlay] = useState(null)          // status|inventory|fullmap|codex|settings|null
   const [showMap, setShowMap] = useState(false)         // Phaser 안갯속 지도
@@ -42,7 +43,7 @@ export default function App() {
     setHasSave(true); flashToast('게임을 저장했습니다')
   }
 
-  const startNew = () => { setJourney([]); setMapDepth(0); setScreen('game') }
+  const startNew = () => { setJourney([]); setMapDepth(0); setScreen('intro') }
   const continueGame = () => { if (hasSave) setScreen('game') }
 
   return (
@@ -60,6 +61,8 @@ export default function App() {
           onSettings={() => { setScreen('game'); setOverlay('settings') }}
         />
       )}
+
+      {screen === 'intro' && <Intro onDone={() => setScreen('game')} />}
 
       {screen === 'game' && (
         <>

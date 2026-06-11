@@ -160,13 +160,17 @@ const getTtsInstructions = (persona, emotion) => {
 // 반환: { cleanText: 지시문 제거된 발화 텍스트, toneHint: 지시문들을 합친 문자열 }
 const extractToneHint = (text) => {
   const hints = []
-  const clean = String(text || '')
+  const original = String(text || '').trim()
+  const clean = original
     .replace(/[(\[（【][^)\]）】]{1,60}[)\]）】]/g, (m) => {
       hints.push(m.slice(1, -1).trim())
       return ' '
     })
     .replace(/\s+/g, ' ')
     .trim()
+  if (!clean && original) {
+    return { cleanText: original, toneHint: '' }
+  }
   return { cleanText: clean, toneHint: hints.join(', ') }
 }
 
@@ -342,26 +346,7 @@ const splitSegmentSentences = (segment) => {
 }
 
 const splitSegmentsIntoSentences = (segments) => {
-  const parts = segments.flatMap(splitSegmentSentences)
-
-  return parts.map((segment, index) => {
-    if (segment.speaker !== 'gm' || index === 0) return segment
-
-    if (/^(당신(?:은|이|에게|을|를)?|그는|그녀는|그들(?:은)?|주변|장소|공기|분위기|여관|진료소|광산|갱도|정제소)/.test(segment.text)) {
-      return { ...segment, speaker: 'gm' }
-    }
-
-    const previous = parts[index - 1]?.text || ''
-    const inferred = inferSpeakerFromContext(previous, 'gm')
-    const previousIntroducesSpeech = /(묻|말|대답|속삭|웃으며|미소|건네|목소리)/.test(previous)
-    const looksLikeDialogue = /[?？]$|(?:요|까|나요|습니까)[.!?。！？]?$/.test(segment.text)
-
-    if (inferred !== 'gm' && previousIntroducesSpeech && looksLikeDialogue) {
-      return { ...segment, speaker: inferred }
-    }
-
-    return segment
-  })
+  return segments.flatMap(splitSegmentSentences)
 }
 
 const mergeShortSpeechSegments = (segments) => {
@@ -476,18 +461,19 @@ async function speakNpc(text, speaker = 'gm', options = {}) {
     for (const segment of segments) {
       if (runId !== speechRunId) return
 
-      _onGmSpeakChange?.(segment.speaker === 'gm')
-
       const persona = getPersonaForSpeaker(segment.speaker)
       const { cleanText, toneHint } = extractToneHint(segment.text)
       const spokenText = cleanText || segment.text
+      options.onSegmentStart?.(segment)
+      revealedCount += 1
+
+      _onGmSpeakChange?.(segment.speaker === 'gm')
+
       const ttsInstructions = toneHint
         ? `${getTtsInstructions(persona)} ${toneHint}`.trim()
         : getTtsInstructions(persona)
       const cleanSegment = { ...segment, text: spokenText }
       const fallbackDuration = estimateSpeechDuration(spokenText)
-      options.onSegmentStart?.(segment)
-      revealedCount += 1
       await new Promise(resolve => setTimeout(resolve, 60))
       if (runId !== speechRunId) return
 
