@@ -10,9 +10,12 @@ from __future__ import annotations
 
 import json
 import time
+import uuid
 
 from db import get_conn
 import progression
+
+_VALID_KINDS = {"clue", "ending", "character"}
 
 
 def _user_of_session(session_id: str) -> str | None:
@@ -27,6 +30,8 @@ def record(user_id: str, kind: str, key: str, data: dict | None = None) -> None:
     """발견물 1건을 계정 도감에 적재한다(이미 있으면 무시)."""
     if not user_id or not key:
         return
+    if kind not in _VALID_KINDS:
+        raise ValueError(f"unknown codex kind: {kind!r}")
     with get_conn() as conn:
         conn.execute(
             """
@@ -75,7 +80,7 @@ def record_ending_for_session(session_id: str, ending: dict) -> None:
         "image_url": ending.get("image_url"),
     }
     if kind == "bad":
-        key = f"베드-{int(time.time() * 1000)}"   # 회차마다 개별 항목으로 누적
+        key = f"베드-{uuid.uuid4().hex[:12]}"
     else:
         key = ending.get("name") or ending.get("id") or "엔딩"
     record(user_id, "ending", key, data)
@@ -87,8 +92,8 @@ def get_codex(user_id: str) -> dict:
         return {"clues": [], "endings": [], "characters": []}
     with get_conn() as conn:
         rows = conn.execute(
-            "SELECT kind, key, data, unlocked_at FROM user_codex "
-            "WHERE user_id = %s ORDER BY unlocked_at",
+            "SELECT kind, key, data, created_at FROM user_codex "
+            "WHERE user_id = %s ORDER BY created_at",
             (user_id,),
         ).fetchall()
 
@@ -101,10 +106,5 @@ def get_codex(user_id: str) -> dict:
         entry = {"key": key}
         if isinstance(data, dict):
             entry.update(data)
-        elif isinstance(data, str):
-            try:
-                entry.update(json.loads(data))
-            except json.JSONDecodeError:
-                pass
         out[group].append(entry)
     return out

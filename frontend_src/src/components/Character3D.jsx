@@ -219,13 +219,19 @@ function hasAny(text, keywords) {
 }
 
 function detectGestureStyle(text, flags) {
+  if (flags.surprised) return 'surprise'
   if (flags.angry || flags.emphatic) return 'command'
   if (flags.negative) return 'deny'
   if (flags.happy) return 'greet'
+  if (flags.pledge) return 'hand_to_chest'
+  if (flags.wary) return 'cautious'
+  if (flags.sly) return 'smug'
   if (flags.question) return 'question'
   if (flags.thoughtful) return 'thinking'
   if (flags.confident) return 'present'
   if (hasAny(text, ['여기', '저기', '저쪽', '이곳', '보십시오', '봐', '확인'])) return 'point'
+  if (flags.openHand) return 'open_hand'
+  if (flags.presenting) return 'present'
   return 'explain'
 }
 
@@ -241,31 +247,41 @@ function buildMotionProfile(text, emotion, duration = 0) {
   const happy = direct === 'happy' || hasAny(text, ['환영', '반갑', '좋아', '성공', '축하', '웃'])
   const angry = direct === 'angry' || emphatic
   const tired = direct === 'sigh' || hasAny(text, ['한숨', '안도', '피곤', '유감', '다행', '실망'])
+  const surprised = hasAny(text, ['뭐', '설마', '정말', '갑자기', '놀라', '어떻게', '말도 안', '믿을 수'])
+  const pledge = hasAny(text, ['고맙', '미안', '부탁', '약속', '믿어', '맡겨', '괜찮', '도와'])
+  const wary = hasAny(text, ['조심', '쉿', '낮게', '천천히', '위험해', '들키', '숨어', '기다려'])
+  const gestureSeed = Math.abs(Array.from(String(text || '')).reduce((sum, char) => sum + char.charCodeAt(0), 0)) % 997
+  const neutralTalk = direct === 'talk' && !angry && !negative && !happy && !thoughtful && !confident && !surprised && !pledge && !wary && !sly
+  const openHand = neutralTalk && (
+    hasAny(text, ['그러니까', '말하자면', '예를 들면', '보시면', '이렇게', '자']) ||
+    gestureSeed % 4 === 0
+  )
+  const presenting = neutralTalk && !openHand && gestureSeed % 4 === 1
   const gestureStyle = detectGestureStyle(text, {
-    angry, confident, emphatic, happy, negative, question, thoughtful,
+    angry, confident, emphatic, happy, negative, openHand, pledge, presenting, question, sly, surprised, thoughtful, wary,
   })
 
-  let intensity = 0.42
-  if (happy || confident) intensity += 0.12
-  if (angry) intensity += 0.22
-  if (thoughtful) intensity += 0.08
-  if (tired) intensity -= 0.08
+  let intensity = 0.48
+  if (happy || confident || pledge) intensity += 0.1
+  if (angry || surprised) intensity += 0.2
+  if (thoughtful || wary || sly) intensity += 0.08
+  if (tired) intensity -= 0.05
 
   return {
     until: performance.now() + seconds * 1000,
     startedAt: performance.now(),
     duration: seconds,
-    intensity: THREE.MathUtils.clamp(intensity, 0.26, 0.82),
-    tempo: THREE.MathUtils.clamp(1.1 + String(text || '').length / 90, 0.9, 1.9),
-    lean: angry ? 0.09 : tired ? -0.05 : confident ? 0.05 : 0.02,
+    intensity: THREE.MathUtils.clamp(intensity, 0.36, 0.92),
+    tempo: THREE.MathUtils.clamp(0.92 + String(text || '').length / 130, 0.82, 1.48),
+    lean: angry ? 0.1 : surprised ? -0.08 : tired ? -0.05 : confident ? 0.055 : wary ? -0.035 : 0.025,
     sway: negative ? -1 : sly ? 1 : 0,
-    nod: confident ? 1 : question ? 0.25 : angry ? 0.45 : 0,
-    shake: negative ? 1 : angry ? 0.35 : 0,
-    shoulder: angry ? 0.55 : happy ? 0.38 : tired ? -0.2 : 0.2,
-    handGesture: THREE.MathUtils.clamp((angry ? 1 : happy ? 0.9 : thoughtful ? 0.78 : confident ? 0.86 : 0.76), 0.56, 1),
+    nod: confident ? 0.95 : pledge ? 0.65 : question ? 0.32 : angry ? 0.46 : 0.22,
+    shake: negative ? 0.9 : angry ? 0.36 : surprised ? 0.18 : 0,
+    shoulder: surprised ? 0.65 : angry ? 0.55 : happy ? 0.42 : tired ? -0.18 : 0.24,
+    handGesture: THREE.MathUtils.clamp((angry ? 1.05 : surprised ? 0.96 : happy ? 0.9 : thoughtful ? 0.78 : confident ? 0.86 : 0.82), 0.62, 1.08),
     handSide: negative ? -1 : sly || question ? 1 : 0,
     gestureStyle,
-    gestureSeed: Math.abs(Array.from(String(text || '')).reduce((sum, char) => sum + char.charCodeAt(0), 0)) % 997,
+    gestureSeed,
     breathe: tired ? 1.25 : angry ? 0.9 : 1,
   }
 }
@@ -276,6 +292,11 @@ export default function Character3D({
   modelRotation = DEFAULT_MODEL_ROTATION,
   modelScale = DEFAULT_MODEL_SCALE,
   modelOffset = DEFAULT_MODEL_OFFSET,
+  preferEmbeddedAnimations = false,
+  motionIntensity = 1,
+  cameraPosition = null,
+  cameraTarget = null,
+  cameraFov = 50,
 }) {
   const hostRef = useRef(null)
   const [status, setStatus] = useState('Loading 3D model...')
@@ -451,9 +472,62 @@ export default function Character3D({
       audioContext = null
     }
 
+    const startFallbackLipSync = (text = '', duration = 1.8) => {
+      stopAudioLipSync()
+      if (morphMeshes.length === 0) return
+
+      const seconds = Math.max(0.8, Number.isFinite(duration) ? duration : Array.from(String(text || '')).length * 0.08)
+      const startedAt = performance.now()
+      visemeTimeline = makeVisemeTimeline(text, seconds)
+      resetLipState()
+
+      const update = () => {
+        const elapsed = (performance.now() - startedAt) / 1000
+        const remaining = seconds - elapsed
+        if (remaining <= 0) {
+          applyStableLipMorphs({})
+          lipRaf = requestAnimationFrame(() => stopAudioLipSync())
+          return
+        }
+
+        const pulse = 0.5 + 0.5 * Math.sin(elapsed * Math.PI * 2 * 5.8)
+        const phrase = 0.72 + 0.28 * Math.sin(elapsed * Math.PI * 2 * 1.35)
+        const endFade = THREE.MathUtils.clamp(remaining / 0.18, 0, 1)
+        const mouth = (0.16 + pulse * 0.32) * phrase * endFade
+        const cursor = visemeTimeline.length
+          ? (elapsed / seconds) * Math.max(0, visemeTimeline.length - 1)
+          : 0
+        const carry = cursor % 1
+        const visemeWeights = getRhythmTextVisemeWeights(visemeTimeline, cursor, carry)
+        const lipTargets = {
+          JawOpen: Math.min(0.4, mouth),
+          jawOpen: Math.min(0.4, mouth),
+        }
+
+        Object.keys(smoothedVisemes).forEach((name) => {
+          const targetWeight = visemeWeights[name] || 0
+          const factor = targetWeight > smoothedVisemes[name] ? 0.22 : 0.14
+          smoothedVisemes[name] += (targetWeight - smoothedVisemes[name]) * factor
+          const vowel = Math.min(0.58, (0.2 + mouth * 0.7) * smoothedVisemes[name])
+          if (vowel > 0.02) lipTargets[name] = vowel
+        })
+
+        applyStableLipMorphs(lipTargets)
+        lipRaf = requestAnimationFrame(update)
+      }
+
+      update()
+    }
+
     const startAudioLipSync = (audio, text = '') => {
       stopAudioLipSync()
       if (!audio || morphMeshes.length === 0) return
+
+      const fallbackDuration = Math.max(1, Array.from(String(text || '')).length * 0.08)
+      startProceduralMotion(text || 'talk', {
+        emotion: 'talk',
+        duration: Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : fallbackDuration,
+      })
 
       audioContext = new AudioContext()
       audioSource = audioContext.createMediaElementSource(audio)
@@ -463,7 +537,6 @@ export default function Character3D({
       audioSource.connect(analyser)
       analyser.connect(audioContext.destination)
 
-      const fallbackDuration = Math.max(1, Array.from(String(text || '')).length * 0.08)
       visemeTimeline = makeVisemeTimeline(text, Number.isFinite(audio.duration) ? audio.duration : fallbackDuration)
       const timeData = new Uint8Array(analyser.fftSize)
       const freqData = new Uint8Array(analyser.frequencyBinCount)
@@ -597,7 +670,8 @@ export default function Character3D({
       const size = new THREE.Vector3()
       box.getSize(size)
       const maxDim = Math.max(size.x, size.y, size.z) || 1
-      object.scale.setScalar(500 / maxDim)
+      const safeModelScale = Math.max(0.001, modelScale)
+      object.scale.setScalar((500 / maxDim) * safeModelScale)
 
       // 2) Recompute after scaling and rest the model's feet on y=0, centered on x/z.
       box = new THREE.Box3().setFromObject(object)
@@ -607,9 +681,12 @@ export default function Character3D({
       object.position.x -= center.x
       object.position.z -= center.z
       object.position.y -= box.min.y
-      object.position.x += modelOffset[0] || 0
-      object.position.y += modelOffset[1] || 0
-      object.position.z += modelOffset[2] || 0
+      const offsetX = modelOffset[0] || 0
+      const offsetY = modelOffset[1] || 0
+      const offsetZ = modelOffset[2] || 0
+      object.position.x += offsetX
+      object.position.y += offsetY
+      object.position.z += offsetZ
 
       // 3) Fit the camera to the model's actual bounding box so the whole body is
       //    framed and centered regardless of the model's real proportions.
@@ -623,9 +700,9 @@ export default function Character3D({
       const safeModelScale = Math.max(0.001, modelScale)
       const fitHeight = size.y / 2 / Math.tan(fov / 2)
       const dist = (fitHeight * FRAME_MARGIN) / safeModelScale
-      const targetX = center.x + (modelOffset[0] || 0)
-      const targetY = center.y + VERTICAL_OFFSET + (modelOffset[1] || 0)
-      const targetZ = modelOffset[2] || 0
+      const targetX = center.x - offsetX
+      const targetY = center.y - offsetY + VERTICAL_OFFSET
+      const targetZ = center.z - offsetZ
       viewPosition = [targetX, targetY, dist + targetZ]
       viewTarget = [targetX, targetY, targetZ]
 
@@ -658,9 +735,9 @@ export default function Character3D({
 
       const elapsed = (now - motionProfile.startedAt) / 1000
       const remaining = Math.max(0, (motionProfile.until - now) / 1000)
-      const fadeIn = THREE.MathUtils.clamp(elapsed / 0.28, 0, 1)
-      const fadeOut = THREE.MathUtils.clamp(remaining / 0.35, 0, 1)
-      const amount = motionProfile.intensity * Math.min(fadeIn, fadeOut)
+      const fadeIn = smoothStep(0, 0.38, elapsed)
+      const fadeOut = smoothStep(0, 0.5, remaining)
+      const amount = motionProfile.intensity * Math.min(fadeIn, fadeOut) * motionIntensity
       const tempo = motionProfile.tempo
       const basePosition = model.userData.basePosition
       const baseRotation = model.userData.baseRotation
@@ -669,32 +746,36 @@ export default function Character3D({
       else model.rotation.set(...modelRotation)
       resetMotionBonesToBasePose()
 
-      const breathe = Math.sin(elapsed * tempo * Math.PI * 2 * 0.42) * amount * 0.055 * motionProfile.breathe
-      const sway = Math.sin(elapsed * tempo * Math.PI * 2 * 0.28) * amount * 0.095
-      const nod = Math.sin(elapsed * tempo * Math.PI * 2 * 0.82) * amount * 0.13 * motionProfile.nod
-      const shake = Math.sin(elapsed * tempo * Math.PI * 2 * 1.15) * amount * 0.12 * motionProfile.shake
-      const shoulder = Math.sin(elapsed * tempo * Math.PI * 2 * 0.54) * amount * 0.08 * motionProfile.shoulder
       const gesturePhase = (motionProfile.gestureSeed || 0) * 0.013
-      const gesturePulse = (0.55 + 0.45 * Math.sin(elapsed * tempo * Math.PI * 2 * 0.72 + gesturePhase)) * amount * motionProfile.handGesture
-      const gestureBeat = Math.sin(elapsed * tempo * Math.PI * 2 * 1.08 + gesturePhase) * amount * motionProfile.handGesture
-      const gestureSlow = Math.sin(elapsed * tempo * Math.PI * 2 * 0.36 + gesturePhase) * amount * motionProfile.handGesture
+      const breathe = Math.sin(elapsed * tempo * Math.PI * 2 * 0.34) * amount * 0.06 * motionProfile.breathe
+      const sway = Math.sin(elapsed * tempo * Math.PI * 2 * 0.22) * amount * 0.09
+      const turn = Math.sin(elapsed * tempo * Math.PI * 2 * 0.31 + gesturePhase) * amount * 0.09
+      const nod = Math.sin(elapsed * tempo * Math.PI * 2 * 0.58) * amount * 0.13 * motionProfile.nod
+      const shake = Math.sin(elapsed * tempo * Math.PI * 2 * 0.82) * amount * 0.11 * motionProfile.shake
+      const shoulder = Math.sin(elapsed * tempo * Math.PI * 2 * 0.42) * amount * 0.085 * motionProfile.shoulder
+      const gesturePulse = (0.58 + 0.42 * Math.sin(elapsed * tempo * Math.PI * 2 * 0.46 + gesturePhase)) * amount * motionProfile.handGesture
+      const gestureBeat = Math.sin(elapsed * tempo * Math.PI * 2 * 0.72 + gesturePhase) * amount * motionProfile.handGesture
+      const gestureSlow = Math.sin(elapsed * tempo * Math.PI * 2 * 0.24 + gesturePhase) * amount * motionProfile.handGesture
       const leftWeight = motionProfile.handSide <= 0 ? 1 : 0.35
       const rightWeight = motionProfile.handSide >= 0 ? 1 : 0.35
-      const bob = Math.sin(elapsed * tempo * Math.PI * 2 * 0.5) * amount * 18
-      const slide = Math.sin(elapsed * tempo * Math.PI * 2 * 0.24) * amount * 14
+      const bob = Math.sin(elapsed * tempo * Math.PI * 2 * 0.36) * amount * 13
+      const slide = Math.sin(elapsed * tempo * Math.PI * 2 * 0.18) * amount * 11
 
       model.position.y += bob
       model.position.x += slide * (motionProfile.sway || 1) * 0.35
-      model.rotation.x += motionProfile.lean * amount * 1.8 + breathe
-      model.rotation.z += (motionProfile.sway || 1) * sway * 0.9
+      model.rotation.x += motionProfile.lean * amount * 1.6 + breathe
+      model.rotation.y += turn
+      model.rotation.z += (motionProfile.sway || 1) * sway * 0.75
 
       if (motionBones.spine) {
-        motionBones.spine.rotation.x += motionProfile.lean * amount * 0.8 + breathe
+        motionBones.spine.rotation.x += motionProfile.lean * amount * 0.75 + breathe
+        motionBones.spine.rotation.y += turn * 0.55
         motionBones.spine.rotation.z += (motionProfile.sway || 1) * sway * 0.5
       }
       if (motionBones.chest) {
-        motionBones.chest.rotation.x += motionProfile.lean * amount * 0.55 + breathe * 1.5
-        motionBones.chest.rotation.z += (motionProfile.sway || 1) * sway * 0.65
+        motionBones.chest.rotation.x += motionProfile.lean * amount * 0.62 + breathe * 1.35
+        motionBones.chest.rotation.y += turn * 0.7
+        motionBones.chest.rotation.z += (motionProfile.sway || 1) * sway * 0.58
       }
       if (motionBones.neck) {
         motionBones.neck.rotation.x += nod * 0.45
@@ -708,18 +789,41 @@ export default function Character3D({
       if (motionBones.leftShoulder) motionBones.leftShoulder.rotation.z += shoulder
       if (motionBones.rightShoulder) motionBones.rightShoulder.rotation.z -= shoulder
 
-      switch (motionProfile.gestureStyle) {
+      const talkStyles = ['talk_beat', 'talk_left', 'open_hand', 'talk_both', 'present', 'explain']
+      const conversational = ['open_hand', 'present', 'explain'].includes(motionProfile.gestureStyle)
+      const phrasePeriod = 1.85
+      const phraseIndex = Math.floor((elapsed + (motionProfile.gestureSeed % 17) * 0.07) / phrasePeriod)
+      const phraseLocal = ((elapsed + (motionProfile.gestureSeed % 17) * 0.07) / phrasePeriod) % 1
+      const phraseEase = smoothStep(0, 0.18, phraseLocal) * smoothStep(0, 0.18, 1 - phraseLocal)
+      const effectiveGestureStyle = conversational
+        ? talkStyles[(phraseIndex + motionProfile.gestureSeed) % talkStyles.length]
+        : motionProfile.gestureStyle
+
+      const baseGestureAmount = amount
+      {
+      const amount = conversational ? baseGestureAmount * (0.38 + phraseEase * 0.62) : baseGestureAmount
+      switch (effectiveGestureStyle) {
+        case 'surprise':
+          addBoneRotation(motionBones.leftShoulder, -0.12 * amount, 0, 0.2 * amount)
+          addBoneRotation(motionBones.rightShoulder, -0.12 * amount, 0, -0.2 * amount)
+          addBoneRotation(motionBones.leftUpperArm, -0.72 * amount, 0.16 * gestureSlow, 0.64 * amount)
+          addBoneRotation(motionBones.rightUpperArm, -0.72 * amount, -0.16 * gestureSlow, -0.64 * amount)
+          addBoneRotation(motionBones.leftForeArm, -0.42 * amount, 0.14 * gestureBeat, 0.28 * gesturePulse)
+          addBoneRotation(motionBones.rightForeArm, -0.42 * amount, -0.14 * gestureBeat, -0.28 * gesturePulse)
+          addBoneRotation(motionBones.leftHand, 0.22 * gestureBeat, 0.38 * amount, 0.18 * gestureSlow)
+          addBoneRotation(motionBones.rightHand, 0.22 * gestureBeat, -0.38 * amount, -0.18 * gestureSlow)
+          break
         case 'question':
-          addBoneRotation(motionBones.leftUpperArm, -0.2 * amount, 0.12 * gestureSlow, 0.34 * amount)
-          addBoneRotation(motionBones.rightUpperArm, -0.34 * amount, -0.18 * gestureSlow, -0.54 * amount)
-          addBoneRotation(motionBones.leftForeArm, -0.12 * amount, 0.1 * gestureBeat, 0.16 * gesturePulse)
-          addBoneRotation(motionBones.rightForeArm, -0.38 * amount, 0.58 * amount - 0.16 * gestureBeat, -0.38 * gesturePulse)
-          addBoneRotation(motionBones.leftHand, 0.18 * gestureBeat, 0.16 * gesturePulse, 0.12 * gestureSlow)
-          addBoneRotation(motionBones.rightHand, 0.34 * gestureBeat, 0.78 * amount - 0.2 * gesturePulse, 0.28 * amount - 0.3 * gestureSlow)
+          addBoneRotation(motionBones.leftUpperArm, -0.22 * amount, 0.1 * gestureSlow, 0.34 * amount)
+          addBoneRotation(motionBones.rightUpperArm, -0.42 * amount, -0.16 * gestureSlow, -0.58 * amount)
+          addBoneRotation(motionBones.leftForeArm, -0.14 * amount, 0.08 * gestureBeat, 0.16 * gesturePulse)
+          addBoneRotation(motionBones.rightForeArm, -0.46 * amount, 0.58 * amount - 0.14 * gestureBeat, -0.38 * gesturePulse)
+          addBoneRotation(motionBones.leftHand, 0.22 * gestureBeat, 0.2 * gesturePulse, 0.16 * gestureSlow)
+          addBoneRotation(motionBones.rightHand, 0.32 * gestureBeat, 0.78 * amount - 0.18 * gesturePulse, 0.28 * amount - 0.24 * gestureSlow)
           break
         case 'point':
-          addBoneRotation(motionBones.rightUpperArm, -0.72 * amount, -0.26 * amount, -0.36 * amount)
-          addBoneRotation(motionBones.rightForeArm, -0.5 * amount, -0.08 * gestureBeat, -0.2 * gesturePulse)
+          addBoneRotation(motionBones.rightUpperArm, -0.54 * amount, -0.18 * amount, -0.28 * amount)
+          addBoneRotation(motionBones.rightForeArm, -0.36 * amount, -0.06 * gestureBeat, -0.14 * gesturePulse)
           addBoneRotation(motionBones.rightHand, 0.08 * gestureBeat, -0.18 * amount, -0.08 * gestureSlow)
           addBoneRotation(motionBones.leftUpperArm, -0.16 * amount, 0.08 * gestureBeat, 0.18 * amount)
           addBoneRotation(motionBones.leftForeArm, -0.08 * amount, 0, 0.1 * gestureSlow)
@@ -746,27 +850,81 @@ export default function Character3D({
           addBoneRotation(motionBones.leftForeArm, -0.1 * amount, 0, 0.08 * gestureSlow)
           break
         case 'thinking':
-          addBoneRotation(motionBones.leftUpperArm, -0.28 * amount, 0.1 * gestureSlow, 0.3 * amount)
-          addBoneRotation(motionBones.rightUpperArm, -0.18 * amount, -0.08 * gestureSlow, -0.18 * amount)
-          addBoneRotation(motionBones.leftForeArm, -0.34 * amount, 0.04 * gestureBeat, 0.16 * gesturePulse)
-          addBoneRotation(motionBones.rightForeArm, -0.1 * amount, -0.04 * gestureBeat, -0.1 * gestureSlow)
-          addBoneRotation(motionBones.leftHand, 0.22 * gestureBeat, 0.12 * gesturePulse, 0.18 * gestureSlow)
+          addBoneRotation(motionBones.leftUpperArm, -0.38 * amount, 0.12 * gestureSlow, 0.42 * amount)
+          addBoneRotation(motionBones.rightUpperArm, -0.14 * amount, -0.08 * gestureSlow, -0.14 * amount)
+          addBoneRotation(motionBones.leftForeArm, -0.62 * amount, 0.08 * gestureBeat, 0.28 * gesturePulse)
+          addBoneRotation(motionBones.rightForeArm, -0.08 * amount, -0.04 * gestureBeat, -0.08 * gestureSlow)
+          addBoneRotation(motionBones.leftHand, 0.38 * gestureBeat, 0.32 * gesturePulse, 0.3 * gestureSlow)
+          break
+        case 'hand_to_chest':
+          addBoneRotation(motionBones.leftUpperArm, -0.14 * amount, 0.06 * gestureSlow, 0.18 * amount)
+          addBoneRotation(motionBones.leftForeArm, -0.08 * amount, 0.03 * gestureBeat, 0.08 * gestureSlow)
+          addBoneRotation(motionBones.rightUpperArm, -0.78 * amount, -0.22 * gestureSlow, -0.48 * amount)
+          addBoneRotation(motionBones.rightForeArm, -1.08 * amount, 0.84 * amount - 0.08 * gestureBeat, -0.22 * gesturePulse)
+          addBoneRotation(motionBones.rightHand, 0.18 * gestureBeat, 0.58 * amount - 0.08 * gesturePulse, 0.18 * amount)
+          break
+        case 'cautious':
+          addBoneRotation(motionBones.leftUpperArm, -0.22 * amount, 0.08 * gestureSlow, 0.26 * amount)
+          addBoneRotation(motionBones.rightUpperArm, -0.5 * amount, -0.12 * gestureSlow, -0.36 * amount)
+          addBoneRotation(motionBones.leftForeArm, -0.18 * amount, 0.08 * gestureBeat, 0.16 * gesturePulse)
+          addBoneRotation(motionBones.rightForeArm, -0.48 * amount, 0.36 * amount - 0.08 * gestureBeat, -0.2 * gesturePulse)
+          addBoneRotation(motionBones.leftHand, -0.08 * gestureBeat, 0.14 * amount, 0.08 * gestureSlow)
+          addBoneRotation(motionBones.rightHand, -0.12 * gestureBeat, 0.34 * amount, -0.12 * gestureSlow)
+          break
+        case 'smug':
+          addBoneRotation(motionBones.leftUpperArm, -0.1 * amount, 0.08 * gestureSlow, 0.18 * amount)
+          addBoneRotation(motionBones.leftForeArm, -0.08 * amount, 0.04 * gestureBeat, 0.08 * gestureSlow)
+          addBoneRotation(motionBones.rightUpperArm, -0.36 * amount, -0.18 * gestureSlow, -0.62 * amount)
+          addBoneRotation(motionBones.rightForeArm, -0.5 * amount, 0.5 * amount - 0.12 * gestureBeat, -0.32 * gesturePulse)
+          addBoneRotation(motionBones.rightHand, 0.12 * gestureBeat, 0.7 * amount - 0.16 * gesturePulse, 0.46 * amount - 0.12 * gestureSlow)
           break
         case 'present':
-          addBoneRotation(motionBones.leftUpperArm, -0.38 * amount, 0.14 * gestureSlow, 0.48 * amount)
-          addBoneRotation(motionBones.rightUpperArm, -0.38 * amount, -0.14 * gestureSlow, -0.48 * amount)
-          addBoneRotation(motionBones.leftForeArm, -0.34 * amount, 0.18 * gestureBeat, 0.28 * gesturePulse)
-          addBoneRotation(motionBones.rightForeArm, -0.34 * amount, 0.62 * amount - 0.18 * gestureBeat, -0.28 * gesturePulse)
+          addBoneRotation(motionBones.leftUpperArm, -0.28 * amount, 0.1 * gestureSlow, 0.34 * amount)
+          addBoneRotation(motionBones.rightUpperArm, -0.28 * amount, -0.1 * gestureSlow, -0.34 * amount)
+          addBoneRotation(motionBones.leftForeArm, -0.24 * amount, 0.12 * gestureBeat, 0.18 * gesturePulse)
+          addBoneRotation(motionBones.rightForeArm, -0.24 * amount, 0.44 * amount - 0.12 * gestureBeat, -0.18 * gesturePulse)
           addBoneRotation(motionBones.leftHand, 0.2 * gestureBeat, 0.22 * gesturePulse, 0.22 * gestureSlow)
-          addBoneRotation(motionBones.rightHand, 0.2 * gestureBeat, 0.76 * amount - 0.18 * gesturePulse, 0.34 * amount - 0.22 * gestureSlow)
+          addBoneRotation(motionBones.rightHand, 0.16 * gestureBeat, 0.56 * amount - 0.12 * gesturePulse, 0.24 * amount - 0.16 * gestureSlow)
+          break
+        case 'talk_beat':
+          addBoneRotation(motionBones.leftUpperArm, -0.12 * amount, 0.06 * gestureSlow, 0.16 * amount)
+          addBoneRotation(motionBones.leftForeArm, -0.08 * amount, 0.04 * gestureBeat, 0.08 * gestureSlow)
+          addBoneRotation(motionBones.leftHand, 0.1 * gestureBeat, 0.06 * gesturePulse, 0.08 * gestureSlow)
+          addBoneRotation(motionBones.rightUpperArm, -0.68 * amount, -0.16 * gestureSlow, -0.46 * amount)
+          addBoneRotation(motionBones.rightForeArm, -0.58 * amount, 0.46 * amount - 0.3 * gestureBeat, -0.24 * gesturePulse)
+          addBoneRotation(motionBones.rightHand, 0.42 * gestureBeat, 0.5 * amount - 0.18 * gesturePulse, 0.2 * amount - 0.18 * gestureSlow)
+          break
+        case 'talk_left':
+          addBoneRotation(motionBones.leftUpperArm, -0.74 * amount, 0.18 * gestureSlow, 0.56 * amount)
+          addBoneRotation(motionBones.leftForeArm, -0.64 * amount, 0.5 * amount - 0.18 * gestureBeat, 0.28 * gesturePulse)
+          addBoneRotation(motionBones.leftHand, 0.28 * gestureBeat, 0.58 * amount - 0.14 * gesturePulse, 0.24 * amount)
+          addBoneRotation(motionBones.rightUpperArm, -0.12 * amount, -0.04 * gestureSlow, -0.12 * amount)
+          addBoneRotation(motionBones.rightForeArm, -0.08 * amount, -0.02 * gestureBeat, -0.06 * gestureSlow)
+          break
+        case 'talk_both':
+          addBoneRotation(motionBones.leftUpperArm, -0.48 * amount, 0.16 * gestureSlow, 0.5 * amount)
+          addBoneRotation(motionBones.rightUpperArm, -0.48 * amount, -0.16 * gestureSlow, -0.5 * amount)
+          addBoneRotation(motionBones.leftForeArm, -0.42 * amount, 0.34 * amount + 0.08 * gestureBeat, 0.26 * gesturePulse)
+          addBoneRotation(motionBones.rightForeArm, -0.42 * amount, 0.34 * amount - 0.08 * gestureBeat, -0.26 * gesturePulse)
+          addBoneRotation(motionBones.leftHand, 0.18 * gestureBeat, 0.42 * amount, 0.18 * gestureSlow)
+          addBoneRotation(motionBones.rightHand, 0.18 * gestureBeat, 0.42 * amount, -0.18 * gestureSlow)
+          break
+        case 'open_hand':
+          addBoneRotation(motionBones.leftUpperArm, -0.08 * amount, 0.04 * gestureSlow, 0.12 * amount)
+          addBoneRotation(motionBones.leftForeArm, -0.06 * amount, 0.03 * gestureBeat, 0.07 * gestureSlow)
+          addBoneRotation(motionBones.leftHand, 0.07 * gestureBeat, 0.06 * gesturePulse, 0.05 * gestureSlow)
+          addBoneRotation(motionBones.rightUpperArm, -1.26 * amount, -0.2 * gestureSlow, -1.02 * amount)
+          addBoneRotation(motionBones.rightForeArm, -0.86 * amount, 0.66 * amount - 0.12 * gestureBeat, -0.38 * gesturePulse)
+          addBoneRotation(motionBones.rightHand, 0.18 * gestureBeat, 0.72 * amount - 0.16 * gesturePulse, 0.36 * amount - 0.16 * gestureSlow)
           break
         default:
-          addBoneRotation(motionBones.leftUpperArm, -0.34 * amount, 0.14 * gestureBeat, 0.36 * amount)
-          addBoneRotation(motionBones.rightUpperArm, -2.65 * amount, -0.42 * gestureSlow, -2.05 * amount)
-          addBoneRotation(motionBones.leftForeArm, -0.22 * amount, 0.08 * gestureBeat, 0.2 * gestureSlow)
-          addBoneRotation(motionBones.rightForeArm, -1.85 * amount, 1.05 * amount - 0.26 * gestureBeat, -0.74 * gesturePulse)
-          addBoneRotation(motionBones.leftHand, 0.18 * gestureBeat, 0.12 * gesturePulse, 0.18 * gestureSlow)
-          addBoneRotation(motionBones.rightHand, 0.46 * gestureBeat, 1.2 * amount - 0.28 * gesturePulse, 0.55 * amount - 0.3 * gestureSlow)
+          addBoneRotation(motionBones.leftUpperArm, -0.16 * amount * leftWeight, 0.08 * gestureBeat, 0.18 * amount * leftWeight)
+          addBoneRotation(motionBones.rightUpperArm, -0.56 * amount * rightWeight, -0.14 * gestureSlow, -0.42 * amount * rightWeight)
+          addBoneRotation(motionBones.leftForeArm, -0.1 * amount * leftWeight, 0.05 * gestureBeat, 0.1 * gestureSlow)
+          addBoneRotation(motionBones.rightForeArm, -0.46 * amount * rightWeight, 0.34 * amount - 0.08 * gestureBeat, -0.18 * gesturePulse)
+          addBoneRotation(motionBones.leftHand, 0.1 * gestureBeat, 0.08 * gesturePulse, 0.1 * gestureSlow)
+          addBoneRotation(motionBones.rightHand, 0.16 * gestureBeat, 0.38 * amount - 0.1 * gesturePulse, 0.18 * amount - 0.1 * gestureSlow)
+      }
       }
     }
 
@@ -810,7 +968,23 @@ export default function Character3D({
     }
 
     const playMotionSequence = (textOrEmotion, options = {}) => {
-      startProceduralMotion(textOrEmotion, options)
+      const emotion = EMOTION_ALIASES[options.emotion] || options.emotion || detectEmotion(textOrEmotion)
+      const preferred = clips.has(emotion) ? emotion : (clips.has('talk') ? 'talk' : null)
+      const duration = Number.isFinite(options.duration) && options.duration > 0 ? options.duration : undefined
+
+      if (preferred) {
+        clearMotionQueue()
+        const played = playAnimation(preferred, {
+          fade: 0.32,
+          returnToIdle: true,
+          timeScale: duration && clips.get(preferred)?.duration
+            ? THREE.MathUtils.clamp(clips.get(preferred).duration / duration, 0.72, 1.18)
+            : 1,
+        })
+        return played
+      }
+
+      return startProceduralMotion(textOrEmotion, options)
     }
 
     const playDirectAnimation = (name = 'talk', options = {}) => {
@@ -842,9 +1016,15 @@ export default function Character3D({
     }
 
     const loadAnimations = async () => {
+      if (preferEmbeddedAnimations && clips.has('idle')) {
+        playAnimation('idle', { loop: true, fade: 0 })
+        revealModel()
+        setSafeStatus('3D ready (embedded animation)')
+        return
+      }
+
       // Load idle first so we can start it (and reveal the model) before the rest stream in.
       const entries = Object.entries(animations)
-        .filter(([name]) => name === 'idle')
         .sort(([a]) => (a === 'idle' ? -1 : 0))
       let ok = 0
       for (const [name, path] of entries) {
@@ -866,8 +1046,8 @@ export default function Character3D({
     scene = new THREE.Scene()
     scene.background = null
 
-    camera = new THREE.PerspectiveCamera(50, 1, 0.1, 5000)
-    camera.position.set(...CAMERA_POSITION)
+    camera = new THREE.PerspectiveCamera(cameraFov, 1, 0.1, 5000)
+    camera.position.set(...(cameraPosition || CAMERA_POSITION))
 
     renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
@@ -894,7 +1074,7 @@ export default function Character3D({
     controls.enableDamping = true
     controls.enablePan = true
     controls.enableZoom = true
-    controls.target.set(...CAMERA_TARGET)
+    controls.target.set(...(cameraTarget || CAMERA_TARGET))
 
     resize()
     const observer = new ResizeObserver(resize)
@@ -918,7 +1098,13 @@ export default function Character3D({
         mixer = new THREE.AnimationMixer(modelRoot)
 
         if (embeddedClips?.length) {
-          const embedded = embeddedClips[0]
+          if (preferEmbeddedAnimations) {
+          const embeddedIdle = embeddedClips[0].clone()
+          embeddedIdle.name = 'idle'
+          clips.set('idle', embeddedIdle)
+          }
+
+          const embedded = embeddedClips[0].clone()
           embedded.name = 'embedded'
           clips.set('embedded', embedded)
         }
@@ -946,6 +1132,7 @@ export default function Character3D({
       playMotionSequence(text, { emotion, duration, endAnimation: 'idle' })
     }
     window.startLinLipSync = startAudioLipSync
+    window.startLinFallbackLipSync = startFallbackLipSync
     window.stopLinLipSync = stopAudioLipSync
     window.__debugLinMorph = () => {
       console.log('morphMeshes:', morphMeshes.length)
@@ -966,6 +1153,7 @@ export default function Character3D({
       if (window.playLinEmotion) delete window.playLinEmotion
       if (window.playLinPerformance) delete window.playLinPerformance
       if (window.startLinLipSync === startAudioLipSync) delete window.startLinLipSync
+      if (window.startLinFallbackLipSync === startFallbackLipSync) delete window.startLinFallbackLipSync
       if (window.stopLinLipSync === stopAudioLipSync) delete window.stopLinLipSync
       if (window.__debugLinMorph) delete window.__debugLinMorph
       if (window.__testMorph) delete window.__testMorph
@@ -976,7 +1164,7 @@ export default function Character3D({
       renderer?.dispose()
       if (renderer?.domElement?.parentNode === host) host.removeChild(renderer.domElement)
     }
-  }, [modelPath, animations, modelRotation, modelScale, modelOffset])
+  }, [modelPath, animations, modelRotation, modelScale, modelOffset, preferEmbeddedAnimations, motionIntensity])
 
   return (
     <div className="character3d">

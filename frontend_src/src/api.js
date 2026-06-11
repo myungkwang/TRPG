@@ -100,6 +100,26 @@ export async function apiMove(sessionId, location) {
   })
 }
 
+export async function apiTTS(text, options = {}) {
+  const body = typeof options === 'string'
+    ? { text, voice: options }
+    : {
+      text,
+      ...options,
+      tone_instructions: options.tone_instructions ?? options.instructions,
+    }
+  delete body.instructions
+
+  return fetchJson('/api/tts', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeaders(),
+    },
+    body: JSON.stringify(body),
+  })
+}
+
 export async function apiLockEnding(sessionId) {
   return fetchJson('/api/ending/lock', {
     method: 'POST',
@@ -114,33 +134,16 @@ export async function apiGetEnding(sessionId) {
   })
 }
 
-// 계정 단위로 누적된 도감(단서·엔딩). 회차가 바뀌어도 유지된다.
 export async function apiGetCodex() {
   return fetchJson('/api/codex', {
     headers: { ...authHeaders() },
   })
 }
 
-// [테스트 전용] 원하는 엔딩으로 즉시 점프 (노멀/트루/히든/베드)
 export async function apiDebugEnding(sessionId, ending) {
   return fetchJson('/api/debug/ending', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({ session_id: sessionId, ending }),
-  })
-}
-
-export async function apiTTS(text, options = {}) {
-  const body = typeof options === 'string'
-    ? { text, voice: options }
-    : { text, ...options }
-
-  return fetchJson('/api/tts', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...authHeaders(),
-    },
-    body: JSON.stringify(body),
   })
 }

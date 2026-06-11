@@ -1,9 +1,8 @@
 import React from 'react'
 
-// 엔딩 등급별 색
 const KIND_COLOR = {
-  good: '#c9a24b',  // 금
-  bad: '#9b1c31',   // 진홍
+  good: '#c9a24b',
+  bad: '#9b1c31',
 }
 
 const NAME_TITLE = {
@@ -17,7 +16,6 @@ export default function Ending({ ending, onClose }) {
   if (!ending) return null
   const color = KIND_COLOR[ending.kind] || '#c9a24b'
   const title = NAME_TITLE[ending.name] || `${ending.name} 엔딩`
-  // 'GM:' 라벨 제거하고 본문만
   const body = String(ending.text || '').replace(/^\s*GM\s*[:：]\s*/gm, '').trim()
 
   return (

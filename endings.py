@@ -17,8 +17,8 @@ from __future__ import annotations
 
 from progression import as_dict, load_state, progress_pct, SETTLE_THRESHOLD
 
-# 정규(트리거 기반) 엔딩 = 노멀/트루/히든. 위에서부터 평가, 충족된 첫 엔딩이 열린다.
-# 베드는 규칙으로 두지 않는다 — 정규 엔딩에 못 미치면 AI가 생성하는 fallback이다.
+# 11_엔딩 표. 위에서부터 평가하며, requires가 모두 충족된 첫 엔딩이 열린다.
+# (특수/파국 엔딩을 위에 두어 노멀보다 우선시킨다)
 ENDINGS = [
     {
         "id": "END_HIDDEN",
@@ -59,13 +59,11 @@ ENDINGS = [
         ),
     },
     {
-        # 노멀 — 기본 결말. 특별한 달성 없이 메인 갈등만 해소하면 도달한다.
-        # (아이템/호감도 같은 추가 게이트 없음 — 조건을 빡빡하게 두지 않는다)
         "id": "END_NORMAL",
         "name": "노멀",
         "requires": [
-            {"event": "EVT_PEAK_CONFRONT"},   # 봉우리에서 카르가스와 대면하고
-            {"flag": "FLG_KARGAS_ALLY"},      # 채굴 중단에 합의하면 끝
+            {"event": "EVT_PEAK_CONFRONT"},
+            {"flag": "FLG_KARGAS_ALLY"},
         ],
         "summary": "영석 채굴 중단. 마을은 일단 살아남는다 (기본 엔딩).",
         "text": (
@@ -124,7 +122,7 @@ def evaluate_ending(session_or_flags: dict) -> dict | None:
 
 
 def check_session_ending(session_id: str) -> dict | None:
-    """세션 ID로 현재 상태를 읽어 열린 정규 엔딩을 판정한다. (베드는 제외)"""
+    """세션 ID로 현재 상태를 읽어 열린 엔딩을 판정한다."""
     return evaluate_ending(load_state(session_id))
 
 
@@ -144,6 +142,6 @@ def resolve_ending(session_or_state: dict) -> dict:
     return {
         "kind": "bad", "id": "END_BAD", "name": "베드",
         "progress": pct,
-        "settled": pct >= SETTLE_THRESHOLD,  # 70% 이상이면 '아쉽게 놓친' 결말
+        "settled": pct >= SETTLE_THRESHOLD,
         "town_destroyed": bool(state["flags"].get("FLG_TOWN_DESTROYED")),
     }
