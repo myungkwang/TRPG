@@ -45,3 +45,8 @@ static_backup/
 Thumbs.db
 .vscode/
 .idea/
+
+/external
+/CosyVoice3_game_chars_epoch23_for_team/eval_model/CosyVoice-BlankEN
+/docs/superpowers
+
