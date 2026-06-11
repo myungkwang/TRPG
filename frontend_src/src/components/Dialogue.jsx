@@ -548,6 +548,7 @@ async function speakNpc(text, speaker = 'gm', options = {}) {
 export default function Dialogue({ session, history, onHistoryChange, onSessionChange, onEnding, runMapStep }) {
   const [log, setLog] = useState(() => toUiLog(history))
   const [input, setInput] = useState('')
+  const [choices, setChoices] = useState([])
   const [choiceMode, setChoiceMode] = useState(false)
   const [activeSpeaker, setActiveSpeaker] = useState(() => getLastNpcSpeaker(toUiLog(history)))
   const [stageLocation, setStageLocation] = useState(null)
@@ -911,7 +912,7 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
           })}
         </div>
 
-        {choiceMode && (
+        {choices.length > 0 && !sending && (
           <div className="choice-block">
             <div className="choice-flavor">{FLAVOR_CHOICE}</div>
             {CHOICES.map(c => (
