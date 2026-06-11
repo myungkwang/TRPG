@@ -1,5 +1,5 @@
 ﻿import React, { useEffect, useRef, useState } from 'react'
-import { SPEAKERS, FLAVOR_CHOICE, CHOICES } from '../data.js'
+import { SPEAKERS, FLAVOR_CHOICE } from '../data.js'
 import D12 from './D12.jsx'
 import Character3D from './Character3D.jsx'
 import { apiChat, apiTTS, apiDebugEnding } from '../api.js'
@@ -557,7 +557,6 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
   const [judge, setJudge] = useState(null)
   const [judgeResult, setJudgeResult] = useState(null)
   const [sending, setSending] = useState(false)
-  const [choices, setChoices] = useState([])
   const [npcTestRunning, setNpcTestRunning] = useState(false)
   const [gmSpeaking, setGmSpeaking] = useState(false)
   const logRef = useRef(null)
@@ -925,22 +924,6 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
             )
           })}
         </div>
-
-        {choices.length > 0 && !sending && (
-          <div className="choice-block">
-            <div className="choice-flavor">{FLAVOR_CHOICE}</div>
-            {CHOICES.map(c => (
-              <button key={c.id}
-                className={'choice-row' + (c.tag && c.tag.includes('위험') ? ' danger' : '')}
-                onClick={() => pickChoice(c)}>
-                <span className="cn">{c.id}</span>
-                <span>{c.text}</span>
-                {c.tag && <span className="ctag">{c.tag}</span>}
-              </button>
-            ))}
-            <div className="choice-note">입력창에 직접 써서 다른 행동을 해도 됩니다.</div>
-          </div>
-        )}
 
         {choices.length > 0 && !sending && (
           <div className="choice-block">
