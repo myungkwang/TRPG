@@ -7,6 +7,7 @@ import {
   STATUS, INV_COLS, INV_ROWS, INV_ITEMS, EQUIP_SLOTS, EQUIPMENT,
 } from '../data.js'
 import { ITEMS, categoryLabel, priceLabel } from '../items.js'
+import { QUALITY_PRESETS, getRendererPixelRatio, loadSettings, subscribeSettings, updateSetting } from '../settings.js'
 
 const slotKeyOf = (item) => EQUIP_SLOTS.find(s => s.label === item?.slot)?.key
 
@@ -33,7 +34,7 @@ function WeaponModelPreview({ path, fallback }) {
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
     const clock = new THREE.Clock()
 
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    renderer.setPixelRatio(getRendererPixelRatio())
     renderer.outputColorSpace = THREE.SRGBColorSpace
     host.appendChild(renderer.domElement)
 
@@ -78,6 +79,10 @@ function WeaponModelPreview({ path, fallback }) {
     resize()
     const observer = new ResizeObserver(resize)
     observer.observe(host)
+    const unsubscribeQuality = subscribeSettings(() => {
+      renderer.setPixelRatio(getRendererPixelRatio())
+      resize()
+    })
 
     new GLTFLoader().load(
       path,
@@ -118,6 +123,7 @@ function WeaponModelPreview({ path, fallback }) {
       disposed = true
       cancelAnimationFrame(frame)
       observer.disconnect()
+      unsubscribeQuality()
       controls.dispose()
       renderer.dispose()
       if (renderer.domElement.parentNode === host) host.removeChild(renderer.domElement)
@@ -481,15 +487,69 @@ export function FullMapPanel({ onClose, journey = [] }) {
   )
 }
 
-/* ---------- 설정 (템플릿 없음 — 비활성 자리) ---------- */
+function toPercent(value) {
+  return Math.round(Number(value || 0) * 100)
+}
+
+function fromPercent(value) {
+  const n = Number(value)
+  if (!Number.isFinite(n)) return 0
+  return Math.min(100, Math.max(0, Math.round(n))) / 100
+}
+
+function PercentSlider({ label, value, onChange }) {
+  const percent = toPercent(value)
+  const update = (event) => onChange(fromPercent(event.target.value))
+
+  return (
+    <label className="set-row">
+      <span>{label}</span>
+      <input
+        type="range"
+        min="0"
+        max="100"
+        value={percent}
+        onChange={update}
+      />
+      <input
+        className="set-number"
+        type="number"
+        min="0"
+        max="100"
+        step="1"
+        value={percent}
+        onChange={update}
+        aria-label={`${label} 수치`}
+      />
+    </label>
+  )
+}
+
+/* ---------- 설정 ---------- */
 export function SettingsPanel({ onClose }) {
+  const [settings, setSettings] = useState(() => loadSettings())
+
+  useEffect(() => subscribeSettings(setSettings), [])
+
+  const setValue = (key, value) => {
+    setSettings(updateSetting(key, value))
+  }
+
   return (
     <Overlay title="설정" onClose={onClose} className="settings">
-      <p className="set-note">설정 UI는 아직 템플릿이 없어 자리만 잡아둔 화면입니다. (동작 안 함)</p>
-      <div className="set-row"><span>마스터 볼륨</span><input type="range" disabled /></div>
-      <div className="set-row"><span>BGM</span><input type="range" disabled /></div>
-      <div className="set-row"><span>효과음</span><input type="range" disabled /></div>
-      <div className="set-row"><span>화면 품질</span><select disabled><option>높음</option></select></div>
+      <p className="set-note">볼륨과 화면 품질은 즉시 적용되며 이 브라우저에 저장됩니다.</p>
+      <PercentSlider label="마스터 볼륨" value={settings.masterVolume} onChange={(value) => setValue('masterVolume', value)} />
+      <PercentSlider label="BGM 볼륨" value={settings.bgmVolume} onChange={(value) => setValue('bgmVolume', value)} />
+      <PercentSlider label="효과음 볼륨" value={settings.sfxVolume} onChange={(value) => setValue('sfxVolume', value)} />
+      <label className="set-row">
+        <span>화면 품질</span>
+        <select value={settings.quality} onChange={(event) => setValue('quality', event.target.value)}>
+          {Object.entries(QUALITY_PRESETS).map(([key, preset]) => (
+            <option key={key} value={key}>{preset.label}</option>
+          ))}
+        </select>
+        <b>{QUALITY_PRESETS[settings.quality]?.label || '높음'}</b>
+      </label>
     </Overlay>
   )
 }
