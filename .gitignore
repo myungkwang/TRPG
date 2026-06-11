@@ -55,9 +55,10 @@ Thumbs.db
 .vscode/
 .idea/
 
+
 external/
 CosyVoice3_game_chars_epoch23_for_team/eval_model/
-docs/superpowers
+docs/superpowers/
 
 *.pt
 *.pth
@@ -67,3 +68,4 @@ docs/superpowers
 *.bin
 *.pkl
 *.npy
+*.npz

@@ -1,8 +1,36 @@
 import React, { useState } from 'react'
 import Dice3D from './Dice3D.jsx'
 import {
-  STATUS, INV_COLS, INV_ROWS, INV_ITEMS,
+  STATUS, INV_COLS, INV_ROWS, INV_ITEMS, EQUIP_SLOTS, EQUIPMENT,
 } from '../data.js'
+import { ITEMS, categoryLabel, priceLabel } from '../items.js'
+
+/* ---------- 아이템 상세 모달 (인벤토리·장비 슬롯 공용) ---------- */
+function ItemDetailModal({ item, onClose }) {
+  if (!item) return null
+  return (
+    <div className="overlay item-detail-overlay" onClick={onClose}>
+      <div className="item-detail" onClick={e => e.stopPropagation()}>
+        <button className="item-detail-x" onClick={onClose}>✕</button>
+        <div className="id-icon">{item.icon}</div>
+        <div className="id-name">{item.name}</div>
+        <div className="id-cat">{categoryLabel(item)}</div>
+        <div className="id-meta">
+          {item.effect && item.effect !== '-' && (
+            <div className="id-row"><span>효과</span><b>{item.effect}</b></div>
+          )}
+          {priceLabel(item) && (
+            <div className="id-row"><span>가격</span><b>{priceLabel(item)}</b></div>
+          )}
+          {item.sources?.length > 0 && (
+            <div className="id-row"><span>획득처</span><b>{item.sources.join(', ')}</b></div>
+          )}
+        </div>
+        {item.desc && <p className="id-desc">{item.desc}</p>}
+      </div>
+    </div>
+  )
+}
 
 function Overlay({ title, onClose, className, children }) {
   return (
@@ -20,12 +48,14 @@ function Overlay({ title, onClose, className, children }) {
 
 /* ---------- 스테이터스 ---------- */
 export function StatusPanel({ onClose }) {
+  const [detail, setDetail] = useState(null)
   const v = STATUS.vitals, rep = STATUS.reputation
   const repPct = ((rep.val - rep.min) / (rep.max - rep.min)) * 100
   const bar = (cur, max, bg) => (
     <span className="v-bar"><span className="v-fill" style={{ width: `${(cur / max) * 100}%`, background: bg }} /></span>
   )
   return (
+    <>
     <Overlay title="스테이터스" onClose={onClose} className="status">
       {/* 상단: 초상화 + 활력(크게) */}
       <div className="st2-top">
@@ -47,14 +77,36 @@ export function StatusPanel({ onClose }) {
         <div className="rep-ends"><span>적대</span><span>중립</span><span>우호</span></div>
       </div>
 
+      {/* 장비 — 머리 / 몸통 / 무기 (빈 슬롯도 자리 고정) */}
+      <div className="st2-equip">
+        <h3>장비</h3>
+        <div className="eq-slots">
+          {EQUIP_SLOTS.map(s => {
+            const it = EQUIPMENT[s.key] ? ITEMS[EQUIPMENT[s.key]] : null
+            return (
+              <div key={s.key} className={'eq-slot' + (it ? ' clickable' : ' empty')}
+                title={it ? `${it.name} — 클릭하면 상세` : `${s.label}: 비어 있음`}
+                onClick={() => it && setDetail(it)}>
+                <div className="eq-icon">{it ? it.icon : s.ph}</div>
+                <div className="eq-slotlab">{s.label}</div>
+                <div className="eq-name">{it ? it.name : '비어 있음'}</div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
       <hr className="st2-hr" />
 
-      {/* 50:50 — 특성 / 자원 */}
+      {/* 가로 3그리드 — 특성 / 전투 / 자원 */}
       <div className="st2-split">
         <div className="st2-col">
           <h3>특성</h3>
           {STATUS.abilities.map(a => <div className="kv" key={a.k}><span>{a.k}</span><b>{a.v}</b></div>)}
-          <h3 style={{ marginTop: 12 }}>전투</h3>
+        </div>
+        <div className="st2-vline" />
+        <div className="st2-col">
+          <h3>전투</h3>
           <div className="kv"><span>피해</span><b>{STATUS.combat.피해}</b></div>
           <div className="kv"><span>회피</span><b>{STATUS.combat.회피}</b></div>
           <div className="kv"><span>속도</span><b>{STATUS.combat.속도}</b></div>
@@ -82,6 +134,8 @@ export function StatusPanel({ onClose }) {
         </div>
       </div>
     </Overlay>
+    <ItemDetailModal item={detail} onClose={() => setDetail(null)} />
+    </>
   )
 }
 
@@ -89,9 +143,11 @@ export function StatusPanel({ onClose }) {
 export function InventoryPanel({ onClose }) {
   const CELL = 86, GAPX = 9, GAPY = 18
   const [diceOpen, setDiceOpen] = useState(false)
+  const [detail, setDetail] = useState(null)
   const gw = INV_COLS * CELL + (INV_COLS - 1) * GAPX
   const gh = INV_ROWS * CELL + (INV_ROWS - 1) * GAPY
   return (
+    <>
     <div className="overlay bag-overlay">
       <div className="bag">
         <div className="bag-flap"><span className="bag-buckle" /></div>
@@ -106,8 +162,9 @@ export function InventoryPanel({ onClose }) {
               style={{ left: cx * (CELL + GAPX), top: cy * (CELL + GAPY), width: CELL, height: CELL }} />
           })}
           {INV_ITEMS.map(it => (
-            <div key={it.id} className="inv-item"
-              title={it.name + (it.stack ? ` ×${it.stack}` : '')}
+            <div key={it.id} className="inv-item clickable"
+              title={`${it.name} — 클릭하면 상세`}
+              onClick={() => setDetail(ITEMS[it.ref])}
               style={{
                 left: it.x * (CELL + GAPX), top: it.y * (CELL + GAPY),
                 width: it.w * CELL + (it.w - 1) * GAPX, height: it.h * CELL + (it.h - 1) * GAPY,
@@ -133,6 +190,8 @@ export function InventoryPanel({ onClose }) {
         </div>
       </div>
     </div>
+    <ItemDetailModal item={detail} onClose={() => setDetail(null)} />
+    </>
   )
 }
 
