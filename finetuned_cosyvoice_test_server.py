@@ -89,7 +89,7 @@ def add_cosyvoice_paths(path: Path) -> None:
 
 def save_chunks(chunks: list[dict[str, Any]], sample_rate: int, output_path: Path) -> None:
     import torch
-    import torchaudio
+    import soundfile as sf
 
     speeches = []
     for chunk in chunks:
@@ -101,7 +101,11 @@ def save_chunks(chunks: list[dict[str, Any]], sample_rate: int, output_path: Pat
         raise RuntimeError("CosyVoice returned no audio chunks.")
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    torchaudio.save(str(output_path), torch.cat(speeches, dim=-1), sample_rate)
+    audio = torch.cat(speeches, dim=-1).clamp(-1.0, 1.0)
+    audio_np = audio.detach().cpu().float().numpy()
+    if audio_np.ndim == 2:
+        audio_np = audio_np.T
+    sf.write(str(output_path), audio_np, sample_rate, subtype="PCM_16")
 
 
 def ensure_instruction(value: str) -> str:

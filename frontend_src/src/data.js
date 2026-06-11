@@ -1,10 +1,9 @@
 // ===== 임시 데이터 (나중에 서버/시트 데이터로 교체) =====
 import { ITEMS, ITEM_LIST } from './items.js'
 
-// 말풍선 색: GM=나레이터(청록빛 슬레이트, NPC들과 확실히 구분), 린=진홍, 플레이어=회색
-//   (의사 등 NPC는 personas.js의 color를 쓰므로, GM은 그 어떤 NPC와도 겹치지 않는 색으로 둔다)
+// 말풍선 색: GM=밤색, 린=진홍, 플레이어=회색
 export const SPEAKERS = {
-  gm:     { name: 'GM', color: '#3f7d86', tint: 'rgba(63,125,134,0.16)' },    // 청록 슬레이트(나레이터)
+  gm:     { name: 'GM', color: '#7a4a2e', tint: 'rgba(122,74,46,0.18)' },     // 밤색
   lin:    { name: "여우 ‘린’", color: '#9b1c31', tint: 'rgba(155,28,49,0.18)' }, // 진홍
   player: { name: '나', color: '#7d858d', tint: 'rgba(125,133,141,0.16)' },   // 회색
 }
