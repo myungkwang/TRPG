@@ -6,11 +6,13 @@ import { apiChat, apiTTS, apiDebugEnding } from '../api.js'
 import { PERSONAS, getPersona } from '../personas.js'
 
 const CRYSTAL_MINE_BGM = '/static/audio/bgm/crystal-mine.mp3'
+const USE_BROWSER_TTS = false
 
 const NPC_DIALOGUE_TEST_LINES = [
   { speaker: 'doctor', text: '린, 환자의 반응이 안정적입니다. 하지만 기억은 아직 흐릿한 것 같군요.' },
   { speaker: 'lin', text: '그럼 제가 몇 가지를 물어볼게요. 손님, 여관에서 본 표식은 기억나시나요?' },
   { speaker: 'gail', text: '표식보다 중요한 건 광산 쪽 움직임입니다. 남은 인력으로도 채굴을 계속해야 하니까요.' },
+  { speaker: 'tobi', text: '저도 같이 갈래요. 형이 남긴 표식이라면 제가 알아볼 수 있을지도 몰라요!' },
   { speaker: 'doctor', text: '가일, 서두르지 마십시오. 이 사람의 상태를 먼저 확인해야 합니다.' },
   { speaker: 'lin', text: '두 분 다 잠깐만요. 지금은 손님이 따라올 수 있게 천천히 말하는 게 좋겠어요.' },
 ]
@@ -20,58 +22,63 @@ const CHARACTER_MODELS = [
     speaker: 'gm',
     personaId: 'doctor',
     name: PERSONAS.doctor.name,
-    modelPath: '/static/models/GM_Base_WithShapeKeys_04.glb',
-    modelScale: 1,
-    modelOffset: [0, 0, 0],
+    modelPath: '/static/models/ShapeKey_10_anim_05.glb',
+    modelScale: 0.75,
+    modelOffset: [0, 80, 0],
+    motionIntensity: 4,
   },
   {
     speaker: 'lin',
     personaId: 'lin',
     name: PERSONAS.lin.name,
-    modelPath: '/static/models/GM_Base_WithShapeKeys_04.glb',
-    modelScale: 1,
-    modelOffset: [0, 0, 0],
+    modelPath: '/static/models/Lin_ack_shrtleg_decntarm.glb',
+    modelScale: 0.75,
+    modelOffset: [0, -120, 0],
+    preferEmbeddedAnimations: true,
   },
   {
     speaker: 'gail',
     personaId: 'gail',
     name: PERSONAS.gail.name,
-    modelPath: '/static/models/Gail_05.glb',
+    modelPath: '/static/models/Gail_01.glb',
     modelRotation: [-Math.PI / 2, Math.PI, Math.PI],
     modelScale: 0.25,
-    modelOffset: [0, 80, 0],
+    modelOffset: [0, 70, 0],
   },
   {
     speaker: 'marta',
     personaId: 'marta',
     name: PERSONAS.marta.name,
-    modelPath: '/static/models/GM_Base_WithShapeKeys_04.glb',
-    modelScale: 1,
-    modelOffset: [0, 0, 0],
+    modelPath: '/static/models/static/models/Tobi_01.glb',
+    modelScale: 0.75,
+    modelOffset: [0, 80, 0],
   },
   {
     speaker: 'tobi',
     personaId: 'tobi',
     name: PERSONAS.tobi.name,
-    modelPath: '/static/models/GM_Base_WithShapeKeys_04.glb',
-    modelScale: 1,
-    modelOffset: [0, 0, 0],
+    modelPath: '/static/models/Tobi_01.glb',
+    modelRotation: [-Math.PI / 2, Math.PI, Math.PI],
+    modelScale: 0.45,
+    modelOffset: [0, 80, 0],
   },
   {
     speaker: 'doctor',
     personaId: 'doctor',
     name: PERSONAS.doctor.name,
-    modelPath: '/static/models/GM_Base_WithShapeKeys_04.glb',
-    modelScale: 1,
-    modelOffset: [0, 0, 0],
+    modelPath: '/static/models/Doctor_04_tracksDevided.glb',
+    modelScale: 0.75,
+    modelOffset: [0, -120, 0],
+    preferEmbeddedAnimations: true,
+    motionIntensity: 2.5,
   },
   {
     speaker: 'kargas',
     personaId: 'kargas',
     name: PERSONAS.kargas.name,
     modelPath: '/static/models/GM_Base_WithShapeKeys_04.glb',
-    modelScale: 1,
-    modelOffset: [0, 0, 0],
+    modelScale: 0.75,
+    modelOffset: [0, 80, 0],
   },
 ]
 
@@ -149,9 +156,109 @@ const getTtsInstructions = (persona, emotion) => {
   return `${base} ${extra}`.trim()
 }
 
+// 텍스트에서 인라인 톤 지시문 (괄호/대괄호) 추출.
+// 반환: { cleanText: 지시문 제거된 발화 텍스트, toneHint: 지시문들을 합친 문자열 }
+const extractToneHint = (text) => {
+  const hints = []
+  const original = String(text || '').trim()
+  const clean = original
+    .replace(/[(\[（【][^)\]）】]{1,60}[)\]）】]/g, (m) => {
+      hints.push(m.slice(1, -1).trim())
+      return ' '
+    })
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (!clean && original) {
+    return { cleanText: original, toneHint: '' }
+  }
+  return { cleanText: clean, toneHint: hints.join(', ') }
+}
+
 let currentAudio = null
+let currentUtterance = null
 let speechRunId = 0
-const VOICE_RATE = 1.35   // 음성 재생 속도(템포). 음정은 preservesPitch로 유지.
+let _onGmSpeakChange = null
+
+const estimateSpeechDuration = (text) => {
+  const length = Array.from(String(text || '')).length
+  return Math.min(5.5, Math.max(1.2, length * 0.085))
+}
+
+const getBrowserVoice = () => {
+  if (!('speechSynthesis' in window)) return null
+  const voices = window.speechSynthesis.getVoices?.() || []
+  return voices.find(voice => /^ko[-_]?KR/i.test(voice.lang))
+    || voices.find(voice => /^ko/i.test(voice.lang))
+    || voices[0]
+    || null
+}
+
+const getBrowserVoiceParams = (speaker) => {
+  switch (speaker) {
+    case 'lin':
+      return { pitch: 1.18, rate: 1.06 }
+    case 'tobi':
+      return { pitch: 1.28, rate: 1.1 }
+    case 'gail':
+      return { pitch: 0.88, rate: 0.95 }
+    case 'doctor':
+      return { pitch: 0.96, rate: 0.92 }
+    case 'kargas':
+      return { pitch: 0.72, rate: 0.82 }
+    default:
+      return { pitch: 0.9, rate: 0.94 }
+  }
+}
+
+const cancelBrowserSpeech = () => {
+  if (!('speechSynthesis' in window)) return
+  if (currentUtterance) {
+    window.speechSynthesis.cancel()
+    currentUtterance = null
+  }
+}
+
+const speakWithBrowserTts = (segment, fallbackDuration) => new Promise((resolve, reject) => {
+  if (!('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') {
+    reject(new Error('Browser speech synthesis is not available.'))
+    return
+  }
+
+  cancelBrowserSpeech()
+
+  const utterance = new SpeechSynthesisUtterance(segment.text)
+  utterance.lang = 'ko-KR'
+  utterance.volume = 1
+  const voice = getBrowserVoice()
+  if (voice) utterance.voice = voice
+
+  const params = getBrowserVoiceParams(segment.speaker)
+  utterance.pitch = params.pitch
+  utterance.rate = params.rate
+
+  currentUtterance = utterance
+  let settled = false
+  const done = () => {
+    if (settled) return
+    settled = true
+    if (currentUtterance === utterance) currentUtterance = null
+    window.stopLinLipSync?.()
+    resolve()
+  }
+
+  utterance.onstart = () => {
+    window.playLinPerformance?.(segment.text, 'talk', fallbackDuration)
+    window.startLinFallbackLipSync?.(segment.text, fallbackDuration)
+  }
+  utterance.onend = done
+  utterance.onerror = (event) => {
+    if (currentUtterance === utterance) currentUtterance = null
+    window.stopLinLipSync?.()
+    reject(new Error(event.error || 'Browser speech synthesis failed.'))
+  }
+
+  window.speechSynthesis.speak(utterance)
+})
 
 const SPEAKER_LABELS = [
   ['여우 린', 'lin'],
@@ -239,26 +346,27 @@ const splitSegmentSentences = (segment) => {
 }
 
 const splitSegmentsIntoSentences = (segments) => {
-  const parts = segments.flatMap(splitSegmentSentences)
+  return segments.flatMap(splitSegmentSentences)
+}
 
-  return parts.map((segment, index) => {
-    if (segment.speaker !== 'gm' || index === 0) return segment
+const mergeShortSpeechSegments = (segments) => {
+  const merged = []
 
-    if (/^(당신(?:은|이|에게|을|를)?|그는|그녀는|그들(?:은)?|주변|장소|공기|분위기|여관|진료소|광산|갱도|정제소)/.test(segment.text)) {
-      return { ...segment, speaker: 'gm' }
+  segments.forEach((segment) => {
+    const text = String(segment.text || '').trim()
+    if (!text) return
+
+    const previous = merged[merged.length - 1]
+    const shortText = Array.from(text).length < 8
+    if (previous && previous.speaker === segment.speaker && (shortText || Array.from(previous.text).length < 8)) {
+      previous.text = `${previous.text} ${text}`.trim()
+      return
     }
 
-    const previous = parts[index - 1]?.text || ''
-    const inferred = inferSpeakerFromContext(previous, 'gm')
-    const previousIntroducesSpeech = /(묻|말|대답|속삭|웃으며|미소|건네|목소리)/.test(previous)
-    const looksLikeDialogue = /[?？]$|(?:요|까|나요|습니까)[.!?。！？]?$/.test(segment.text)
-
-    if (inferred !== 'gm' && previousIntroducesSpeech && looksLikeDialogue) {
-      return { ...segment, speaker: inferred }
-    }
-
-    return segment
+    merged.push({ ...segment, text })
   })
+
+  return merged
 }
 
 const splitAttributedQuotes = (text, fallbackSpeaker = 'gm') => {
@@ -324,18 +432,15 @@ const splitSpeechSegments = (text, fallbackSpeaker = 'gm') => {
 
   return splitSegmentsIntoSentences(segments.length ? segments : [{ speaker: fallbackSpeaker, text: source }])
 }
-// 진행 중인 TTS를 즉시 끊는다(플레이어가 말 도중 끼어들 때).
-function stopSpeaking() {
-  speechRunId += 1                 // 돌고 있는 speakNpc 루프를 무효화
-  const a = currentAudio
-  currentAudio = null
-  if (a) {
-    a.pause()
-    // 재생을 기다리던 Promise가 멈추지 않도록 ended를 강제로 발생시켜 루프를 깔끔히 종료
-    try { a.dispatchEvent(new Event('ended')) } catch { /* noop */ }
+const stopSpeaking = () => {
+  speechRunId++
+  _onGmSpeakChange?.(false)
+  if (currentAudio) {
+    currentAudio.pause()
+    currentAudio.currentTime = 0
+    currentAudio = null
   }
-  window.stopLinLipSync?.()
-  window.playLinAnimation?.('idle')
+  cancelBrowserSpeech()
 }
 
 async function speakNpc(text, speaker = 'gm', options = {}) {
@@ -348,37 +453,58 @@ async function speakNpc(text, speaker = 'gm', options = {}) {
       currentAudio.currentTime = 0
       currentAudio = null
     }
+    cancelBrowserSpeech()
 
-    const segments = splitSpeechSegments(text, speaker)
+    const segments = mergeShortSpeechSegments(splitSpeechSegments(text, speaker))
     console.log('TTS SEGMENTS:', segments)
 
     for (const segment of segments) {
       if (runId !== speechRunId) return
 
+      const persona = getPersonaForSpeaker(segment.speaker)
+      const { cleanText, toneHint } = extractToneHint(segment.text)
+      const spokenText = cleanText || segment.text
+      options.onSegmentStart?.(segment)
+      revealedCount += 1
+
+      _onGmSpeakChange?.(segment.speaker === 'gm')
+
+      const ttsInstructions = toneHint
+        ? `${getTtsInstructions(persona)} ${toneHint}`.trim()
+        : getTtsInstructions(persona)
+      const cleanSegment = { ...segment, text: spokenText }
+      const fallbackDuration = estimateSpeechDuration(spokenText)
+      await new Promise(resolve => setTimeout(resolve, 60))
+      if (runId !== speechRunId) return
+
+      if (USE_BROWSER_TTS) {
+        try {
+          await speakWithBrowserTts(cleanSegment, fallbackDuration)
+
+          if (runId !== speechRunId) return
+          await new Promise(resolve => setTimeout(resolve, 80))
+          continue
+        } catch (browserTtsErr) {
+          console.warn('Browser TTS fallback to server:', segment.speaker, browserTtsErr)
+        }
+      }
+
       try {
-        const persona = getPersonaForSpeaker(segment.speaker)
-        const data = await apiTTS(segment.text, {
+        const data = await apiTTS(spokenText, {
           speaker: persona.id,
           voice: persona.tts?.voice,
-          instructions: getTtsInstructions(persona),
+          instructions: ttsInstructions,
         })
         console.log('TTS RESPONSE:', data)
 
         if (runId !== speechRunId) return
 
         const audio = new Audio(data.audio_url)
-        // 음성 자체를 빠르게 — 템포만 올리고 음정은 유지(자연스러운 빠른 말).
-        audio.preservesPitch = true
-        audio.mozPreservesPitch = true
-        audio.webkitPreservesPitch = true
-        audio.playbackRate = VOICE_RATE
         currentAudio = audio
-        options.onSegmentStart?.(segment)
-        revealedCount += 1
 
         audio.onplay = () => {
-          window.playLinPerformance?.(segment.text, data.emotion, audio.duration)
-          window.startLinLipSync?.(audio, segment.text)
+          window.playLinPerformance?.(spokenText, data.emotion, audio.duration)
+          window.startLinLipSync?.(audio, spokenText)
         }
 
         await new Promise((resolve, reject) => {
@@ -391,7 +517,7 @@ async function speakNpc(text, speaker = 'gm', options = {}) {
         if (currentAudio === audio) currentAudio = null
 
         if (runId !== speechRunId) return
-        await new Promise(resolve => setTimeout(resolve, 40))
+        await new Promise(resolve => setTimeout(resolve, 80))
       } catch (segmentErr) {
         console.warn('TTS segment error:', segment.speaker, segmentErr)
         window.stopLinLipSync?.()
@@ -399,9 +525,11 @@ async function speakNpc(text, speaker = 'gm', options = {}) {
           currentAudio.pause()
           currentAudio = null
         }
-        options.onSegmentStart?.(segment)
-        revealedCount += 1
-        await new Promise(resolve => setTimeout(resolve, 180))
+        window.playLinPerformance?.(spokenText, 'talk', fallbackDuration)
+        window.startLinFallbackLipSync?.(spokenText, fallbackDuration)
+        await new Promise(resolve => setTimeout(resolve, fallbackDuration * 1000))
+        window.stopLinLipSync?.()
+        await new Promise(resolve => setTimeout(resolve, 120))
       }
     }
 
@@ -412,6 +540,8 @@ async function speakNpc(text, speaker = 'gm', options = {}) {
     window.playLinAnimation?.('idle')
     options.onFallback?.(splitSpeechSegments(text, speaker).slice(revealedCount))
     window.playLinEmotion?.(text)
+  } finally {
+    _onGmSpeakChange?.(false)
   }
 }
 
@@ -425,7 +555,9 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
   const [judge, setJudge] = useState(null)
   const [judgeResult, setJudgeResult] = useState(null)
   const [sending, setSending] = useState(false)
+  const [choices, setChoices] = useState([])
   const [npcTestRunning, setNpcTestRunning] = useState(false)
+  const [gmSpeaking, setGmSpeaking] = useState(false)
   const logRef = useRef(null)
   const judgeRef = useRef(null)
   const judgeTimerRef = useRef(null)
@@ -443,19 +575,20 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
       setLog(previousLog)
       setActiveSpeaker(getLastNpcSpeaker(previousLog))
       spokenRef.current.add(key)
-      // 텍스트는 음성과 함께(세그먼트 단위로) 노출한다.
-      speakNpc(last.content || '', speaker, {
-        onSegmentStart: (segment) => {
-          setActiveSpeaker(segment.speaker)
-          setLog(prev => [...prev, { who: segment.speaker, text: segment.text, speak: false }])
-        },
-        onFallback: (segments) => {
-          setLog(prev => [
-            ...prev,
-            ...segments.map(segment => ({ who: segment.speaker, text: segment.text, speak: false })),
-          ])
-        },
-      })
+      setTimeout(() => {
+        speakNpc(last.content || '', speaker, {
+          onSegmentStart: (segment) => {
+            setActiveSpeaker(segment.speaker)
+            setLog(prev => [...prev, { who: segment.speaker, text: segment.text, speak: false }])
+          },
+          onFallback: (segments) => {
+            setLog(prev => [
+              ...prev,
+              ...segments.map(segment => ({ who: segment.speaker, text: segment.text, speak: false })),
+            ])
+          },
+        })
+      }, 250)
       return
     }
 
@@ -501,7 +634,6 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
     runMapStep(dest).then(({ ending, aborted, kind }) => {
       mappingRef.current = false
       if (aborted) return
-      // 자동(AI 이벤트) 이동이면 배경·나레이션은 AI가 이미 처리하므로 건드리지 않는다.
       if (opts.silent) return
       const nextLocation = getMapResultLocation(kind)
       if (nextLocation) setStageLocation(nextLocation)
@@ -513,8 +645,6 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
     })
   }
 
-  // AI가 스토리 이벤트로 스테이지를 진행시키면(visit_event) 말판이 자동으로 한 칸 전진한다.
-  // 첫 동기화(로드/이어하기)는 건너뛰고, 실제 진행으로 단계가 오를 때만 작동.
   const prevStageRef = useRef(null)
   useEffect(() => {
     const idx = session?.stage?.index ?? 0
@@ -530,10 +660,12 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight
   }, [log, choiceMode])
 
-  // 게임 화면을 떠나면(타이틀 이동 등) 진행 중인 음성을 멈춘다 — 음성은 게임 중에만.
   useEffect(() => () => stopSpeaking(), [])
-
   useEffect(() => () => clearTimeout(judgeTimerRef.current), [])
+  useEffect(() => {
+    _onGmSpeakChange = setGmSpeaking
+    return () => { _onGmSpeakChange = null }
+  }, [])
 
   const triggerJudge = (dc = 11, stat = '지각', opts = {}) => {
     judgeRef.current = {
@@ -606,10 +738,10 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
     const text = String(raw || '').trim()
     if (!text || sending) return
 
-    stopSpeaking()        // AI가 말하는 중이면 즉시 끊고 플레이어 입력을 받는다
+    stopSpeaking()
     push('player', text)
     setInput('')
-    setChoices([])         // 새 입력 → 이전 선택지 제거
+    setChoices([])
     setChoiceMode(false)
 
     if (!session?.id) {
@@ -632,20 +764,23 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
 
   const send = () => sendText(input)
 
-  // [테스트 전용] 원하는 엔딩으로 즉시 점프. 세션 갱신 → App이 엔딩 오버레이를 띄운다.
   const [endingJumping, setEndingJumping] = useState(false)
   const jumpEnding = async (kind) => {
     if (!session?.id || endingJumping) return
+    stopSpeaking()
     setEndingJumping(true)
+    setSending(true)
+    setChoices([])
     push('gm', `(테스트) '${kind}' 엔딩을 생성하는 중입니다… 잠시만 기다려 주세요.`, { speak: false })
     try {
       const data = await apiDebugEnding(session.id, kind)
-      onSessionChange?.(data.session)   // progress=100 + ending_locked 반영
-      if (data.ending) onEnding?.(data.ending)   // 점프는 즉시 공개(반복 테스트도 매번 뜸)
+      onSessionChange?.(data.session)
+      if (data.ending) onEnding?.(data.ending)
     } catch (err) {
       push('gm', `엔딩 테스트 오류: ${err.message}`, { speak: false })
     } finally {
       setEndingJumping(false)
+      setSending(false)
     }
   }
 
@@ -717,12 +852,12 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
 
       <div className="vn-stage">
         <div className="stage-tools">
+          <button onClick={() => setChoiceMode(v => !v)}>선택지</button>
           <button onClick={() => triggerJudge(11, '지각')}>판정</button>
           <button onClick={() => advanceOnMap()}>지도</button>
           <button onClick={runNpcDialogueTest} disabled={npcTestRunning}>
             {npcTestRunning ? '대화중' : 'NPC 테스트'}
           </button>
-          {/* 테스트 전용: 엔딩 즉시 점프 */}
           {['노멀', '트루', '히든', '베드'].map(k => (
             <button key={k} onClick={() => jumpEnding(k)} disabled={endingJumping || !session?.id}
               title={`${k} 엔딩으로 즉시 점프 (테스트)`}>
@@ -730,15 +865,34 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
             </button>
           ))}
         </div>
-        <div className="char-center">
-          <Character3D
-            key={activeCharacter.speaker}
-            modelPath={activeCharacter.modelPath}
-            modelRotation={activeCharacter.modelRotation}
-            modelScale={activeCharacter.modelScale}
-            modelOffset={activeCharacter.modelOffset}
-          />
-        </div>
+        {activeSpeaker !== 'gm' && (
+          <div className="char-center">
+            <Character3D
+              key={activeCharacter.speaker}
+              modelPath={activeCharacter.modelPath}
+              modelRotation={activeCharacter.modelRotation}
+              modelScale={activeCharacter.modelScale}
+              modelOffset={activeCharacter.modelOffset}
+              preferEmbeddedAnimations={activeCharacter.preferEmbeddedAnimations}
+              motionIntensity={activeCharacter.motionIntensity}
+            />
+          </div>
+        )}
+
+        {gmSpeaking && (
+          <div className="gm-face-popup">
+            <Character3D
+              key="gm-popup"
+              modelPath={CHARACTER_MODELS[0].modelPath}
+              modelScale={CHARACTER_MODELS[0].modelScale}
+              modelOffset={CHARACTER_MODELS[0].modelOffset}
+              motionIntensity={CHARACTER_MODELS[0].motionIntensity}
+              cameraPosition={[0, 830, 150]}
+              cameraTarget={[0, 820, 0]}
+              cameraFov={25}
+            />
+          </div>
+        )}
       </div>
 
       <div className="chat-section">
@@ -757,6 +911,22 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
             )
           })}
         </div>
+
+        {choices.length > 0 && !sending && (
+          <div className="choice-block">
+            <div className="choice-flavor">{FLAVOR_CHOICE}</div>
+            {CHOICES.map(c => (
+              <button key={c.id}
+                className={'choice-row' + (c.tag && c.tag.includes('위험') ? ' danger' : '')}
+                onClick={() => pickChoice(c)}>
+                <span className="cn">{c.id}</span>
+                <span>{c.text}</span>
+                {c.tag && <span className="ctag">{c.tag}</span>}
+              </button>
+            ))}
+            <div className="choice-note">입력창에 직접 써서 다른 행동을 해도 됩니다.</div>
+          </div>
+        )}
 
         {choices.length > 0 && !sending && (
           <div className="choice-block">

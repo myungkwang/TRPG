@@ -6,8 +6,8 @@ import Dialogue from './components/Dialogue.jsx'
 import MenuButton from './components/Menu.jsx'
 import { StatusPanel, InventoryPanel, FullMapPanel, SettingsPanel } from './components/Panels.jsx'
 import CodexPanel from './components/Codex.jsx'
-import MapOverlay from './components/MapOverlay.jsx'
 import Ending from './components/Ending.jsx'
+import MapOverlay from './components/MapOverlay.jsx'
 import { apiLoadSession, apiNewSession, apiLockEnding, apiGetEnding, getStoredUser, getToken, logout } from './api.js'
 import { EQUIPMENT, EQUIP_SLOTS } from './data.js'
 
@@ -30,13 +30,12 @@ export default function App() {
   const [ending, setEnding] = useState(null)
   const mapResolver = useRef(null)
   const endingLockRef = useRef(false)
-  const endingShownRef = useRef(null)   // 엔딩을 이미 공개한 세션 id (재팝업 방지)
+  const endingShownRef = useRef(null)
 
   useEffect(() => {
     setHasSave(Boolean(localStorage.getItem(SAVE_KEY)))
   }, [])
 
-  // 진행도 감지: 70%(절정)에 엔딩 확정+이미지 생성, 100%(에필로그)에 공개
   useEffect(() => {
     if (!session?.id) return
     const pct = session.progress || 0
@@ -46,7 +45,6 @@ export default function App() {
       endingLockRef.current = true
       apiLockEnding(session.id).catch(() => { endingLockRef.current = false })
     }
-    // 엔딩은 세션당 한 번만 자동 공개한다(닫은 뒤 대화/선택에 다시 뜨지 않도록).
     if (pct >= 100 && !ending && endingShownRef.current !== session.id) {
       apiGetEnding(session.id).then((d) => {
         if (d.ending) { setEnding(d.ending); endingShownRef.current = session.id }
@@ -54,7 +52,6 @@ export default function App() {
     }
   }, [session])
 
-  // 엔딩을 닫으면 메인 화면으로 — 이번 회차는 끝났으니 거기서 새 게임/이어하기를 고른다.
   const closeEnding = () => {
     setEnding(null)
     setOverlay(null)
@@ -123,11 +120,11 @@ export default function App() {
     setLoading(true)
     try {
       localStorage.removeItem(SAVE_KEY)
-      setJourney([])
-      setMapDepth(0)
       setEnding(null)
       endingLockRef.current = false
       endingShownRef.current = null
+      setJourney([])
+      setMapDepth(0)
       const data = await apiNewSession()
       applyLoaded(data, true)
       setScreen('intro')

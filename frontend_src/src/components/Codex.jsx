@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react'
+import { apiGetCodex } from '../api.js'
 import {
-  CODEX_CHARACTERS, CODEX_ITEMS, CODEX_CLUES, ENDING_DEX, BAD_ENDING_INFO, REP_RANGE,
+  CODEX_CHARACTERS, CODEX_ITEMS, CODEX_CLUES, CODEX_ENDINGS, REP_RANGE,
 } from '../data.js'
 import { categoryLabel, priceLabel } from '../items.js'
-import { apiGetCodex } from '../api.js'
 
 const CATS = [
   { key: 'chars',   label: '인물' },
@@ -95,22 +95,28 @@ function ListSpread({ list, sel, setSel, kindLabel }) {
   )
 }
 
-/* 엔딩 한 페이지 (일러스트 카드) — 기존 레이아웃 */
-function EndingPage({ e, onOpen }) {
-  if (!e) return <div className="cx2-page cx2-blank" />
+const ENDING_KIND_LABEL = {
+  END_NORMAL: '노멀엔딩',
+  END_TRUE:   '트루엔딩',
+  END_HIDDEN: '히든엔딩',
+  END_BAD:    '베드엔딩',
+}
+
+function EndingPage({ slot, entry, onOpen }) {
+  const label = ENDING_KIND_LABEL[slot.id] || (entry ? ENDING_KIND_LABEL[entry.id] : '베드엔딩')
+  const got = Boolean(entry)
   return (
     <div className="cx2-page cx2-endpage">
-      <button className={'cx2-endcard' + (e.got ? '' : ' locked')} disabled={!e.got} onClick={() => e.got && onOpen(e)}>
-        <div className="cx2-endart">
-          {e.got
-            ? (e.image_url
-                ? <img src={e.image_url} alt={e.name} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} />
-                : <span style={{ fontSize: '40px' }}>{e.art}</span>)
-            : '❔'}
-        </div>
-        <div className="cx2-endno">NO.{e.got ? e.no : '?????'}</div>
-        <div className="cx2-endname">{e.got ? e.name : '???'}</div>
-        {e.got && <div className="cx2-endhint">클릭하여 자세히</div>}
+      <div className="cx2-end-kindlabel">{label}</div>
+      <button
+        className={'cx2-endcard' + (got ? '' : ' locked')}
+        disabled={!got}
+        onClick={() => got && onOpen({ ...entry, no: slot.no })}
+      >
+        <div className="cx2-endart">{got ? (entry.art || '📜') : '❔'}</div>
+        <div className="cx2-endno">NO.{slot.no}</div>
+        <div className="cx2-endname">{got ? (entry.name || slot.name) : '???'}</div>
+        {got && <div className="cx2-endhint">클릭하여 자세히</div>}
       </button>
     </div>
   )
@@ -122,44 +128,48 @@ export default function CodexPanel({ onClose }) {
   const [selItem, setSelItem] = useState(0)
   const [selClue, setSelClue] = useState(0)
   const [ending, setEnding] = useState(null)  // 엔딩 모달
-  const [acc, setAcc] = useState({ clues: [], endings: [] })  // 계정 누적 도감
+  const [codexData, setCodexData] = useState(null)
 
-  // 계정 단위로 누적된 도감(회차 무관)을 불러와 해금 상태를 칠한다.
   useEffect(() => {
-    apiGetCodex().then(d => setAcc({ clues: d.clues || [], endings: d.endings || [] })).catch(() => {})
-  }, [])
+    if (cat === 'endings') {
+      apiGetCodex().then(setCodexData).catch(() => {})
+    }
+  }, [cat])
+
+  // 고정 슬롯 정의 (No.1~3)
+  const FIXED_SLOTS = [
+    { no: 1, id: 'END_NORMAL', name: '노멀엔딩' },
+    { no: 2, id: 'END_TRUE',   name: '트루엔딩' },
+    { no: 3, id: 'END_HIDDEN', name: '히든엔딩' },
+  ]
+
+  // API 엔딩 데이터를 슬롯에 매핑
+  const buildEndingSlots = () => {
+    const apiEndings = codexData?.endings || []
+    // 고정 슬롯 (1~3)
+    const slots = FIXED_SLOTS.map(slot => ({
+      slot,
+      entry: apiEndings.find(e => e.id === slot.id) || null,
+    }))
+    // 베드 엔딩 (4~)
+    const bads = apiEndings.filter(e => e.kind === 'bad' || (e.id === 'END_BAD'))
+    bads.forEach((bad, i) => {
+      slots.push({ slot: { no: 4 + i, id: 'END_BAD', name: '베드엔딩' }, entry: bad })
+    })
+    // 빈 베드 슬롯 1개 (미획득 표시)
+    if (bads.length === 0) {
+      slots.push({ slot: { no: 4, id: 'END_BAD', name: '베드엔딩' }, entry: null })
+    }
+    return slots
+  }
 
   const switchCat = (k) => { setCat(k); setPair(0); setEnding(null) }
 
-  // 단서: 계정 누적분(이름 매칭)으로 got/설명을 덮어쓴다.
-  const accClue = new Map(acc.clues.map(c => [c.key, c]))
-  const clues = CODEX_CLUES.map((c, i) => {
-    const a = accClue.get(c.name)
-    return { ...c, no: c.no ?? i + 1, got: c.got || Boolean(a), desc: a?.desc || c.desc }
-  })
-
-  // 엔딩: 정규 3슬롯(이름 매칭, ??? 잠금) + 베드 엔딩 누적분(kind==='bad')을 하나의 카드 목록으로.
-  const accGood = new Map(acc.endings.filter(e => e.kind !== 'bad').map(e => [e.name, e]))
-  const goodSlots = ENDING_DEX.map(e => {
-    const a = accGood.get(e.name)
-    return {
-      name: `${e.name} 엔딩`, art: e.art, footnotes: [],
-      got: Boolean(a), image_url: a?.image_url || null,
-      summary: a?.summary || e.teaser, text: a?.text || '',
-    }
-  })
-  // 베드 엔딩은 회차마다 누적 — 각 카드의 상세에 'AI 생성' 설명을 각주로 단다.
-  const badCards = acc.endings.filter(e => e.kind === 'bad').map((b, i) => ({
-    name: `베드 엔딩 #${i + 1}`, art: BAD_ENDING_INFO.art, got: true,
-    image_url: b.image_url || null, summary: b.summary || '', text: b.text || '',
-    footnotes: [BAD_ENDING_INFO.desc],
-  }))
-  // 아직 베드에 도달 못했어도 'AI 생성 누적' 안내용 잠금 슬롯 1개는 보여준다.
-  const badSlots = badCards.length > 0 ? badCards : [{ name: '베드 엔딩', art: BAD_ENDING_INFO.art, got: false, footnotes: [BAD_ENDING_INFO.desc] }]
-  const endingsList = [...goodSlots, ...badSlots].map((e, i) => ({ ...e, no: i + 1 }))
-
-  const paged = cat === 'chars' ? CODEX_CHARACTERS : cat === 'endings' ? endingsList : null
-  const spreads = paged ? Math.ceil(paged.length / 2) : 0
+  const endingSlots = cat === 'endings' ? buildEndingSlots() : []
+  const paged = cat === 'chars' ? CODEX_CHARACTERS : null
+  const spreads = cat === 'chars' ? Math.ceil(CODEX_CHARACTERS.length / 2)
+    : cat === 'endings' ? Math.ceil(endingSlots.length / 2)
+    : 0
   const prev = () => setPair(p => Math.max(0, p - 1))
   const next = () => setPair(p => Math.min(spreads - 1, p + 1))
 
@@ -178,11 +188,24 @@ export default function CodexPanel({ onClose }) {
         <div className="cx2-book">
           {cat === 'chars' && (<><CharPage c={paged[pair * 2]} /><CharPage c={paged[pair * 2 + 1]} /></>)}
           {cat === 'items' && (<ListSpread list={CODEX_ITEMS} sel={selItem} setSel={setSelItem} kindLabel="아이템" />)}
-          {cat === 'clues' && (<ListSpread list={clues} sel={selClue} setSel={setSelClue} kindLabel="단서" />)}
-          {cat === 'endings' && (<><EndingPage e={paged[pair * 2]} onOpen={setEnding} /><EndingPage e={paged[pair * 2 + 1]} onOpen={setEnding} /></>)}
+          {cat === 'clues' && (<ListSpread list={CODEX_CLUES} sel={selClue} setSel={setSelClue} kindLabel="단서" />)}
+          {cat === 'endings' && (
+            <>
+              <EndingPage
+                slot={endingSlots[pair * 2]?.slot || { no: pair * 2 + 1, id: '', name: '' }}
+                entry={endingSlots[pair * 2]?.entry || null}
+                onOpen={setEnding}
+              />
+              <EndingPage
+                slot={endingSlots[pair * 2 + 1]?.slot || { no: pair * 2 + 2, id: '', name: '' }}
+                entry={endingSlots[pair * 2 + 1]?.entry || null}
+                onOpen={setEnding}
+              />
+            </>
+          )}
         </div>
 
-        {paged && spreads > 1 && (
+        {(cat === 'chars' || cat === 'endings') && spreads > 1 && (
           <div className="cx2-nav">
             <button className="cx2-arrow" onClick={prev} disabled={pair === 0}>◀</button>
             <span className="cx2-pageno">{pair + 1} / {spreads}</span>
@@ -195,18 +218,12 @@ export default function CodexPanel({ onClose }) {
           <div className="cx2-endmodal-overlay" onClick={() => setEnding(null)}>
             <div className="cx2-endmodal" onClick={e => e.stopPropagation()}>
               <button className="cx2-endmodal-x" onClick={() => setEnding(null)}>✕</button>
-              {ending.image_url
-                ? <img className="cx2-endmodal-img" src={ending.image_url} alt={ending.name}
-                       style={{ width: '100%', maxHeight: '46vh', objectFit: 'cover', borderRadius: '10px' }} />
-                : <div className="cx2-endmodal-art">{ending.art}</div>}
-              <div className="cx2-endmodal-title">{ending.name}</div>
-              {/* 전체 본문(있으면) — 길어도 모달이 스크롤되며 끝까지 보인다. */}
-              <p className="cx2-endmodal-summary" style={{ whiteSpace: 'pre-wrap', textAlign: 'left' }}>
-                {String(ending.text || ending.summary || '').replace(/^\s*GM\s*[:：]\s*/gm, '').trim()}
-              </p>
-              {(ending.footnotes?.length || 0) > 0 && (
-                <div className="cx2-endmodal-notes">
-                  {ending.footnotes.map((f, i) => <div className="cx2-note" key={i}>— {f}</div>)}
+              <div className="cx2-endmodal-art">{ending.art}</div>
+              <div className="cx2-endmodal-title">NO.{ending.no} · {ending.name}</div>
+              <p className="cx2-endmodal-summary">{ending.summary || ''}</p>
+              {ending.text && (
+                <div className="cx2-endmodal-text" style={{ whiteSpace: 'pre-wrap', color: '#e8e0d2', fontSize: '14px', lineHeight: 1.8, margin: '12px 0 0' }}>
+                  {String(ending.text).replace(/^\s*GM\s*[:：]\s*/gm, '').trim()}
                 </div>
               )}
               <div className="cx2-endmodal-hint">X 또는 바깥을 누르면 닫힙니다</div>
