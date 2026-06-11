@@ -1,5 +1,7 @@
 import React, { useRef, useEffect } from 'react'
 import * as THREE from 'three'
+import { playSfx } from '../audioSettings.js'
+import { getRendererPixelRatio, subscribeSettings } from '../settings.js'
 
 // 면에 새길 숫자 텍스처
 function numberTexture(n) {
@@ -31,7 +33,7 @@ export default function Dice3D({ size = 60, apiRef, autoRoll = false, clickToRol
     if (!mount) return
 
     const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true })
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
+    renderer.setPixelRatio(getRendererPixelRatio())
     renderer.setSize(size, size)
     renderer.domElement.style.display = 'block'
     mount.appendChild(renderer.domElement)
@@ -84,12 +86,18 @@ export default function Dice3D({ size = 60, apiRef, autoRoll = false, clickToRol
     // 시작: 한 면을 정면으로
     group.quaternion.copy(faceQ[0].clone().invert())
     renderer.render(scene, cam)
+    const unsubscribeQuality = subscribeSettings(() => {
+      renderer.setPixelRatio(getRendererPixelRatio())
+      renderer.setSize(size, size)
+      renderer.render(scene, cam)
+    })
 
     let raf = 0
     let rolling = false
 
     const roll = (opts = {}) => {
       if (rolling) return
+      playSfx('roll', 1)
       rolling = true
       if (onRollStart) onRollStart()
       const idx = Math.floor(Math.random() * faceQ.length)
@@ -143,6 +151,7 @@ export default function Dice3D({ size = 60, apiRef, autoRoll = false, clickToRol
     return () => {
       cancelAnimationFrame(raf)
       clearTimeout(autoT)
+      unsubscribeQuality()
       bodyGeo.dispose(); bodyMat.dispose()
       group.traverse(o => {
         if (o.geometry) o.geometry.dispose()

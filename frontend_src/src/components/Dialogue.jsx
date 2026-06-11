@@ -1,9 +1,10 @@
 ﻿import React, { useEffect, useRef, useState } from 'react'
-import { SPEAKERS, FLAVOR_CHOICE, CHOICES } from '../data.js'
+import { SPEAKERS, FLAVOR_CHOICE } from '../data.js'
 import D12 from './D12.jsx'
 import Character3D from './Character3D.jsx'
 import { apiChat, apiTTS, apiDebugEnding } from '../api.js'
 import { PERSONAS, getPersona } from '../personas.js'
+import { applyBgmVolume, applyMasterVolume, applySpeechVolume, playSfx } from '../audioSettings.js'
 
 const CRYSTAL_MINE_BGM = '/static/audio/bgm/crystal-mine.mp3'
 const USE_BROWSER_TTS = false
@@ -179,6 +180,15 @@ let currentUtterance = null
 let speechRunId = 0
 let _onGmSpeakChange = null
 
+const stopCurrentAudio = () => {
+  if (!currentAudio) return
+  currentAudio._settingsUnsubscribe?.()
+  currentAudio._settingsUnsubscribe = null
+  currentAudio.pause()
+  currentAudio.currentTime = 0
+  currentAudio = null
+}
+
 const estimateSpeechDuration = (text) => {
   const length = Array.from(String(text || '')).length
   return Math.min(5.5, Math.max(1.2, length * 0.085))
@@ -228,7 +238,7 @@ const speakWithBrowserTts = (segment, fallbackDuration) => new Promise((resolve,
 
   const utterance = new SpeechSynthesisUtterance(segment.text)
   utterance.lang = 'ko-KR'
-  utterance.volume = 1
+  applySpeechVolume(utterance, 1)
   const voice = getBrowserVoice()
   if (voice) utterance.voice = voice
 
@@ -435,11 +445,7 @@ const splitSpeechSegments = (text, fallbackSpeaker = 'gm') => {
 const stopSpeaking = () => {
   speechRunId++
   _onGmSpeakChange?.(false)
-  if (currentAudio) {
-    currentAudio.pause()
-    currentAudio.currentTime = 0
-    currentAudio = null
-  }
+  stopCurrentAudio()
   cancelBrowserSpeech()
 }
 
@@ -448,11 +454,7 @@ async function speakNpc(text, speaker = 'gm', options = {}) {
   let revealedCount = 0
 
   try {
-    if (currentAudio) {
-      currentAudio.pause()
-      currentAudio.currentTime = 0
-      currentAudio = null
-    }
+    stopCurrentAudio()
     cancelBrowserSpeech()
 
     const segments = mergeShortSpeechSegments(splitSpeechSegments(text, speaker))
@@ -500,6 +502,7 @@ async function speakNpc(text, speaker = 'gm', options = {}) {
         if (runId !== speechRunId) return
 
         const audio = new Audio(data.audio_url)
+        audio._settingsUnsubscribe = applyMasterVolume(audio, 1)
         currentAudio = audio
 
         audio.onplay = () => {
@@ -514,6 +517,8 @@ async function speakNpc(text, speaker = 'gm', options = {}) {
         })
 
         window.stopLinLipSync?.()
+        audio._settingsUnsubscribe?.()
+        audio._settingsUnsubscribe = null
         if (currentAudio === audio) currentAudio = null
 
         if (runId !== speechRunId) return
@@ -521,10 +526,7 @@ async function speakNpc(text, speaker = 'gm', options = {}) {
       } catch (segmentErr) {
         console.warn('TTS segment error:', segment.speaker, segmentErr)
         window.stopLinLipSync?.()
-        if (currentAudio) {
-          currentAudio.pause()
-          currentAudio = null
-        }
+        stopCurrentAudio()
         window.playLinPerformance?.(spokenText, 'talk', fallbackDuration)
         window.startLinFallbackLipSync?.(spokenText, fallbackDuration)
         await new Promise(resolve => setTimeout(resolve, fallbackDuration * 1000))
@@ -555,7 +557,6 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
   const [judge, setJudge] = useState(null)
   const [judgeResult, setJudgeResult] = useState(null)
   const [sending, setSending] = useState(false)
-  const [choices, setChoices] = useState([])
   const [npcTestRunning, setNpcTestRunning] = useState(false)
   const [gmSpeaking, setGmSpeaking] = useState(false)
   const logRef = useRef(null)
@@ -564,6 +565,7 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
   const mappingRef = useRef(false)
   const spokenRef = useRef(new Set())
   const mineBgmRef = useRef(null)
+  const mineBgmUnsubscribeRef = useRef(null)
 
   useEffect(() => {
     const last = history?.[history.length - 1]
@@ -668,6 +670,7 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
   }, [])
 
   const triggerJudge = (dc = 11, stat = '지각', opts = {}) => {
+    playSfx('roll', 0.9)
     judgeRef.current = {
       dc, stat, after: opts.after,
       onSuccess: opts.onSuccess || 'shop', onFail: opts.onFail || 'event', success: null,
@@ -785,6 +788,7 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
   }
 
   const pickChoice = (c) => {
+    playSfx('click', 0.8)
     push('player', `[선택] ${c.text}`)
     setChoiceMode(false)
     if (c.judge) {
@@ -802,14 +806,23 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
   const isMineLocation = locationBackground?.includes('/mine.png')
 
   useEffect(() => {
-    if (!mineBgmRef.current) {
-      const audio = new Audio(CRYSTAL_MINE_BGM)
-      audio.loop = true
-      audio.volume = 0.28
-      mineBgmRef.current = audio
-    }
+    const audio = new Audio(CRYSTAL_MINE_BGM)
+    audio.loop = true
+    mineBgmUnsubscribeRef.current = applyBgmVolume(audio, 0.28)
+    mineBgmRef.current = audio
 
+    return () => {
+      mineBgmUnsubscribeRef.current?.()
+      mineBgmUnsubscribeRef.current = null
+      audio.pause()
+      audio.currentTime = 0
+      mineBgmRef.current = null
+    }
+  }, [])
+
+  useEffect(() => {
     const audio = mineBgmRef.current
+    if (!audio) return undefined
     if (isMineLocation) {
       audio.play().catch(() => {})
     } else {
@@ -911,22 +924,6 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
             )
           })}
         </div>
-
-        {choices.length > 0 && !sending && (
-          <div className="choice-block">
-            <div className="choice-flavor">{FLAVOR_CHOICE}</div>
-            {CHOICES.map(c => (
-              <button key={c.id}
-                className={'choice-row' + (c.tag && c.tag.includes('위험') ? ' danger' : '')}
-                onClick={() => pickChoice(c)}>
-                <span className="cn">{c.id}</span>
-                <span>{c.text}</span>
-                {c.tag && <span className="ctag">{c.tag}</span>}
-              </button>
-            ))}
-            <div className="choice-note">입력창에 직접 써서 다른 행동을 해도 됩니다.</div>
-          </div>
-        )}
 
         {choices.length > 0 && !sending && (
           <div className="choice-block">
