@@ -28,6 +28,15 @@ static/assets/
 *.zip
 *.docx
 
+# 3D model and animation files must always be tracked
+!*.glb
+!*.fbx
+!*.vrm
+!static/models/
+!static/animations/
+!steamscale-proto/public/models/
+!steamscale-proto/public/animations/
+
 # Local databases and generated data
 *.db
 *.sqlite
@@ -46,7 +55,17 @@ Thumbs.db
 .vscode/
 .idea/
 
-/external
-/CosyVoice3_game_chars_epoch23_for_team/eval_model/CosyVoice-BlankEN
-/docs/superpowers
 
+external/
+CosyVoice3_game_chars_epoch23_for_team/eval_model/
+docs/superpowers/
+
+*.pt
+*.pth
+*.onnx
+*.safetensors
+*.ckpt
+*.bin
+*.pkl
+*.npy
+*.npz

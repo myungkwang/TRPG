@@ -10,13 +10,16 @@ STAT_KEYWORDS = {
     "str": ["힘", "돌파", "부수", "버티", "들어올", "막다"],
 }
 
-JOB_BONUS = {
-    "변경 탐사꾼": {"dex": 2, "int_stat": 1},
-    "메카닉": {"int_stat": 2},
-    "증기 갑주병": {"str": 2},
-    "영석 인파이터": {"str": 1, "dex": 1},
-    "영석 연금술사": {"int_stat": 1, "cha": 1},
+# 데이터시트 3_직업의 '유리한 판정' 기준: 직업과 맞는 판정이면 +2, 무관하면 +0.
+JOB_FAVORED_STAT = {
+    "증기 갑주병": "str",      # 정면 돌파, 완력, 방어
+    "변경 탐사꾼": "dex",      # 잠입, 정찰, 함정
+    "메카닉": "int_stat",      # 기계 해독, 수리, 조작
+    "영석 인파이터": "str",    # 근접 격투
+    "영석 연금술사": "int_stat",  # 영석, 술식, 마법 해석
 }
+
+JOB_MATCH_BONUS = 2
 
 DC_BY_RISK = {
     "easy": 5,
@@ -48,15 +51,38 @@ def infer_check(user_input: str) -> tuple[bool, str | None, int]:
     return False, None, 0
 
 
+def perform_roll(session: dict, stat: str, dc: int) -> CheckResult:
+    """AI GM이 roll_check 도구로 지정한 stat/dc를 그대로 판정한다.
+
+    공식은 키워드 방식과 동일: d12 + 내림(능력치÷2) + 직업 보정.
+    """
+    roll = random.randint(1, 12)
+    stat_bonus = int(session.get(stat, 0)) // 2
+    job = session.get("job", "")
+    job_bonus = JOB_MATCH_BONUS if JOB_FAVORED_STAT.get(job) == stat else 0
+    total = roll + stat_bonus + job_bonus
+    return CheckResult(
+        required=True,
+        stat=stat,
+        dc=dc,
+        roll=roll,
+        stat_bonus=stat_bonus,
+        job_bonus=job_bonus,
+        total=total,
+        success=total >= dc,
+    )
+
+
 def roll_check(user_input: str, session: dict) -> CheckResult:
     required, stat, dc = infer_check(user_input)
     if not required or stat is None:
         return CheckResult(required=False)
 
     roll = random.randint(1, 12)
-    stat_bonus = int(session.get(stat, 0))
+    # 데이터시트 1_능력치판정: 보정 = 내림(능력치 ÷ 2)
+    stat_bonus = int(session.get(stat, 0)) // 2
     job = session.get("job", "")
-    job_bonus = JOB_BONUS.get(job, {}).get(stat, 0)
+    job_bonus = JOB_MATCH_BONUS if JOB_FAVORED_STAT.get(job) == stat else 0
     total = roll + stat_bonus + job_bonus
     return CheckResult(
         required=True,

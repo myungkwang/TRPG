@@ -7,12 +7,21 @@ export function authHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
+<<<<<<< HEAD
 export function requireAuth() {
   if (!getToken()) {
     location.replace('/login')
     return false
   }
   return true
+=======
+export function getStoredUser() {
+  try {
+    return JSON.parse(localStorage.getItem('user') || 'null')
+  } catch {
+    return null
+  }
+>>>>>>> main
 }
 
 export async function fetchJson(url, options = {}) {
@@ -30,7 +39,10 @@ export async function fetchJson(url, options = {}) {
     localStorage.removeItem('access_token')
     localStorage.removeItem('user')
     localStorage.removeItem('persona_session_id')
+<<<<<<< HEAD
     location.replace('/login')
+=======
+>>>>>>> main
     throw new Error('로그인이 필요합니다.')
   }
 
@@ -41,6 +53,34 @@ export async function fetchJson(url, options = {}) {
   return data
 }
 
+<<<<<<< HEAD
+=======
+export async function apiSignup({ username, password, name, email }) {
+  return fetchJson('/api/auth/signup', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password, name, email }),
+  })
+}
+
+export async function apiLogin({ username, password }) {
+  const data = await fetchJson('/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  })
+  localStorage.setItem('access_token', data.access_token)
+  localStorage.setItem('user', JSON.stringify(data.user))
+  return data
+}
+
+export function logout() {
+  localStorage.removeItem('access_token')
+  localStorage.removeItem('user')
+  localStorage.removeItem('persona_session_id')
+}
+
+>>>>>>> main
 export async function apiNewSession() {
   return fetchJson('/api/session', {
     method: 'POST',
@@ -76,13 +116,58 @@ export async function apiMove(sessionId, location) {
   })
 }
 
+<<<<<<< HEAD
 export async function apiTTS(text) {
+=======
+export async function apiTTS(text, options = {}) {
+  const body = typeof options === 'string'
+    ? { text, voice: options }
+    : {
+      text,
+      ...options,
+      tone_instructions: options.tone_instructions ?? options.instructions,
+    }
+  delete body.instructions
+
+>>>>>>> main
   return fetchJson('/api/tts', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       ...authHeaders(),
     },
+<<<<<<< HEAD
     body: JSON.stringify({ text }),
+=======
+    body: JSON.stringify(body),
+  })
+}
+
+export async function apiLockEnding(sessionId) {
+  return fetchJson('/api/ending/lock', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ session_id: sessionId }),
+  })
+}
+
+export async function apiGetEnding(sessionId) {
+  return fetchJson(`/api/ending/${sessionId}`, {
+    headers: { ...authHeaders() },
+  })
+}
+
+export async function apiGetCodex() {
+  return fetchJson('/api/codex', {
+    headers: { ...authHeaders() },
+  })
+}
+
+export async function apiDebugEnding(sessionId, ending) {
+  return fetchJson('/api/debug/ending', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ session_id: sessionId, ending }),
+>>>>>>> main
   })
 }

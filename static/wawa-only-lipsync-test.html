@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wawa-only LipSync Test</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #111; color: #f7efe4; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    #viewer { width: 100vw; height: 100vh; }
+    #panel { position: fixed; top: 16px; left: 16px; z-index: 10; width: min(420px, calc(100vw - 32px)); padding: 14px; border-radius: 12px; background: rgba(20, 14, 10, 0.86); border: 1px solid rgba(201, 162, 75, 0.35); box-shadow: 0 10px 30px rgba(0,0,0,.35); display: grid; gap: 10px; }
+    h1 { margin: 0; font-size: 18px; color: #ffe0a3; }
+    p { margin: 0; color: #d7c7b5; font-size: 13px; line-height: 1.45; }
+    textarea { width: 100%; min-height: 86px; resize: vertical; border-radius: 8px; padding: 10px; border: 1px solid #6b4b2b; background: #1f1812; color: #fff; }
+    .row { display: flex; flex-wrap: wrap; gap: 8px; }
+    button { border: 1px solid rgba(201,162,75,.45); border-radius: 8px; background: #b87a34; color: #fff; padding: 8px 11px; font-weight: 700; cursor: pointer; }
+    button.secondary { background: #2a1d12; }
+    #status { white-space: pre-line; padding: 8px; border-radius: 8px; background: rgba(0,0,0,.22); font-size: 12px; color: #e8d8c4; }
+    #visemeNow { font-weight: 800; color: #ffd27a; }
+  </style>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="panel">
+    <h1>Wawa-only LipSync Test</h1>
+    <p>비교용 테스트입니다. 랜덤 립싱크, 텍스트 viseme 추정, 직접 음량 기반 분석을 모두 빼고 <b>wawa-lipsync</b>의 viseme 결과만 Shape Key에 연결합니다.</p>
+    <textarea id="ttsText">안녕하세요. 증기와 비늘의 게임마스터입니다. 지금은 와와 립싱크만 사용해서 입모양을 테스트하고 있습니다.</textarea>
+    <div class="row">
+      <button id="ttsBtn" type="button">TTS + Wawa-only</button>
+      <button id="stopBtn" type="button" class="secondary">정지</button>
+      <button id="debugBtn" type="button" class="secondary">디버그</button>
+      <button id="jawBtn" type="button" class="secondary">JawOpen 테스트</button>
+    </div>
+    <p>현재 wawa viseme: <span id="visemeNow">-</span></p>
+    <div id="status">준비 중...</div>
+  </div>
+  <div id="viewer"></div>
+  <script type="module" src="/static/src/wawa-only-lipsync-test.js"></script>
+</body>
+</html>

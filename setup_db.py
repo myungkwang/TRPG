@@ -38,10 +38,10 @@ CREATE TABLE IF NOT EXISTS game_sessions (
     hp INT DEFAULT 20,
     mp INT DEFAULT 10,
     stamina INT DEFAULT 10,
-    str INT DEFAULT 1,
-    dex INT DEFAULT 1,
-    int_stat INT DEFAULT 1,
-    cha INT DEFAULT 1,
+    str INT DEFAULT 3,
+    dex INT DEFAULT 3,
+    int_stat INT DEFAULT 3,
+    cha INT DEFAULT 3,
     talent_grade TEXT DEFAULT '반각자',
     job TEXT DEFAULT '변경 탐사꾼',
     location TEXT DEFAULT '재끝 진료소',
@@ -62,10 +62,21 @@ CREATE TABLE IF NOT EXISTS game_events (
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS user_codex (
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    kind    TEXT NOT NULL,
+    key     TEXT NOT NULL,
+    data    JSONB DEFAULT '{}',
+    created_at TIMESTAMPTZ DEFAULT now(),
+    PRIMARY KEY (user_id, kind, key)
+);
+
 ALTER TABLE game_sessions
 ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE CASCADE;
 ALTER TABLE game_events
 ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE CASCADE;
+ALTER TABLE game_sessions
+ADD COLUMN IF NOT EXISTS ending JSONB DEFAULT NULL;
 """
 
 def main():
