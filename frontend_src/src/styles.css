@@ -651,3 +651,4 @@ button{font-family:var(--font-body);cursor:pointer}
   margin-bottom: 6px;
   text-transform: uppercase;
 }
+.user-pill button:hover{background:#2a1d12}
