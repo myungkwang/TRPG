@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useRef } from 'react'
-import { applyBgmVolume } from '../audioSettings.js'
 
 const INTRO_BGM = '/static/audio/bgm/intro-clockwork-dragon-rest.mp3'
 
@@ -35,12 +34,11 @@ export default function Intro({ onDone }) {
   useEffect(() => {
     const audio = new Audio(INTRO_BGM)
     audio.loop = true
-    const unsubscribeVolume = applyBgmVolume(audio, 0.38)
+    audio.volume = 0.38
     audioRef.current = audio
     audio.play().catch(() => {})
 
     return () => {
-      unsubscribeVolume()
       audio.pause()
       audio.currentTime = 0
       audioRef.current = null
