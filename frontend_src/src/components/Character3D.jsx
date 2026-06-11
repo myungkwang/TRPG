@@ -698,7 +698,6 @@ export default function Character3D({
       // value if the canvas hasn't been laid out yet ??that blows the distance up and
       // makes the model render tiny. Standing characters are height-dominant anyway.
       const fov = THREE.MathUtils.degToRad(camera.fov)
-      const safeModelScale = Math.max(0.001, modelScale)
       const fitHeight = size.y / 2 / Math.tan(fov / 2)
       const dist = (fitHeight * FRAME_MARGIN) / safeModelScale
       const targetX = center.x - offsetX
