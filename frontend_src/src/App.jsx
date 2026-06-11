@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import Auth from './components/Auth.jsx'
 import Title from './components/Title.jsx'
 import Intro from './components/Intro.jsx'
+import CharacterCreation from './components/CharacterCreation.jsx'
 import Dialogue from './components/Dialogue.jsx'
 import MenuButton from './components/Menu.jsx'
 import { StatusPanel, InventoryPanel, FullMapPanel, SettingsPanel } from './components/Panels.jsx'
@@ -126,7 +127,7 @@ export default function App() {
       setJourney([])
       setMapDepth(0)
       const data = await apiNewSession()
-      applyLoaded(data, true)
+      applyLoaded(data, false)
       setScreen('intro')
       setOverlay(null)
     } catch (err) {
@@ -205,13 +206,27 @@ export default function App() {
           onNew={startNew}
           onContinue={continueGame}
           onCodex={() => setOverlay('codex')}
-          onSettings={() => setOverlay('settings')}
-          onLogout={doLogout}
+          onSettings={() => { setScreen('game'); setOverlay('settings') }}
           loading={loading}
         />
       )}
 
-      {screen === 'intro' && <Intro onDone={() => setScreen('game')} />}
+      {screen === 'intro' && <Intro onDone={() => setScreen(session ? 'character' : 'game')} />}
+
+      {screen === 'character' && (
+        <CharacterCreation
+          session={session}
+          onDone={(data) => {
+            applyLoaded(data, true)
+            setScreen('game')
+            setOverlay(null)
+          }}
+          onCancel={() => {
+            setScreen('title')
+            setOverlay(null)
+          }}
+        />
+      )}
 
       {screen === 'game' && (
         <>
@@ -242,13 +257,13 @@ export default function App() {
           {overlay === 'status'    && <StatusPanel    onClose={() => setOverlay(null)} session={session} equipment={equipment} onEquip={equipItem} />}
           {overlay === 'inventory' && <InventoryPanel onClose={() => setOverlay(null)} session={session} equipment={equipment} onEquip={equipItem} />}
           {overlay === 'fullmap'   && <FullMapPanel   onClose={() => setOverlay(null)} journey={journey} />}
+          {overlay === 'settings'  && <SettingsPanel  onClose={() => setOverlay(null)} />}
 
           {showMap && <MapOverlay depth={mapDepth} dest={mapDest} onResult={onMapResult} />}
         </>
       )}
 
       {overlay === 'codex' && <CodexPanel onClose={() => setOverlay(null)} />}
-      {overlay === 'settings' && <SettingsPanel onClose={() => setOverlay(null)} />}
 
       {ending && <Ending ending={ending} onClose={closeEnding} />}
 

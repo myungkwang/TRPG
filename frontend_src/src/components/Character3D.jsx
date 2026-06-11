@@ -4,7 +4,6 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
-import { getRendererPixelRatio, subscribeSettings } from '../settings.js'
 
 const DEFAULT_MODEL_PATH = '/static/models/GM_Base_WithShapeKeys_04.glb'
 const DEFAULT_MODEL_ROTATION = [0, 0, 0]
@@ -1050,7 +1049,7 @@ export default function Character3D({
     camera.position.set(...(cameraPosition || CAMERA_POSITION))
 
     renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
-    renderer.setPixelRatio(getRendererPixelRatio())
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     renderer.outputColorSpace = THREE.SRGBColorSpace
     host.appendChild(renderer.domElement)
 
@@ -1079,10 +1078,6 @@ export default function Character3D({
     resize()
     const observer = new ResizeObserver(resize)
     observer.observe(host)
-    const unsubscribeQuality = subscribeSettings(() => {
-      renderer?.setPixelRatio(getRendererPixelRatio())
-      resize()
-    })
 
     loadModel(modelPath)
       .then(async ({ root, animations: embeddedClips }) => {
@@ -1152,7 +1147,6 @@ export default function Character3D({
       disposed = true
       cancelAnimationFrame(animationFrame)
       observer.disconnect()
-      unsubscribeQuality()
       clearMotionQueue()
       if (window.playLinAnimation === playDirectAnimation) delete window.playLinAnimation
       if (window.playLinEmotion) delete window.playLinEmotion
