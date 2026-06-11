@@ -1,10 +1,3 @@
-<<<<<<< HEAD
-import React, { useState } from 'react'
-import {
-  STATUS, INV_COLS, INV_ROWS, INV_ITEMS,
-  CODEX, MAP_NODES, MAP_EDGES, NODE_ICON,
-} from '../data.js'
-=======
 import React, { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
@@ -182,7 +175,6 @@ function ItemDetailModal({ item, onClose, onEquip, equippedId }) {
     </div>
   )
 }
->>>>>>> main
 
 function Overlay({ title, onClose, className, children }) {
   return (
@@ -198,11 +190,6 @@ function Overlay({ title, onClose, className, children }) {
   )
 }
 
-<<<<<<< HEAD
-/* ---------- 스테이터스 ---------- */
-export function StatusPanel({ onClose }) {
-  const v = STATUS.vitals, rep = STATUS.reputation
-=======
 function EquipmentPickerModal({ slot, equipment, onEquip, onClose }) {
   if (!slot) return null
   const choices = INV_ITEMS
@@ -248,16 +235,12 @@ export function StatusPanel({ onClose, equipment = EQUIPMENT, onEquip }) {
   const weapon = equipment.weapon ? ITEMS[equipment.weapon] : null
   const attackBonus = weapon?.attackBonus || 0
   const damage = damageWithBonus(STATUS.combat.피해, attackBonus)
->>>>>>> main
   const repPct = ((rep.val - rep.min) / (rep.max - rep.min)) * 100
   const bar = (cur, max, bg) => (
     <span className="v-bar"><span className="v-fill" style={{ width: `${(cur / max) * 100}%`, background: bg }} /></span>
   )
   return (
-<<<<<<< HEAD
-=======
     <>
->>>>>>> main
     <Overlay title="스테이터스" onClose={onClose} className="status">
       {/* 상단: 초상화 + 활력(크게) */}
       <div className="st2-top">
@@ -279,11 +262,6 @@ export function StatusPanel({ onClose, equipment = EQUIPMENT, onEquip }) {
         <div className="rep-ends"><span>적대</span><span>중립</span><span>우호</span></div>
       </div>
 
-<<<<<<< HEAD
-      <hr className="st2-hr" />
-
-      {/* 50:50 — 특성 / 자원 */}
-=======
       {/* 장비 — 머리 / 몸통 / 무기 (빈 슬롯도 자리 고정) */}
       <div className="st2-equip">
         <h3>장비</h3>
@@ -306,22 +284,16 @@ export function StatusPanel({ onClose, equipment = EQUIPMENT, onEquip }) {
       <hr className="st2-hr" />
 
       {/* 가로 3그리드 — 특성 / 전투 / 자원 */}
->>>>>>> main
       <div className="st2-split">
         <div className="st2-col">
           <h3>특성</h3>
           {STATUS.abilities.map(a => <div className="kv" key={a.k}><span>{a.k}</span><b>{a.v}</b></div>)}
-<<<<<<< HEAD
-          <h3 style={{ marginTop: 12 }}>전투</h3>
-          <div className="kv"><span>피해</span><b>{STATUS.combat.피해}</b></div>
-=======
         </div>
         <div className="st2-vline" />
         <div className="st2-col">
           <h3>전투</h3>
           <div className="kv"><span>피해</span><b>{damage}</b></div>
           <div className="kv"><span>무기 공격력</span><b>{attackBonus > 0 ? `+${attackBonus}` : '-'}</b></div>
->>>>>>> main
           <div className="kv"><span>회피</span><b>{STATUS.combat.회피}</b></div>
           <div className="kv"><span>속도</span><b>{STATUS.combat.속도}</b></div>
         </div>
@@ -348,19 +320,6 @@ export function StatusPanel({ onClose, equipment = EQUIPMENT, onEquip }) {
         </div>
       </div>
     </Overlay>
-<<<<<<< HEAD
-  )
-}
-
-/* ---------- 인벤토리 (3x4 + 주사위 슬롯) ---------- */
-export function InventoryPanel({ onClose }) {
-  const CELL = 64, GAP = 6
-  const gw = INV_COLS * CELL + (INV_COLS - 1) * GAP
-  const gh = INV_ROWS * CELL + (INV_ROWS - 1) * GAP
-  return (
-    <Overlay title="인벤토리" onClose={onClose} className="inventory">
-      <div className="inv-wrap">
-=======
     <ItemDetailModal item={detail} onClose={() => setDetail(null)} equippedId={equipment[slotKeyOf(detail)]} />
     <EquipmentPickerModal
       slot={pickerSlot}
@@ -388,21 +347,10 @@ export function InventoryPanel({ onClose, equipment = EQUIPMENT, onEquip }) {
         <span className="bag-strap right" />
         <button className="bag-x" onClick={onClose}>✕</button>
 
->>>>>>> main
         <div className="inv-grid" style={{ width: gw, height: gh }}>
           {Array.from({ length: INV_COLS * INV_ROWS }).map((_, i) => {
             const cx = i % INV_COLS, cy = Math.floor(i / INV_COLS)
             return <div key={i} className="inv-cell"
-<<<<<<< HEAD
-              style={{ left: cx * (CELL + GAP), top: cy * (CELL + GAP), width: CELL, height: CELL }} />
-          })}
-          {INV_ITEMS.map(it => (
-            <div key={it.id} className="inv-item"
-              title={it.name + (it.stack ? ` ×${it.stack}` : '')}
-              style={{
-                left: it.x * (CELL + GAP), top: it.y * (CELL + GAP),
-                width: it.w * CELL + (it.w - 1) * GAP, height: it.h * CELL + (it.h - 1) * GAP,
-=======
               style={{ left: cx * (CELL + GAPX), top: cy * (CELL + GAPY), width: CELL, height: CELL }} />
           })}
           {INV_ITEMS.map(it => (
@@ -412,85 +360,12 @@ export function InventoryPanel({ onClose, equipment = EQUIPMENT, onEquip }) {
               style={{
                 left: it.x * (CELL + GAPX), top: it.y * (CELL + GAPY),
                 width: it.w * CELL + (it.w - 1) * GAPX, height: it.h * CELL + (it.h - 1) * GAPY,
->>>>>>> main
               }}>
               <span className="inv-icon">{it.icon}</span>
               {it.stack != null && <span className="inv-stack">{it.stack}</span>}
             </div>
           ))}
         </div>
-<<<<<<< HEAD
-        <div className="inv-side">
-          <div className="inv-dicebox">
-            <div className="inv-dlabel">주사위 슬롯</div>
-            <div className="inv-dice">⬢<span>d12</span></div>
-          </div>
-          <p className="inv-note">재화·영정은 칸당 최대 10개. 10을 넘으면 다음 칸으로 분할돼요. (영정 23 → 10·10·3)</p>
-        </div>
-      </div>
-    </Overlay>
-  )
-}
-
-/* ---------- 도감 (책 펼침 + 필름스트립) ---------- */
-export function CodexPanel({ onClose }) {
-  const [sel, setSel] = useState(CODEX[0])
-  return (
-    <Overlay title="도감" onClose={onClose} className="codex">
-      <div className="cx-book">
-        <div className="cx-left">
-          <div className="cx-portrait">{sel.got ? sel.name : '???'}</div>
-          <div className="cx-namecard">{sel.got ? sel.name : '???'}</div>
-        </div>
-        <div className="cx-right">
-          <div className="cx-tabs"><span className="active">인물</span><span>증거품</span></div>
-          <p className="cx-meta">{sel.got ? sel.no : '???'}</p>
-          <p className="cx-meta">{sel.got ? sel.age : '???'}</p>
-          <p className="cx-desc">{sel.got ? sel.desc : '아직 밝혀지지 않았다.'}</p>
-        </div>
-      </div>
-      <div className="cx-film">
-        {CODEX.map(c => (
-          <button key={c.id} className={'cx-frame' + (sel.id === c.id ? ' on' : '') + (c.got ? '' : ' locked')}
-            onClick={() => setSel(c)}>
-            {c.got ? c.name.slice(0, 2) : '?'}
-          </button>
-        ))}
-      </div>
-    </Overlay>
-  )
-}
-
-/* ---------- 전체지도 (양피지 + 노드) ---------- */
-export function FullMapPanel({ onClose }) {
-  const pos = id => MAP_NODES.find(n => n.id === id)
-  const stateColor = { done: '#8a6d3b', cur: '#c0392b', open: '#5b4a2e', fog: '#b9aa86' }
-  return (
-    <Overlay title="전체 지도" onClose={onClose} className="fullmap">
-      <div className="fm-scroll">
-        <svg viewBox="0 0 700 560" className="fm-svg">
-          {MAP_EDGES.map(([a, b], i) => {
-            const p = pos(a), q = pos(b)
-            const fogged = p.state === 'fog' || q.state === 'fog'
-            return <line key={i} x1={p.x} y1={p.y} x2={q.x} y2={q.y}
-              stroke="#6b5836" strokeWidth="2" strokeDasharray="6 7"
-              opacity={fogged ? 0.22 : 0.7} />
-          })}
-          {MAP_NODES.map(n => (
-            <g key={n.id} opacity={n.state === 'fog' ? 0.35 : 1}>
-              <circle cx={n.x} cy={n.y} r="20" fill="#efe2c4" stroke={stateColor[n.state]} strokeWidth="3" />
-              <text x={n.x} y={n.y + 5} textAnchor="middle" fontSize="16" fill="#5b4a2e">
-                {n.state === 'fog' ? '?' : NODE_ICON[n.type]}
-              </text>
-              {n.state !== 'fog' && <text x={n.x} y={n.y + 38} textAnchor="middle" fontSize="12" fill="#5b4a2e">{n.label}</text>}
-              {n.state === 'cur' && <circle cx={n.x} cy={n.y} r="26" fill="none" stroke="#c0392b" strokeWidth="2" strokeDasharray="3 4" />}
-            </g>
-          ))}
-        </svg>
-        <div className="fm-fog" />
-      </div>
-      <p className="fm-note">현재 위치 = 붉은 노드 · 안개 너머(?)는 아직 미발견. 대화 중 트리거로 한 칸씩 전진합니다.</p>
-=======
 
         {/* 좌하단 바깥 주사위 탭 — 클릭하면 아래로 주사위 창이 나타났다/사라짐 (인벤토리 고정) */}
         <div className={'dice-drawer' + (diceOpen ? ' open' : '')}>
@@ -602,7 +477,6 @@ export function FullMapPanel({ onClose, journey = [] }) {
         </svg>
       </div>
       <p className="fm-note">실선 = 지나온 길(좌·중·우 분기 반영) · 흐린 ??? = 가지 않은 갈림길/미발견 · 붉은 원 = 현재 위치.</p>
->>>>>>> main
     </Overlay>
   )
 }

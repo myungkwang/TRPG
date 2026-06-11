@@ -1,43 +1,8 @@
-<<<<<<< HEAD
-import React, { useEffect, useMemo, useState } from 'react'
-import Title from './components/Title.jsx'
-import Dialogue from './components/Dialogue.jsx'
-import MenuButton from './components/Menu.jsx'
-import { StatusPanel, InventoryPanel, CodexPanel, FullMapPanel, SettingsPanel } from './components/Panels.jsx'
-import MapOverlay from './components/MapOverlay.jsx'
-import { apiLoadSession, apiNewSession, requireAuth } from './api.js'
-
-const SAVE_KEY = 'persona_session_id'
-
-function getStoredUser() {
-  try {
-    return JSON.parse(localStorage.getItem('user') || 'null')
-  } catch {
-    return null
-  }
-}
-
-export default function App() {
-  const [screen, setScreen] = useState('title')
-  const [overlay, setOverlay] = useState(null)
-  const [showMap, setShowMap] = useState(false)
-  const [session, setSession] = useState(null)
-  const [history, setHistory] = useState([])
-  const [hasSave, setHasSave] = useState(false)
-  const [toast, setToast] = useState('')
-  const [loading, setLoading] = useState(false)
-  const user = useMemo(() => getStoredUser(), [])
-
-  useEffect(() => {
-    if (!requireAuth()) return
-    setHasSave(Boolean(localStorage.getItem(SAVE_KEY)))
-  }, [])
-
-=======
 import React, { useEffect, useRef, useState } from 'react'
 import Auth from './components/Auth.jsx'
 import Title from './components/Title.jsx'
 import Intro from './components/Intro.jsx'
+import CharacterCreation from './components/CharacterCreation.jsx'
 import Dialogue from './components/Dialogue.jsx'
 import MenuButton from './components/Menu.jsx'
 import { StatusPanel, InventoryPanel, FullMapPanel, SettingsPanel } from './components/Panels.jsx'
@@ -111,22 +76,11 @@ export default function App() {
     res && res(r)
   }
 
->>>>>>> main
   const flashToast = (msg) => {
     setToast(msg)
     setTimeout(() => setToast(''), 1600)
   }
 
-<<<<<<< HEAD
-  const logout = () => {
-    localStorage.removeItem('access_token')
-    localStorage.removeItem('user')
-    localStorage.removeItem(SAVE_KEY)
-    location.replace('/login')
-  }
-
-=======
->>>>>>> main
   const applyLoaded = (data, shouldSpeak = false) => {
     setSession(data.session)
     const loadedHistory = data.history || (data.intro ? [{ role: 'assistant', content: data.intro, speak: shouldSpeak }] : [])
@@ -135,17 +89,6 @@ export default function App() {
     setHasSave(true)
   }
 
-<<<<<<< HEAD
-  const startNew = async () => {
-    setLoading(true)
-    try {
-      localStorage.removeItem(SAVE_KEY)
-      const data = await apiNewSession()
-      applyLoaded(data, true)
-      setScreen('game')
-      setOverlay(null)
-    } catch (err) {
-=======
   const goToAuth = (message = '로그인이 필요합니다') => {
     logout()
     localStorage.removeItem(SAVE_KEY)
@@ -184,12 +127,11 @@ export default function App() {
       setJourney([])
       setMapDepth(0)
       const data = await apiNewSession()
-      applyLoaded(data, true)
+      applyLoaded(data, false)
       setScreen('intro')
       setOverlay(null)
     } catch (err) {
       if (handleAuthError(err)) return
->>>>>>> main
       flashToast(err.message || '새 세션 생성 실패')
     } finally {
       setLoading(false)
@@ -197,20 +139,14 @@ export default function App() {
   }
 
   const continueGame = async () => {
-<<<<<<< HEAD
-=======
     if (!requireAuth()) return
->>>>>>> main
     const sessionId = localStorage.getItem(SAVE_KEY)
     if (!sessionId) return
     setLoading(true)
     try {
-<<<<<<< HEAD
-=======
       setEnding(null)
       endingLockRef.current = false
       endingShownRef.current = null
->>>>>>> main
       const data = await apiLoadSession(sessionId)
       applyLoaded(data, false)
       setScreen('game')
@@ -218,10 +154,7 @@ export default function App() {
     } catch (err) {
       localStorage.removeItem(SAVE_KEY)
       setHasSave(false)
-<<<<<<< HEAD
-=======
       if (handleAuthError(err)) return
->>>>>>> main
       flashToast('저장된 세션을 불러오지 못했습니다')
     } finally {
       setLoading(false)
@@ -238,27 +171,6 @@ export default function App() {
     }
   }
 
-<<<<<<< HEAD
-  return (
-    <div className="app">
-      {screen === 'title' && (
-        <>
-          <Title
-            hasSave={hasSave}
-            onNew={startNew}
-            onContinue={continueGame}
-            onCodex={() => { setScreen('game'); setOverlay('codex') }}
-            onSettings={() => { setScreen('game'); setOverlay('settings') }}
-          />
-          <div className="account-top-right title-account">
-            <span>{user?.name || user?.username || '사용자'} 님</span>
-            <button type="button" onClick={logout}>로그아웃</button>
-          </div>
-          {loading && <div className="loading-cover">불러오는 중...</div>}
-        </>
-      )}
-
-=======
   const equipItem = (item) => {
     const slot = EQUIP_SLOTS.find(s => s.label === item?.slot)
     if (!slot) return
@@ -299,9 +211,23 @@ export default function App() {
         />
       )}
 
-      {screen === 'intro' && <Intro onDone={() => setScreen('game')} />}
+      {screen === 'intro' && <Intro onDone={() => setScreen(session ? 'character' : 'game')} />}
 
->>>>>>> main
+      {screen === 'character' && (
+        <CharacterCreation
+          session={session}
+          onDone={(data) => {
+            applyLoaded(data, true)
+            setScreen('game')
+            setOverlay(null)
+          }}
+          onCancel={() => {
+            setScreen('title')
+            setOverlay(null)
+          }}
+        />
+      )}
+
       {screen === 'game' && (
         <>
           <Dialogue
@@ -309,12 +235,8 @@ export default function App() {
             history={history}
             onHistoryChange={setHistory}
             onSessionChange={setSession}
-<<<<<<< HEAD
-            onTriggerMap={() => setShowMap(true)}
-=======
             onEnding={setEnding}
             runMapStep={runMapStep}
->>>>>>> main
           />
 
           <MenuButton
@@ -327,23 +249,6 @@ export default function App() {
             onTitle={() => { setScreen('title'); setOverlay(null) }}
           />
 
-<<<<<<< HEAD
-          <div className="account-below-tools">
-            <span>{user?.name || user?.username || '사용자'} 님</span>
-            <button type="button" onClick={logout}>로그아웃</button>
-          </div>
-
-          {overlay === 'status'    && <StatusPanel    onClose={() => setOverlay(null)} session={session} />}
-          {overlay === 'inventory' && <InventoryPanel onClose={() => setOverlay(null)} session={session} />}
-          {overlay === 'fullmap'   && <FullMapPanel   onClose={() => setOverlay(null)} session={session} />}
-          {overlay === 'codex'     && <CodexPanel     onClose={() => setOverlay(null)} />}
-          {overlay === 'settings'  && <SettingsPanel  onClose={() => setOverlay(null)} />}
-
-          {showMap && <MapOverlay onClose={() => setShowMap(false)} />}
-        </>
-      )}
-
-=======
           <div className="user-pill">
             <span>{user?.name || user?.username || '플레이어'} 님</span>
             <button onClick={doLogout}>로그아웃</button>
@@ -362,7 +267,6 @@ export default function App() {
 
       {ending && <Ending ending={ending} onClose={closeEnding} />}
 
->>>>>>> main
       {toast && <div className="toast">{toast}</div>}
     </div>
   )

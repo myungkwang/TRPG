@@ -2,18 +2,11 @@ import React from 'react'
 
 export default function Title({ hasSave, onNew, onContinue, onCodex, onSettings }) {
   const items = [
-<<<<<<< HEAD
-    { key: 'new',      label: '게임 시작', onClick: onNew,      disabled: false },
-    { key: 'continue', label: '이어하기',  onClick: onContinue, disabled: !hasSave },
-    { key: 'codex',    label: '도감',      onClick: onCodex,    disabled: false },
-    { key: 'settings', label: '설정',      onClick: onSettings, disabled: false },
-=======
     { key: 'new',      label: '게임 시작', onClick: onNew,                         disabled: false },
     { key: 'continue', label: '이어하기',  onClick: onContinue,                    disabled: !hasSave },
     { key: 'codex',    label: '도감',      onClick: onCodex,                       disabled: false },
     { key: 'settings', label: '설정',      onClick: onSettings,                    disabled: false },
     { key: 'quit',     label: '종료',      onClick: () => window.close(),          disabled: false },
->>>>>>> main
   ]
   return (
     <div className="title-screen">

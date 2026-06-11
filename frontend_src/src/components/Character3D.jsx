@@ -1,26 +1,10 @@
-<<<<<<< HEAD
 import React, { useEffect, useRef, useState } from 'react'
-=======
-﻿import React, { useEffect, useRef, useState } from 'react'
->>>>>>> main
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 
-<<<<<<< HEAD
-const DEFAULT_MODEL_PATH = '/static/models/gm_model.glb'
-
-// 카메라는 모델 바운딩 박스를 기준으로 자동 프레이밍됩니다(frameObject 참고).
-// 아래 값은 모델 로드 전 초기값일 뿐이며, 로드 후 자동으로 덮어써집니다.
-const CAMERA_POSITION = [0, 400, 900] // 초기 카메라 위치 [x, y, z]
-const CAMERA_TARGET = [0, 400, 0] // 초기 바라보는 지점 [x, y, z]
-// 전신 위아래 여백 배수. 1.0이면 딱 맞고, 키울수록 캐릭터가 작게(여백 크게) 보입니다.
-const FRAME_MARGIN = 1.15
-// 화면에서 캐릭터를 위/아래로 옮기는 값. 양수면 화면에서 아래로 내려갑니다.
-const VERTICAL_OFFSET = 0
-=======
 const DEFAULT_MODEL_PATH = '/static/models/GM_Base_WithShapeKeys_04.glb'
 const DEFAULT_MODEL_ROTATION = [0, 0, 0]
 const DEFAULT_MODEL_SCALE = 1
@@ -34,7 +18,6 @@ const CAMERA_TARGET = [0, 400, 0] // 珥덇린 諛붾씪蹂대뒗 吏??[x, y, 
 const FRAME_MARGIN = 0.6
 // ?붾㈃?먯꽌 罹먮┃?곕? ???꾨옒濡???린??媛? ?묒닔硫??붾㈃?먯꽌 ?꾨옒濡??대젮媛묐땲??
 const VERTICAL_OFFSET = 125
->>>>>>> main
 const DEFAULT_ANIMATIONS = {
   idle: '/static/animations/weight_shift.glb',
   talk: '/static/animations/acknowledging.glb',
@@ -44,8 +27,6 @@ const DEFAULT_ANIMATIONS = {
   deny: '/static/animations/shaking_head_no.glb',
   sigh: '/static/animations/relieved_sigh.glb',
   cocky: '/static/animations/being_cocky.glb',
-<<<<<<< HEAD
-=======
   yes: '/static/animations/head_nod_yes.glb',
   strong_yes: '/static/animations/hard_head_nod.glb',
   long_yes: '/static/animations/lengthy_head_nod.glb',
@@ -53,7 +34,6 @@ const DEFAULT_ANIMATIONS = {
   look_away: '/static/animations/look_away_gesture.glb',
   dismiss: '/static/animations/dismissing_gesture.glb',
   annoyed: '/static/animations/annoyed_head_shake.glb',
->>>>>>> main
 }
 
 function firstClipFrom(animations, name) {
@@ -76,20 +56,6 @@ function normalizeModel(object) {
   })
 }
 
-<<<<<<< HEAD
-function detectEmotion(text) {
-  const s = String(text || '')
-  if (/분노|화나|격노|위협|공격|전투|짜증|불쾌/.test(s)) return 'angry'
-  if (/기쁨|반갑|성공|좋아|환영|미소/.test(s)) return 'happy'
-  if (/생각|고민|침묵|추리|의심|관찰/.test(s)) return 'thinking'
-  if (/아니|거절|불가능|실패|못/.test(s)) return 'deny'
-  if (/한숨|안도|지치|긴장/.test(s)) return 'sigh'
-  if (/비웃|능청|거만|도발/.test(s)) return 'cocky'
-  return 'talk'
-}
-
-export default function Character3D({ modelPath = DEFAULT_MODEL_PATH, animations = DEFAULT_ANIMATIONS }) {
-=======
 const EMOTION_ALIASES = {
   neutral: 'talk',
   relief: 'sigh',
@@ -332,7 +298,6 @@ export default function Character3D({
   cameraTarget = null,
   cameraFov = 50,
 }) {
->>>>>>> main
   const hostRef = useRef(null)
   const [status, setStatus] = useState('Loading 3D model...')
 
@@ -346,13 +311,6 @@ export default function Character3D({
     let camera
     let controls
     let model
-<<<<<<< HEAD
-    let mixer
-    let currentAction
-    let animationFrame = 0
-    const clock = new THREE.Clock()
-    const clips = new Map()
-=======
     let modelRoot
     let mixer
     let currentAction
@@ -653,7 +611,6 @@ export default function Character3D({
       update()
     }
 
->>>>>>> main
     const loader = new FBXLoader()
     const gltfLoader = new GLTFLoader()
 
@@ -696,11 +653,7 @@ export default function Character3D({
       renderer.setSize(width, height)
     }
 
-<<<<<<< HEAD
-    // 모델 로드 후 frameObject가 계산해 채웁니다. 그 전까진 초기값 사용.
-=======
     // 紐⑤뜽 濡쒕뱶 ??frameObject媛 怨꾩궛??梨꾩썎?덈떎. 洹??꾧퉴吏?珥덇린媛??ъ슜.
->>>>>>> main
     let viewPosition = [...CAMERA_POSITION]
     let viewTarget = [...CAMERA_TARGET]
 
@@ -717,12 +670,8 @@ export default function Character3D({
       const size = new THREE.Vector3()
       box.getSize(size)
       const maxDim = Math.max(size.x, size.y, size.z) || 1
-<<<<<<< HEAD
-      object.scale.setScalar(500 / maxDim)
-=======
       const safeModelScale = Math.max(0.001, modelScale)
       object.scale.setScalar((500 / maxDim) * safeModelScale)
->>>>>>> main
 
       // 2) Recompute after scaling and rest the model's feet on y=0, centered on x/z.
       box = new THREE.Box3().setFromObject(object)
@@ -732,15 +681,12 @@ export default function Character3D({
       object.position.x -= center.x
       object.position.z -= center.z
       object.position.y -= box.min.y
-<<<<<<< HEAD
-=======
       const offsetX = modelOffset[0] || 0
       const offsetY = modelOffset[1] || 0
       const offsetZ = modelOffset[2] || 0
       object.position.x += offsetX
       object.position.y += offsetY
       object.position.z += offsetZ
->>>>>>> main
 
       // 3) Fit the camera to the model's actual bounding box so the whole body is
       //    framed and centered regardless of the model's real proportions.
@@ -748,16 +694,6 @@ export default function Character3D({
       box.getSize(size)
       box.getCenter(center)
       // Fit by HEIGHT only. Width-fit divides by camera.aspect, which can be a bogus
-<<<<<<< HEAD
-      // value if the canvas hasn't been laid out yet — that blows the distance up and
-      // makes the model render tiny. Standing characters are height-dominant anyway.
-      const fov = THREE.MathUtils.degToRad(camera.fov)
-      const fitHeight = size.y / 2 / Math.tan(fov / 2)
-      const dist = fitHeight * FRAME_MARGIN
-      const targetY = center.y + VERTICAL_OFFSET
-      viewPosition = [center.x, targetY, dist]
-      viewTarget = [center.x, targetY, 0]
-=======
       // value if the canvas hasn't been laid out yet ??that blows the distance up and
       // makes the model render tiny. Standing characters are height-dominant anyway.
       const fov = THREE.MathUtils.degToRad(camera.fov)
@@ -768,13 +704,10 @@ export default function Character3D({
       const targetZ = center.z - offsetZ
       viewPosition = [targetX, targetY, dist + targetZ]
       viewTarget = [targetX, targetY, targetZ]
->>>>>>> main
 
       resetCamera()
     }
 
-<<<<<<< HEAD
-=======
     const clearMotionQueue = () => {
       motionToken += 1
       if (motionTimer) clearTimeout(motionTimer)
@@ -994,7 +927,6 @@ export default function Character3D({
       }
     }
 
->>>>>>> main
     const playAnimation = (name = 'talk', options = {}) => {
       if (!mixer) return
       const clip = clips.get(name) || clips.get('talk') || clips.get('idle') || clips.get('embedded')
@@ -1004,10 +936,7 @@ export default function Character3D({
       action.reset()
       action.enabled = true
       action.setEffectiveWeight(1)
-<<<<<<< HEAD
-=======
       action.setEffectiveTimeScale(options.timeScale ?? 1)
->>>>>>> main
 
       if (options.loop || name === 'idle') {
         action.setLoop(THREE.LoopRepeat, Infinity)
@@ -1024,11 +953,7 @@ export default function Character3D({
       action.play()
       currentAction = action
 
-<<<<<<< HEAD
-      if (name !== 'idle') {
-=======
       if (name !== 'idle' && options.returnToIdle !== false) {
->>>>>>> main
         const backToIdle = (event) => {
           if (event.action === action) {
             mixer.removeEventListener('finished', backToIdle)
@@ -1037,8 +962,6 @@ export default function Character3D({
         }
         mixer.addEventListener('finished', backToIdle)
       }
-<<<<<<< HEAD
-=======
 
       return { action, clip }
     }
@@ -1066,7 +989,6 @@ export default function Character3D({
     const playDirectAnimation = (name = 'talk', options = {}) => {
       clearMotionQueue()
       return playAnimation(name, options)
->>>>>>> main
     }
 
     const loadAnimation = (name, path) => new Promise((resolve) => {
@@ -1085,24 +1007,14 @@ export default function Character3D({
 
     const revealModel = () => {
       if (model && !model.visible) {
-<<<<<<< HEAD
-        model.visible = true
-        // Render once with the idle pose applied before showing, avoiding a T-pose flash.
-        mixer?.update(0)
-=======
         // Render once with the idle pose applied before showing, avoiding a T-pose flash.
         mixer?.update(0)
         captureMotionBoneBasePose()
         model.visible = true
->>>>>>> main
       }
     }
 
     const loadAnimations = async () => {
-<<<<<<< HEAD
-      // Load idle first so we can start it (and reveal the model) before the rest stream in.
-      const entries = Object.entries(animations).sort(([a]) => (a === 'idle' ? -1 : 0))
-=======
       if (preferEmbeddedAnimations && clips.has('idle')) {
         playAnimation('idle', { loop: true, fade: 0 })
         revealModel()
@@ -1113,7 +1025,6 @@ export default function Character3D({
       // Load idle first so we can start it (and reveal the model) before the rest stream in.
       const entries = Object.entries(animations)
         .sort(([a]) => (a === 'idle' ? -1 : 0))
->>>>>>> main
       let ok = 0
       for (const [name, path] of entries) {
         // Loading sequentially keeps the browser responsive with several FBX files.
@@ -1126,26 +1037,16 @@ export default function Character3D({
         setSafeStatus(`Loading animations... ${ok}/${entries.length}`)
       }
       // Fallback in case there was no idle clip at all.
-<<<<<<< HEAD
-      revealModel()
-      if (!currentAction) playAnimation('idle', { loop: true, fade: 0.2 })
-=======
       if (!currentAction) playAnimation('idle', { loop: true, fade: 0.2 })
       revealModel()
->>>>>>> main
       setSafeStatus(`3D ready (${ok} animations)`)
     }
 
     scene = new THREE.Scene()
     scene.background = null
 
-<<<<<<< HEAD
-    camera = new THREE.PerspectiveCamera(50, 1, 0.1, 5000)
-    camera.position.set(...CAMERA_POSITION)
-=======
     camera = new THREE.PerspectiveCamera(cameraFov, 1, 0.1, 5000)
     camera.position.set(...(cameraPosition || CAMERA_POSITION))
->>>>>>> main
 
     renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
@@ -1172,11 +1073,7 @@ export default function Character3D({
     controls.enableDamping = true
     controls.enablePan = true
     controls.enableZoom = true
-<<<<<<< HEAD
-    controls.target.set(...CAMERA_TARGET)
-=======
     controls.target.set(...(cameraTarget || CAMERA_TARGET))
->>>>>>> main
 
     resize()
     const observer = new ResizeObserver(resize)
@@ -1185,17 +1082,6 @@ export default function Character3D({
     loadModel(modelPath)
       .then(async ({ root, animations: embeddedClips }) => {
         if (disposed) return
-<<<<<<< HEAD
-        model = root
-        normalizeModel(model)
-        model.visible = false // Keep hidden until the idle pose is applied (prevents a T-pose flash).
-        scene.add(model)
-        frameObject(model)
-        mixer = new THREE.AnimationMixer(model)
-
-        if (embeddedClips?.length) {
-          const embedded = embeddedClips[0]
-=======
         modelRoot = root
         model = new THREE.Group()
         model.add(modelRoot)
@@ -1218,7 +1104,6 @@ export default function Character3D({
           }
 
           const embedded = embeddedClips[0].clone()
->>>>>>> main
           embedded.name = 'embedded'
           clips.set('embedded', embedded)
         }
@@ -1231,21 +1116,12 @@ export default function Character3D({
       if (disposed) return
       animationFrame = requestAnimationFrame(tick)
       mixer?.update(clock.getDelta())
-<<<<<<< HEAD
-=======
       applyProceduralMotion()
->>>>>>> main
       controls?.update()
       renderer?.render(scene, camera)
     }
     tick()
 
-<<<<<<< HEAD
-    window.playLinAnimation = playAnimation
-    window.playLinEmotion = (textOrEmotion) => {
-      const direct = clips.has(textOrEmotion) ? textOrEmotion : detectEmotion(textOrEmotion)
-      playAnimation(direct)
-=======
     window.playLinAnimation = playDirectAnimation
     window.playLinEmotion = (textOrEmotion) => {
       if (clips.has(textOrEmotion)) playDirectAnimation(textOrEmotion)
@@ -1265,17 +1141,12 @@ export default function Character3D({
       resetMorphs()
       setMorph(name, value)
       console.log('test morph:', name, value)
->>>>>>> main
     }
 
     return () => {
       disposed = true
       cancelAnimationFrame(animationFrame)
       observer.disconnect()
-<<<<<<< HEAD
-      if (window.playLinAnimation === playAnimation) delete window.playLinAnimation
-      if (window.playLinEmotion) delete window.playLinEmotion
-=======
       clearMotionQueue()
       if (window.playLinAnimation === playDirectAnimation) delete window.playLinAnimation
       if (window.playLinEmotion) delete window.playLinEmotion
@@ -1286,31 +1157,19 @@ export default function Character3D({
       if (window.__debugLinMorph) delete window.__debugLinMorph
       if (window.__testMorph) delete window.__testMorph
       stopAudioLipSync()
->>>>>>> main
       controls?.dispose()
       envTexture?.dispose()
       pmrem?.dispose()
       renderer?.dispose()
       if (renderer?.domElement?.parentNode === host) host.removeChild(renderer.domElement)
     }
-<<<<<<< HEAD
-  }, [modelPath, animations])
-=======
   }, [modelPath, animations, modelRotation, modelScale, modelOffset, preferEmbeddedAnimations, motionIntensity])
->>>>>>> main
 
   return (
     <div className="character3d">
       <div ref={hostRef} className="character3d-canvas" />
-<<<<<<< HEAD
-      <div className="character3d-status">{status}</div>
-    </div>
-  )
-}
-=======
     </div>
   )
 }
 
 
->>>>>>> main
