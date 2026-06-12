@@ -13,6 +13,7 @@ from personas import PERSONA_CONTEXT
 import progression
 import endings
 import codex
+import reflection
 
 SYSTEM_PROMPT = """
 너는 한국어 AI TRPG 게임 '증기와 비늘'의 AI 게임마스터다.
@@ -341,6 +342,10 @@ def gm_reply(session_id: str, user_input: str) -> dict:
     save_event(session_id, "user", user_input, {})
     save_event(session_id, "assistant", body,
                {"contexts": contexts, "tools": tool_log, "choices": choices})
+
+    # 성찰 패스: 모델이 1차에서 도구를 빠뜨려도, 자기 서술을 다시 읽고
+    # 발생한 비트를 스스로 판단해 보완한다. 비동기(백그라운드)라 응답 지연 없음.
+    reflection.dispatch(session_id, user_input, body)
     return {"answer": body, "choices": choices}
 
 
