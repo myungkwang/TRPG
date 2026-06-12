@@ -1,0 +1,57 @@
+{
+  "audio_file": "b7a6ae90-3080-46ce-b80c-d15342808672.wav",
+  "audio_float32_npy": "b7a6ae90-3080-46ce-b80c-d15342808672.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "\"소문이라… 아, 그에 대한 이야기는 많지요.",
+  "request_text_repr": "'\"소문이라… 아, 그에 대한 이야기는 많지요.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "\"소문이라… 아, 그에 대한 이야기는 많지요.",
+      "text_token_len": 15,
+      "text_tokens": [
+        [
+          1,
+          43590,
+          51588,
+          125866,
+          1940,
+          48408,
+          11,
+          54825,
+          19391,
+          128605,
+          130861,
+          16560,
+          126735,
+          137545,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    89280,
+    1
+  ],
+  "audio_min": -0.4432695806026459,
+  "audio_max": 0.47225669026374817,
+  "audio_mean": 4.206250378047116e-05
+}

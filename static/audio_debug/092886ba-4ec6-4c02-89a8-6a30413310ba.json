@@ -1,0 +1,56 @@
+{
+  "audio_file": "092886ba-4ec6-4c02-89a8-6a30413310ba.wav",
+  "audio_float32_npy": "092886ba-4ec6-4c02-89a8-6a30413310ba.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "당신의 말에 관심이 가득 차 있는 것 같습니다.",
+  "request_text_repr": "'당신의 말에 관심이 가득 차 있는 것 같습니다.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "당신의 말에 관심이 가득 차 있는 것 같습니다.",
+      "text_token_len": 14,
+      "text_tokens": [
+        [
+          64795,
+          82528,
+          20401,
+          126254,
+          19391,
+          138449,
+          12802,
+          35509,
+          132524,
+          129882,
+          64521,
+          71108,
+          138691,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    58560,
+    1
+  ],
+  "audio_min": -0.4137152433395386,
+  "audio_max": 0.5091565847396851,
+  "audio_mean": 8.87698624865152e-05
+}

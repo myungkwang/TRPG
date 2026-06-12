@@ -1,0 +1,53 @@
+{
+  "audio_file": "97fe0bcc-ad6b-4196-8a24-af51a6886df1.wav",
+  "audio_float32_npy": "97fe0bcc-ad6b-4196-8a24-af51a6886df1.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "특별한 이야기가 있으신 것 아닙니까?\"",
+  "request_text_repr": "'특별한 이야기가 있으신 것 아닙니까?\"'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "특별한 이야기가 있으신 것 아닙니까?\"",
+      "text_token_len": 11,
+      "text_tokens": [
+        [
+          134990,
+          23573,
+          130861,
+          19969,
+          135354,
+          82528,
+          71108,
+          48408,
+          144356,
+          125716,
+          7521
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    55680,
+    1
+  ],
+  "audio_min": -0.8471452593803406,
+  "audio_max": 0.7722998261451721,
+  "audio_mean": 0.00022883662313688546
+}

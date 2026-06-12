@@ -1,0 +1,44 @@
+{
+  "audio_file": "9fe2f7f2-4202-4465-8be9-38ca1b60a8f4.wav",
+  "audio_float32_npy": "9fe2f7f2-4202-4465-8be9-38ca1b60a8f4.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_rin",
+  "mode": "sft",
+  "text_frontend": false,
+  "request_text": "게임 찾아줘",
+  "request_text_repr": "'게임 찾아줘'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "게임 찾아줘",
+      "text_token_len": 4,
+      "text_tokens": [
+        [
+          57801,
+          93701,
+          138038,
+          144131
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    19200,
+    1
+  ],
+  "audio_min": -0.21277941763401031,
+  "audio_max": 0.18960429728031158,
+  "audio_mean": 0.0001102831811294891
+}
