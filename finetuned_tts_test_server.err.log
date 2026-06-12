@@ -1,0 +1,10 @@
+C:\Users\Chan\Desktop\trpg\finetuned_cosyvoice_test_server.py:138: DeprecationWarning: 
+        on_event is deprecated, use lifespan event handlers instead.
+
+        Read more about it in the
+        [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+        
+  @app.on_event("startup")
+INFO:     Started server process [190896]
+INFO:     Waiting for application startup.
+Sliding Window Attention is enabled but not implemented for `sdpa`; unexpected results may be encountered.
