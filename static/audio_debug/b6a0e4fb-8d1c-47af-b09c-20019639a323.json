@@ -1,0 +1,48 @@
+{
+  "audio_file": "b6a0e4fb-8d1c-47af-b09c-20019639a323.wav",
+  "audio_float32_npy": "b6a0e4fb-8d1c-47af-b09c-20019639a323.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "무리하지 마십시오.",
+  "request_text_repr": "'무리하지 마십시오.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "무리하지 마십시오.",
+      "text_token_len": 6,
+      "text_tokens": [
+        [
+          125054,
+          28002,
+          87425,
+          95577,
+          139713,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    24000,
+    1
+  ],
+  "audio_min": -0.5562258362770081,
+  "audio_max": 0.7054843902587891,
+  "audio_mean": 0.00012611369311343879
+}

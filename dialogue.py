@@ -14,6 +14,11 @@ NPC_SPEAKERS = {
     "마르타": "marta",
     "토비": "tobi",
     "카르가스": "kargas",
+    "광부": "miner",
+    "간호사": "nurse",
+    "린 주점 점원": "tavern_clerk",
+    "주점 점원": "tavern_clerk",
+    "점원": "tavern_clerk",
 }
 
 GM_LABELS = {

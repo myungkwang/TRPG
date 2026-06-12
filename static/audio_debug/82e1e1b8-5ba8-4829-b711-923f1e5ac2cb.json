@@ -1,0 +1,61 @@
+{
+  "audio_file": "82e1e1b8-5ba8-4829-b711-923f1e5ac2cb.wav",
+  "audio_float32_npy": "82e1e1b8-5ba8-4829-b711-923f1e5ac2cb.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "린은 바닥에 앉아 미소를 지으며 당신을 맞이합니다.",
+  "request_text_repr": "'린은 바닥에 앉아 미소를 지으며 당신을 맞이합니다.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "린은 바닥에 앉아 미소를 지으며 당신을 맞이합니다.",
+      "text_token_len": 19,
+      "text_tokens": [
+        [
+          129807,
+          33704,
+          81718,
+          144140,
+          19391,
+          23872,
+          231,
+          52959,
+          125714,
+          43590,
+          18411,
+          66790,
+          127378,
+          131502,
+          17877,
+          131417,
+          12802,
+          60838,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    71040,
+    1
+  ],
+  "audio_min": -0.6548328995704651,
+  "audio_max": 0.9900000095367432,
+  "audio_mean": 3.5596152883954346e-05
+}
