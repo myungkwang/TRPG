@@ -8,7 +8,7 @@ from db import get_conn
 import dialogue
 from llm import chat, chat_with_tools
 from rag import retrieve_context
-from game_logic import perform_roll
+from game_logic import perform_roll, infer_check
 from personas import PERSONA_CONTEXT
 import progression
 import endings
@@ -36,8 +36,12 @@ SYSTEM_PROMPT = """
    (visit_event 결과의 relations_changed에 오른 수치가 나오니 서사에 반영하라.)
 9. 플레이어가 단서/아이템을 손에 넣으면 give_item 도구로 인벤토리에 넣는다.
    예) 가일이 숨긴 광부 명부를 입수→"은폐된 명부".
-10. 장면의 장소가 바뀌면(이동·이벤트로) set_location 도구로 현재 위치를 바꿔 배경을 전환한다.
-    예) 진료소→여관, 여관→광산, 광산→갱도 심부, 절정→봉우리.
+10. [매우 중요·절대 잊지 말 것] 장면의 무대(장소)가 바뀌면 — 플레이어가 어딘가로 이동하거나,
+    다른 장소의 NPC와 대화가 시작되면 — 그 서술을 쓰기 "전에 가장 먼저" set_location 도구를
+    호출해 현재 위치를 그 장소로 바꾼다(배경이 따라 바뀐다). 이 호출을 빠뜨리면 배경이 안 바뀐다.
+    핵심 장소(정해진 배경): 진료소, 여관, 주둔소(가일), 봉우리(카르가스), 산기슭 오두막(마르타), 재끝 마을 광장.
+    그 외 장소(대장간, 정제소, 광산, 갱도, 암시장, 교단 성소 등)는 AI가 배경을 생성하므로 장소명을 구체적으로 적어 호출한다.
+    예) 플레이어가 대장간에 감 → set_location("대장간"); 여관→광산 이동 → set_location("광산").
 11. 엔딩은 플래그·이벤트·아이템·관계의 조합으로 열린다. 도구 결과에 ending_reached가
     오면, 그 엔딩 장면을 연출하고 이야기를 마무리한다.
 
@@ -114,6 +118,23 @@ TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "set_location",
+            "description": ("장면의 무대(장소)가 바뀔 때마다 반드시 호출해 현재 위치를 갱신한다(배경이 따라 바뀐다). "
+                            "핵심 장소(정해진 배경): 진료소/여관/주둔소/봉우리/오두막/재끝 마을 광장. "
+                            "그 외 장소(대장간/정제소/광산/갱도/암시장/교단 등)는 AI가 배경을 생성한다."),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "location": {"type": "string",
+                                 "description": "바뀐 현재 장소(주요 장소명 우선, 없으면 자유 서술)"},
+                },
+                "required": ["location"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "give_item",
             "description": "플레이어가 이야기 중 아이템/단서를 손에 넣었을 때 인벤토리에 추가한다. 일부 엔딩의 조건(예: '은폐된 명부').",
             "parameters": {
@@ -123,21 +144,6 @@ TOOLS = [
                     "reason": {"type": "string", "description": "어떻게 얻었는지 한 줄"},
                 },
                 "required": ["item"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "set_location",
-            "description": "장면의 장소가 바뀌면 현재 위치를 갱신한다(배경 이미지가 따라 바뀐다).",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "location": {"type": "string", "enum": list(progression.LOCATIONS),
-                                 "description": "바뀐 현재 장소"},
-                },
-                "required": ["location"],
             },
         },
     },
@@ -271,6 +277,24 @@ def _with_ending(session_id: str, result: dict) -> dict:
     return result
 
 
+# 안전망: GM이 set_location을 빠뜨려도, 플레이어가 이동을 명시하면 서버가 장소를 갱신한다.
+_MOVE_HINTS = ("간다", "향한다", "들어간다", "들어선다", "도착", "이동", "들른다", "들려",
+               "찾아간다", "올라간다", "내려간다", "로 간다", "에 간다", "으로 간다")
+_KNOWN_LOCS = ["재끝 마을 광장", "마을 광장", "광장", "진료소", "여관", "주점", "주막",
+               "대장간", "풀무간", "정제소", "갱도 심부", "갱도", "광산", "봉우리",
+               "산기슭 오두막", "오두막", "주둔소", "암시장", "교단 성소", "교단", "폐광"]
+
+
+def _detect_move_target(text: str) -> str | None:
+    """플레이어 입력이 특정 장소로의 '이동'을 명시하면 그 장소명을 돌려준다(아니면 None)."""
+    if not text or not any(h in text for h in _MOVE_HINTS):
+        return None
+    for loc in _KNOWN_LOCS:   # 더 구체적인 이름(긴 것)부터 매칭
+        if loc in text:
+            return loc
+    return None
+
+
 def gm_reply(session_id: str, user_input: str) -> dict:
     session = load_session(session_id)
     contexts = retrieve_context(user_input, limit=5)
@@ -338,7 +362,21 @@ def gm_reply(session_id: str, user_input: str) -> dict:
         for t in tool_log:
             print(f"   · [도구] {t['tool']}({t['args']}) → {t['result']}", flush=True)
 
-    body, choices = split_choices(answer)
+    # 안전망: GM이 이번 턴에 set_location을 부르지 않았는데 플레이어가 이동을 명시했다면 서버가 장소를 갱신.
+    if not any(t.get("tool") == "set_location" for t in tool_log):
+        moved = _detect_move_target(user_input)
+        if moved:
+            try:
+                progression.set_location(session_id, moved)
+            except Exception:
+                pass
+
+    body, choice_texts = split_choices(answer)
+    # 선택지마다 판정 필요 여부를 자동 감지해 구조화한다(프론트에서 주사위 모달 트리거용).
+    choices = []
+    for t in choice_texts:
+        required, stat, dc = infer_check(t)
+        choices.append({"text": t, "judge": bool(required), "stat": stat, "dc": dc})
     save_event(session_id, "user", user_input, {})
     save_event(session_id, "assistant", body,
                {"contexts": contexts, "tools": tool_log, "choices": choices})
