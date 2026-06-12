@@ -210,7 +210,8 @@ export default function App() {
           onNew={startNew}
           onContinue={continueGame}
           onCodex={() => setOverlay('codex')}
-          onSettings={() => { setScreen('game'); setOverlay('settings') }}
+          onSettings={() => setOverlay('settings')}
+          onLogout={doLogout}
           loading={loading}
         />
       )}
@@ -266,13 +267,12 @@ export default function App() {
           {overlay === 'status'    && <StatusPanel    onClose={() => setOverlay(null)} session={session} equipment={equipment} onEquip={equipItem} />}
           {overlay === 'inventory' && <InventoryPanel onClose={() => setOverlay(null)} session={session} equipment={equipment} onEquip={equipItem} />}
           {overlay === 'fullmap'   && <FullMapPanel   onClose={() => setOverlay(null)} journey={journey} />}
-          {overlay === 'settings'  && <SettingsPanel  onClose={() => setOverlay(null)} />}
-
           {showMap && <MapOverlay depth={mapDepth} dest={mapDest} onResult={onMapResult} />}
         </>
       )}
 
       {overlay === 'codex' && <CodexPanel onClose={() => setOverlay(null)} />}
+      {overlay === 'settings' && <SettingsPanel onClose={() => setOverlay(null)} />}
 
       {ending && <Ending ending={ending} onClose={closeEnding} />}
 

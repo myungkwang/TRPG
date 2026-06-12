@@ -96,7 +96,7 @@ COSYVOICE_SPEAKERS = {
     "tavern_clerk": "char_tavern_clerk",
 }
 
-TTS_PROVIDER = os.getenv("TTS_PROVIDER", "edge").strip().lower()
+TTS_PROVIDER = "edge"
 
 EDGE_TTS_VOICES = {
     "doctor": "ko-KR-HyunsuMultilingualNeural",
