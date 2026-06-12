@@ -1,0 +1,56 @@
+{
+  "audio_file": "7b5a37eb-e0ec-4f14-9fa2-e30fec6469c3.wav",
+  "audio_float32_npy": "7b5a37eb-e0ec-4f14-9fa2-e30fec6469c3.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_toby",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "text_frontend": false,
+  "request_text": "적절한 시기의 난방 수준",
+  "request_text_repr": "'적절한 시기의 난방 수준'",
+  "prompt_text": "You are a helpful assistant. Please speak Korean.<|endofprompt|>",
+  "prompt_token_len": 11,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      5209,
+      6468,
+      16134,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "적절한 시기의 난방 수준",
+      "text_token_len": 11,
+      "text_tokens": [
+        [
+          80968,
+          126550,
+          23573,
+          44518,
+          20487,
+          20401,
+          37195,
+          250,
+          126321,
+          28733,
+          129044
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    211200,
+    1
+  ],
+  "audio_min": -0.6225438714027405,
+  "audio_max": 0.8219063878059387,
+  "audio_mean": 7.58830901759211e-06
+}

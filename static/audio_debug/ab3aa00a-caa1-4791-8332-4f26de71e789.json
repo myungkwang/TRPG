@@ -1,0 +1,49 @@
+{
+  "audio_file": "ab3aa00a-caa1-4791-8332-4f26de71e789.wav",
+  "audio_float32_npy": "ab3aa00a-caa1-4791-8332-4f26de71e789.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_rin",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "text_frontend": false,
+  "request_text": "게임 찾아줘",
+  "request_text_repr": "'게임 찾아줘'",
+  "prompt_text": "You are a helpful assistant. Please speak Korean.<|endofprompt|>",
+  "prompt_token_len": 11,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      5209,
+      6468,
+      16134,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "게임 찾아줘",
+      "text_token_len": 4,
+      "text_tokens": [
+        [
+          57801,
+          93701,
+          138038,
+          144131
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    11520,
+    1
+  ],
+  "audio_min": -0.05694250762462616,
+  "audio_max": 0.0601496696472168,
+  "audio_mean": 2.14637639146531e-05
+}

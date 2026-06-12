@@ -1,0 +1,73 @@
+{
+  "audio_file": "e65d06dc-4863-45fe-b405-230fc562d96e.wav",
+  "audio_float32_npy": "e65d06dc-4863-45fe-b405-230fc562d96e.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "안으로 들어가자, 향긋한 차와 구운 음식 냄새가 코를 찔렀습니다.",
+  "request_text_repr": "'안으로 들어가자, 향긋한 차와 구운 음식 냄새가 코를 찔렀습니다.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "안으로 들어가자, 향긋한 차와 구운 음식 냄새가 코를 찔렀습니다.",
+      "text_token_len": 31,
+      "text_tokens": [
+        [
+          126246,
+          42039,
+          129901,
+          19969,
+          25715,
+          11,
+          10764,
+          244,
+          98,
+          144604,
+          23573,
+          129882,
+          80573,
+          58777,
+          93672,
+          16751,
+          234,
+          76337,
+          5140,
+          225,
+          226,
+          131097,
+          19969,
+          3315,
+          65291,
+          18411,
+          62099,
+          242,
+          144277,
+          38231,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    137280,
+    1
+  ],
+  "audio_min": -0.3666132986545563,
+  "audio_max": 0.6774923205375671,
+  "audio_mean": 0.00017818249762058258
+}

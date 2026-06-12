@@ -1,0 +1,56 @@
+{
+  "audio_file": "1db2d5bd-7083-4e79-81ff-491b4894d5c6.wav",
+  "audio_float32_npy": "1db2d5bd-7083-4e79-81ff-491b4894d5c6.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "저희 여관에서 무슨 도움을 드릴까요?",
+  "request_text_repr": "'저희 여관에서 무슨 도움을 드릴까요?'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "저희 여관에서 무슨 도움을 드릴까요?",
+      "text_token_len": 14,
+      "text_tokens": [
+        [
+          126781,
+          125969,
+          83518,
+          124780,
+          56475,
+          142374,
+          129392,
+          133914,
+          17877,
+          55838,
+          250,
+          135379,
+          138965,
+          30
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    63360,
+    1
+  ],
+  "audio_min": -0.8973062038421631,
+  "audio_max": 0.8313560485839844,
+  "audio_mean": 0.00023034859623294324
+}

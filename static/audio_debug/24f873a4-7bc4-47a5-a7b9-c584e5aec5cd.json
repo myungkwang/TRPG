@@ -1,0 +1,53 @@
+{
+  "audio_file": "24f873a4-7bc4-47a5-a7b9-c584e5aec5cd.wav",
+  "audio_float32_npy": "24f873a4-7bc4-47a5-a7b9-c584e5aec5cd.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "당신은 선택의 기로에 서 있습니다.",
+  "request_text_repr": "'당신은 선택의 기로에 서 있습니다.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "당신은 선택의 기로에 서 있습니다.",
+      "text_token_len": 11,
+      "text_tokens": [
+        [
+          64795,
+          82528,
+          33704,
+          86038,
+          20401,
+          54116,
+          17380,
+          19391,
+          89860,
+          128472,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    40320,
+    1
+  ],
+  "audio_min": -0.3233732283115387,
+  "audio_max": 0.3323875963687897,
+  "audio_mean": 0.00037691465695388615
+}
