@@ -32,14 +32,14 @@ static/assets/
 !*.glb
 !*.fbx
 !*.vrm
-# !static/models/
-# !static/models/**
-# !static/animations/
-# !static/animations/**
-# !trpg1/public/models/
-# !trpg1/public/models/**
-# !trpg1/public/animations/
-# !trpg1/public/animations/**
+static/models/
+static/models/**
+static/animations/
+static/animations/**
+trpg1/public/models/
+trpg1/public/models/**
+trpg1/public/animations/
+trpg1/public/animations/**
 
 # Local databases and generated data
 *.db
