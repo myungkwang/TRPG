@@ -1,10 +1,10 @@
-Environment and secrets
+# Environment and secrets
 .env
 .env.*
 !.env.example
 
-Python
-pycache/
+# Python
+__pycache__/
 *.py[cod]
 *$py.class
 .pytest_cache/
@@ -14,59 +14,65 @@ pycache/
 venv/
 env/
 
-Node / Vite
+# Node / Vite
 node_modules/
 frontend_src/dist/
 steamscale-proto/dist/
 .vite/
 *.log
 
-Built frontend assets (Vite output with hashed filenames)
+# Built frontend assets
 static/assets/
 
-Binary / large files
+# Binary / large files
 *.zip
-.docx
+*.docx
 
-3D model and animation files must always be tracked
-!.glb
-!.fbx
-!.vrm
+# 3D model and animation files must always be tracked
+!*.glb
+!*.fbx
+!*.vrm
 !static/models/
+!static/models/**
 !static/animations/
-!steamscale-proto/public/models/
-!steamscale-proto/public/animations/
+!static/animations/**
+!trpg1/public/models/
+!trpg1/public/models/**
+!trpg1/public/animations/
+!trpg1/public/animations/**
 
-Local databases and generated data
+# Local databases and generated data
 *.db
 *.sqlite
-.sqlite3
+*.sqlite3
 chroma/
 chroma_db/
 vectorstore/
 
-Generated media / backups
+# Generated media / backups
 static/audio/
 static_backup/
 
-엔딩 이미지: 런타임 생성물(uuid.png)은 무시, 고정 일러스트만 커밋
-static/endings/
+# Ending images
+static/endings/*
+!static/endings/
 !static/endings/normal.png
 !static/endings/true.png
 !static/endings/hidden.png
 !static/endings/bad.png
 
-OS / editor
+# OS / editor
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
 
-
+# External / model outputs
 external/
 CosyVoice3_game_chars_epoch23_for_team/eval_model/
 docs/superpowers/
 
+# ML model/checkpoint files
 *.pt
 *.pth
 *.onnx
