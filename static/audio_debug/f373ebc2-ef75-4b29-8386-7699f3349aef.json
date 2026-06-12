@@ -1,0 +1,62 @@
+{
+  "audio_file": "f373ebc2-ef75-4b29-8386-7699f3349aef.wav",
+  "audio_float32_npy": "f373ebc2-ef75-4b29-8386-7699f3349aef.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "린은 귀여운 미소를 지으며 손님들을 맞이하고 있습니다.",
+  "request_text_repr": "'린은 귀여운 미소를 지으며 손님들을 맞이하고 있습니다.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "린은 귀여운 미소를 지으며 손님들을 맞이하고 있습니다.",
+      "text_token_len": 20,
+      "text_tokens": [
+        [
+          129807,
+          33704,
+          134312,
+          222,
+          57026,
+          93672,
+          125714,
+          43590,
+          18411,
+          66790,
+          127378,
+          77596,
+          238,
+          124683,
+          129125,
+          131417,
+          12802,
+          126204,
+          128472,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    87360,
+    1
+  ],
+  "audio_min": -0.558036744594574,
+  "audio_max": 0.4164751470088959,
+  "audio_mean": 2.0253171896911226e-05
+}

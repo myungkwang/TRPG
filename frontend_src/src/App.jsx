@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import Auth from './components/Auth.jsx'
 import Title from './components/Title.jsx'
 import Intro from './components/Intro.jsx'
+import CharacterCreation from './components/CharacterCreation.jsx'
 import Dialogue from './components/Dialogue.jsx'
 import MenuButton from './components/Menu.jsx'
 import { StatusPanel, InventoryPanel, FullMapPanel, SettingsPanel } from './components/Panels.jsx'
@@ -23,6 +24,7 @@ export default function App() {
   const [journey, setJourney] = useState([])
   const [session, setSession] = useState(null)
   const [history, setHistory] = useState([])
+  const [storyScene, setStoryScene] = useState(null)
   const [equipment, setEquipment] = useState(() => ({ ...EQUIPMENT }))
   const [hasSave, setHasSave] = useState(false)
   const [toast, setToast] = useState('')
@@ -84,6 +86,7 @@ export default function App() {
     setSession(data.session)
     const loadedHistory = data.history || (data.intro ? [{ role: 'assistant', content: data.intro, speak: shouldSpeak }] : [])
     setHistory(loadedHistory)
+    setStoryScene(data.story || null)
     localStorage.setItem(SAVE_KEY, data.session.id)
     setHasSave(true)
   }
@@ -94,6 +97,7 @@ export default function App() {
     setUser(null)
     setSession(null)
     setHistory([])
+    setStoryScene(null)
     setScreen('auth')
     setOverlay(null)
     setHasSave(false)
@@ -126,7 +130,7 @@ export default function App() {
       setJourney([])
       setMapDepth(0)
       const data = await apiNewSession()
-      applyLoaded(data, true)
+      applyLoaded(data, false)
       setScreen('intro')
       setOverlay(null)
     } catch (err) {
@@ -182,6 +186,7 @@ export default function App() {
     setUser(null)
     setSession(null)
     setHistory([])
+    setStoryScene(null)
     setScreen('auth')
     setOverlay(null)
     setHasSave(false)
@@ -210,15 +215,35 @@ export default function App() {
         />
       )}
 
-      {screen === 'intro' && <Intro onDone={() => setScreen('game')} />}
+      {screen === 'intro' && <Intro onDone={() => setScreen(session ? 'character' : 'game')} />}
+
+      {screen === 'character' && (
+        <CharacterCreation
+          session={session}
+          onDone={(data) => {
+            applyLoaded(data, true)
+            setScreen('game')
+            setOverlay(null)
+          }}
+          onCancel={() => {
+            setScreen('title')
+            setOverlay(null)
+          }}
+        />
+      )}
 
       {screen === 'game' && (
         <>
           <Dialogue
             session={session}
+            story={storyScene}
             history={history}
             onHistoryChange={setHistory}
-            onSessionChange={setSession}
+            onSessionChange={(nextSession, nextStory) => {
+              setSession(nextSession)
+              if (nextStory) setStoryScene(nextStory)
+            }}
+            onStoryChange={setStoryScene}
             onEnding={setEnding}
             runMapStep={runMapStep}
           />

@@ -1,0 +1,63 @@
+{
+  "audio_file": "96d23f3c-5f44-4744-940b-f7757b2a119c.wav",
+  "audio_float32_npy": "96d23f3c-5f44-4744-940b-f7757b2a119c.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "당신이 들어오자 그녀는 반갑게 손을 흔듭니다.",
+  "request_text_repr": "'당신이 들어오자 그녀는 반갑게 손을 흔듭니다.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "당신이 들어오자 그녀는 반갑게 손을 흔듭니다.",
+      "text_token_len": 21,
+      "text_tokens": [
+        [
+          64795,
+          82528,
+          12802,
+          129901,
+          57268,
+          25715,
+          54825,
+          132751,
+          16560,
+          63757,
+          138685,
+          57801,
+          77596,
+          238,
+          17877,
+          10764,
+          251,
+          242,
+          144177,
+          21953,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    88320,
+    1
+  ],
+  "audio_min": -0.713714599609375,
+  "audio_max": 0.7382165789604187,
+  "audio_mean": 0.00019096980395261198
+}
