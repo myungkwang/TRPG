@@ -1,0 +1,59 @@
+{
+  "audio_file": "f4c81f4a-3f23-4a7d-84a9-1989312224a0.wav",
+  "audio_float32_npy": "f4c81f4a-3f23-4a7d-84a9-1989312224a0.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "당신은 진료소를 나서 여관으로 향합니다.",
+  "request_text_repr": "'당신은 진료소를 나서 여관으로 향합니다.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "당신은 진료소를 나서 여관으로 향합니다.",
+      "text_token_len": 17,
+      "text_tokens": [
+        [
+          64795,
+          82528,
+          33704,
+          126616,
+          63256,
+          43590,
+          18411,
+          73518,
+          26698,
+          83518,
+          124780,
+          42039,
+          10764,
+          244,
+          98,
+          60838,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    64320,
+    1
+  ],
+  "audio_min": -0.8093764185905457,
+  "audio_max": 0.8777126669883728,
+  "audio_mean": 0.00033528520725667477
+}

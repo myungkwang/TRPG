@@ -1,0 +1,70 @@
+{
+  "audio_file": "39bad4a3-417d-4f4d-992e-74aea6fc4ab0.wav",
+  "audio_float32_npy": "39bad4a3-417d-4f4d-992e-74aea6fc4ab0.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "의사가 진료 기록을 덮자, 창밖의 증기관이 낮게 울립니다.",
+  "request_text_repr": "'의사가 진료 기록을 덮자, 창밖의 증기관이 낮게 울립니다.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "의사가 진료 기록을 덮자, 창밖의 증기관이 낮게 울립니다.",
+      "text_token_len": 28,
+      "text_tokens": [
+        [
+          20401,
+          55054,
+          19969,
+          126616,
+          63256,
+          54116,
+          49664,
+          17877,
+          126365,
+          106,
+          25715,
+          11,
+          62099,
+          121,
+          127795,
+          20401,
+          132376,
+          251,
+          131854,
+          12802,
+          37195,
+          106,
+          57801,
+          65722,
+          116,
+          126702,
+          21953,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    102720,
+    1
+  ],
+  "audio_min": -0.8009781241416931,
+  "audio_max": 0.7368590831756592,
+  "audio_mean": 0.0002535165986046195
+}

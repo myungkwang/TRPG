@@ -1,0 +1,69 @@
+{
+  "audio_file": "c4401c9f-4956-4d33-b860-391709b8b140.wav",
+  "audio_float32_npy": "c4401c9f-4956-4d33-b860-391709b8b140.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "문을 열고 들어가니, 린이 마주 보며 미소를 지으며 당신을 반깁니다.",
+  "request_text_repr": "'문을 열고 들어가니, 린이 마주 보며 미소를 지으며 당신을 반깁니다.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "문을 열고 들어가니, 린이 마주 보며 미소를 지으며 당신을 반깁니다.",
+      "text_token_len": 27,
+      "text_tokens": [
+        [
+          51588,
+          17877,
+          130847,
+          34395,
+          129901,
+          19969,
+          83036,
+          11,
+          5140,
+          99,
+          108,
+          12802,
+          95577,
+          54330,
+          63332,
+          124905,
+          125714,
+          43590,
+          18411,
+          66790,
+          127378,
+          131502,
+          17877,
+          63757,
+          144758,
+          21953,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    131520,
+    1
+  ],
+  "audio_min": -0.9675690531730652,
+  "audio_max": 0.9900000095367432,
+  "audio_mean": -5.199429142521694e-05
+}

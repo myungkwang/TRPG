@@ -130,6 +130,23 @@ export async function apiMove(sessionId, location) {
   })
 }
 
+export async function apiStoryCurrent(sessionId) {
+  return fetchJson(`/api/story/${sessionId}`, {
+    headers: { ...authHeaders() },
+  })
+}
+
+export async function apiStoryChoice(sessionId, choiceId, roll) {
+  return fetchJson('/api/story/choice', {
+    method: 'POST',
+    headers: {
+      ...JSON_HEADERS,
+      ...authHeaders(),
+    },
+    body: JSON.stringify({ session_id: sessionId, choice_id: choiceId, roll }),
+  })
+}
+
 export async function apiTTS(text, options = {}) {
   const body = typeof options === 'string'
     ? { text, voice: options }

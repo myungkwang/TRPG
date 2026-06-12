@@ -25,6 +25,7 @@ import endings
 import codex
 import dialogue
 import character_creation
+import story
 from auth import (
     validate_signup,
     hash_password,
@@ -95,7 +96,7 @@ COSYVOICE_SPEAKERS = {
     "tavern_clerk": "char_tavern_clerk",
 }
 
-TTS_PROVIDER = os.getenv("TTS_PROVIDER", "cosyvoice").strip().lower()
+TTS_PROVIDER = os.getenv("TTS_PROVIDER", "edge").strip().lower()
 
 EDGE_TTS_VOICES = {
     "doctor": "ko-KR-HyunsuMultilingualNeural",
@@ -132,6 +133,11 @@ class ChatRequest(BaseModel):
 class MoveRequest(BaseModel):
     session_id: str
     location: str
+
+class StoryChoiceRequest(BaseModel):
+    session_id: str
+    choice_id: str
+    roll: int | None = None
 
 
 class TTSRequest(BaseModel):
@@ -485,6 +491,7 @@ def get_session(
         return {
             "session": public_session(session_id),
             "history": recent_history(session_id, limit=20),
+            "story": story.current_scene(session_id),
         }
     except HTTPException:
         raise
@@ -583,14 +590,17 @@ def character_confirm(
             ),
         )
 
+    story_scene = story.ensure_story_started(req.session_id)
     history = recent_history(req.session_id, limit=20)
     if history and history[-1].get("role") == "assistant":
         history[-1]["speak"] = True
+        history[-1]["choicesToReveal"] = story_scene.get("choices", [])
 
     return {
         "character": _public_character_preview(req.answers),
         "session": public_session(req.session_id),
         "history": history,
+        "story": story_scene,
     }
 
 
@@ -625,6 +635,7 @@ def chat(
         "choices": choices,
         "segments": dialogue.split_segments(answer),
         "session": public_session(req.session_id),
+        "story": story.current_scene(req.session_id),
     }
 
 
@@ -662,6 +673,37 @@ def move(
         "choices": choices,
         "segments": dialogue.split_segments(answer),
         "session": public_session(req.session_id),
+        "story": story.current_scene(req.session_id),
+    }
+
+
+@app.get("/api/story/{session_id}")
+def get_story_scene(
+    session_id: str,
+    user_id: str = Depends(get_user_id_from_token),
+) -> dict[str, Any]:
+    assert_session_owner(session_id, user_id)
+    return {"story": story.current_scene(session_id)}
+
+
+@app.post("/api/story/choice")
+def story_choice(
+    req: StoryChoiceRequest,
+    user_id: str = Depends(get_user_id_from_token),
+) -> dict[str, Any]:
+    assert_session_owner(req.session_id, user_id)
+    try:
+        result = story.choose(req.session_id, req.choice_id, req.roll)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    ending = endings.check_session_ending(req.session_id)
+    return {
+        **result,
+        "session": public_session(req.session_id),
+        "ending_reached": ending,
     }
 
 
