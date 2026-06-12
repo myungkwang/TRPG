@@ -5,7 +5,28 @@ import Character3D from './Character3D.jsx'
 import { apiChat, apiTTS, apiDebugEnding, apiStoryCurrent, apiStoryChoice } from '../api.js'
 import { PERSONAS, getPersona } from '../personas.js'
 
-const CRYSTAL_MINE_BGM = '/static/audio/bgm/crystal-mine.mp3'
+const LOCATION_BGMS = [
+  {
+    aliases: ['카르가스전투', '카르가스', '봉우리', 'boss'],
+    path: '/static/audio/bgm/ashes-of-kargas.mp3',
+    volume: 0.34,
+  },
+  {
+    aliases: ['진료소', '진료실', '의무실', 'clinic', 'hospital'],
+    path: '/static/audio/bgm/clinic.wav',
+    volume: 0.24,
+  },
+  {
+    aliases: ['재끝마을', '재끝', '잿빛마을', '잿빛', '마을광장', 'village', 'jaekkeut'],
+    path: '/static/audio/bgm/jaekkeut-village.mp3',
+    volume: 0.3,
+  },
+  {
+    aliases: ['갱도', '갱도사무소', '광산', 'mine', 'mineshaft'],
+    path: '/static/audio/bgm/crystal-mine.mp3',
+    volume: 0.28,
+  },
+]
 const USE_BROWSER_TTS = false
 
 const NPC_DIALOGUE_TEST_LINES = [
@@ -97,8 +118,8 @@ const CHARACTER_MODELS = [
     speaker: 'kargas',
     personaId: 'kargas',
     name: PERSONAS.kargas.name,
-    modelPath: '/static/models/GM_Base_WithShapeKeys_04.glb',
-    modelScale: 0.75,
+    modelPath: '/static/models/Kargas_18.glb',
+    modelScale: 0.72,
     modelOffset: [0, 80, 0],
   },
   {
@@ -106,8 +127,9 @@ const CHARACTER_MODELS = [
     personaId: 'tavern_clerk',
     name: PERSONAS.tavern_clerk.name,
     modelPath: '/static/models/Waitress_01.glb',
-    modelScale: 0.72,
-    modelOffset: [0, -100, 0],
+    modelScale: 0.52,
+    modelOffset: [0, -170, 0],
+    framingOffsetY: 70,
     preferEmbeddedAnimations: true,
     motionIntensity: 0.55,
   },
@@ -124,9 +146,9 @@ const GM_TTS_PERSONA = {
 }
 
 const LOCATION_BACKGROUNDS = [
-  { aliases: ['진료소', '진료실', '의무실', 'clinic', 'hospital'], path: '/static/backgrounds/clinic.png' },
-  { aliases: ['여관', 'tavern', 'inn'], path: '/static/backgrounds/inn.png' },
-  { aliases: ['정제소', 'refinery'], path: '/static/backgrounds/refinery.png' },
+  { aliases: ['진료소', '진료실', '의무실', 'clinic', 'hospital'], path: '/static/backgrounds/clinic-new.png' },
+  { aliases: ['여관', '주점', 'tavern', 'inn'], path: '/static/backgrounds/inn-new.png' },
+  { aliases: ['정재소', '정제소', 'refinery'], path: '/static/backgrounds/refinery-new.png' },
   { aliases: ['갱도', '갱도사무소', '광산', 'mine', 'mineshaft'], path: '/static/backgrounds/mine.png' },
 ]
 
@@ -136,6 +158,36 @@ const getLocationBackground = (location) => {
   return LOCATION_BACKGROUNDS.find(bg =>
     bg.aliases.some(alias => normalized.includes(alias.replace(/\s+/g, '').toLowerCase())),
   )?.path || null
+}
+
+const getLocationBgm = (source) => {
+  const normalized = String(source || '').replace(/\s+/g, '').toLowerCase()
+  if (!normalized) return null
+  return LOCATION_BGMS.find(bgm =>
+    bgm.aliases.some(alias => normalized.includes(alias.replace(/\s+/g, '').toLowerCase())),
+  ) || null
+}
+
+const playWhenAllowed = (audio) => {
+  let cleanup = () => {}
+  const retry = () => {
+    audio.play()
+      .then(cleanup)
+      .catch(() => {})
+  }
+
+  audio.play().catch(() => {
+    window.addEventListener('pointerdown', retry, { once: true })
+    window.addEventListener('keydown', retry, { once: true })
+    window.addEventListener('touchstart', retry, { once: true })
+    cleanup = () => {
+      window.removeEventListener('pointerdown', retry)
+      window.removeEventListener('keydown', retry)
+      window.removeEventListener('touchstart', retry)
+    }
+  })
+
+  return () => cleanup()
 }
 
 const getMapResultLocation = (kind) => {
@@ -715,7 +767,7 @@ export default function Dialogue({ session, story, history, onHistoryChange, onS
   const judgeTimerRef = useRef(null)
   const mappingRef = useRef(false)
   const spokenRef = useRef(new Set())
-  const mineBgmRef = useRef(null)
+  const locationBgmRef = useRef({ path: null, audio: null })
   const holdChoicesRef = useRef(false)
   const storyChoicesRef = useRef([])
   const sceneContext = {
@@ -1264,28 +1316,38 @@ export default function Dialogue({ session, story, history, onHistoryChange, onS
     .concat(npcTestCharacters.filter(character => character.speaker === activeSpeaker))
   const testStageRunning = npcTestRunning || shortTtsTestRunning
   const locationBackground = getLocationBackground(stageLocation || story?.location || session?.location)
-  const isMineLocation = locationBackground?.includes('/mine.png')
+  const locationBgm = getLocationBgm([
+    sceneContext.storyId,
+    stageLocation || story?.location || session?.location,
+    (session?.stage?.index ?? 0) >= 4 ? '카르가스 전투' : '',
+  ].join(' '))
 
   useEffect(() => {
-    if (!mineBgmRef.current) {
-      const audio = new Audio(CRYSTAL_MINE_BGM)
-      audio.loop = true
-      audio.volume = 0.28
-      mineBgmRef.current = audio
+    const current = locationBgmRef.current
+    if (current.audio && current.path !== locationBgm?.path) {
+      current.audio.pause()
+      current.audio.currentTime = 0
+      locationBgmRef.current = { path: null, audio: null }
     }
 
-    const audio = mineBgmRef.current
-    if (isMineLocation) {
-      audio.play().catch(() => {})
-    } else {
-      audio.pause()
-      audio.currentTime = 0
+    if (!locationBgm) return undefined
+
+    if (!locationBgmRef.current.audio) {
+      const audio = new Audio(locationBgm.path)
+      audio.loop = true
+      audio.volume = locationBgm.volume
+      locationBgmRef.current = { path: locationBgm.path, audio }
     }
+
+    const audio = locationBgmRef.current.audio
+    audio.volume = locationBgm.volume
+    const stopRetry = playWhenAllowed(audio)
 
     return () => {
+      stopRetry()
       audio.pause()
     }
-  }, [isMineLocation])
+  }, [locationBgm?.path, locationBgm?.volume])
 
   return (
     <div

@@ -82,7 +82,7 @@ button{font-family:var(--font-body);cursor:pointer}
 .creation-screen{position:absolute;inset:0;overflow:hidden;
   background:
     linear-gradient(180deg,rgba(0,0,0,.18),rgba(0,0,0,.46)),
-    url('/static/backgrounds/clinic.png') center/cover no-repeat,
+    url('/static/backgrounds/clinic-new.png') center/cover no-repeat,
     linear-gradient(160deg,var(--warm1),var(--warm2) 72%,var(--warm3))}
 .creation-bg{position:absolute;inset:0;pointer-events:none;
   background:radial-gradient(70% 70% at 48% 35%,rgba(255,210,130,.08),transparent 66%),

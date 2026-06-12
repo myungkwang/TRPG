@@ -297,6 +297,8 @@ export default function Character3D({
   cameraPosition = null,
   cameraTarget = null,
   cameraFov = 50,
+  framingOffsetY = 0,
+  framingScale = 1,
 }) {
   const hostRef = useRef(null)
   const [status, setStatus] = useState('Loading 3D model...')
@@ -698,9 +700,10 @@ export default function Character3D({
       // makes the model render tiny. Standing characters are height-dominant anyway.
       const fov = THREE.MathUtils.degToRad(camera.fov)
       const fitHeight = size.y / 2 / Math.tan(fov / 2)
-      const dist = (fitHeight * FRAME_MARGIN) / safeModelScale
+      const safeFramingScale = Math.max(0.1, framingScale || 1)
+      const dist = (fitHeight * FRAME_MARGIN) / safeModelScale / safeFramingScale
       const targetX = center.x - offsetX
-      const targetY = center.y - offsetY + VERTICAL_OFFSET
+      const targetY = center.y - offsetY + VERTICAL_OFFSET + framingOffsetY
       const targetZ = center.z - offsetZ
       viewPosition = [targetX, targetY, dist + targetZ]
       viewTarget = [targetX, targetY, targetZ]
@@ -1163,7 +1166,17 @@ export default function Character3D({
       renderer?.dispose()
       if (renderer?.domElement?.parentNode === host) host.removeChild(renderer.domElement)
     }
-  }, [modelPath, animations, modelRotation, modelScale, modelOffset, preferEmbeddedAnimations, motionIntensity])
+  }, [
+    modelPath,
+    animations,
+    modelRotation,
+    modelScale,
+    modelOffset,
+    preferEmbeddedAnimations,
+    motionIntensity,
+    framingOffsetY,
+    framingScale,
+  ])
 
   return (
     <div className="character3d">
@@ -1171,5 +1184,4 @@ export default function Character3D({
     </div>
   )
 }
-
 
