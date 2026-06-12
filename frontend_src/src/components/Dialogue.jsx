@@ -1,8 +1,8 @@
-﻿import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { SPEAKERS, FLAVOR_CHOICE, CHOICES } from '../data.js'
 import D12 from './D12.jsx'
 import Character3D from './Character3D.jsx'
-import { apiChat, apiTTS, apiDebugEnding, apiStoryCurrent, apiStoryChoice } from '../api.js'
+import { apiChat, apiTTS, apiDebugEnding } from '../api.js'
 import { PERSONAS, getPersona } from '../personas.js'
 
 const CRYSTAL_MINE_BGM = '/static/audio/bgm/crystal-mine.mp3'
@@ -33,8 +33,6 @@ const NPC_TEST_STAGE_X = {
   gail: 140,
   tobi: 420,
 }
-
-const DEFAULT_STAGE_SPEAKER = 'gm'
 
 const CHARACTER_MODELS = [
   {
@@ -70,9 +68,8 @@ const CHARACTER_MODELS = [
     personaId: 'marta',
     name: PERSONAS.marta.name,
     modelPath: '/static/models/Marta_01.glb',
-    modelRotation: [-Math.PI / 2, Math.PI, Math.PI],
     modelScale: 0.75,
-    modelOffset: [0, 70, 0],
+    modelOffset: [0, 80, 0],
   },
   {
     speaker: 'tobi',
@@ -113,16 +110,6 @@ const CHARACTER_MODELS = [
   },
 ]
 
-const GM_TTS_PERSONA = {
-  id: 'doctor',
-  name: SPEAKERS.gm?.name || 'GM',
-  color: SPEAKERS.gm?.color || '#7a4a2e',
-  tts: {
-    voice: 'echo',
-    instructions: 'TRPG 게임 마스터. 장면을 차분하고 또렷하게 진행하며, 낮고 안정적인 해설 톤으로 말한다.',
-  },
-}
-
 const LOCATION_BACKGROUNDS = [
   { aliases: ['진료소', '진료실', '의무실', 'clinic', 'hospital'], path: '/static/backgrounds/clinic.png' },
   { aliases: ['여관', 'tavern', 'inn'], path: '/static/backgrounds/inn.png' },
@@ -146,41 +133,9 @@ const getMapResultLocation = (kind) => {
   if (['event', '이벤트', '여관', 'mystery', '미지'].some(key => normalized.includes(key))) return '여관'
   return null
 }
-
-const TAVERN_RIN_SCENES = new Set(['tavern_rin'])
-const CLINIC_SCENES = new Set(['clinic_wake', 'clinic_nurse'])
-
-const normalizeSpeakerKey = (speaker) => speaker || 'gm'
-
-const inferStoryIdFromText = (text = '') => {
-  const source = String(text || '')
-  if (/진료소|진료\s*기록|진료실|의무실|무리하지\s*마십시오|기억이\s*돌아오지|단서가\s*남아|몸은\s*움직일/.test(source)) return 'clinic_wake'
-  if (/여관|주점|마을의\s*비밀|소문|드디어\s*오셨|잘\s*오셨|반가운\s*손님|정보\s*거래/.test(source)) return 'tavern_rin'
-  return ''
-}
-
-const sanitizeSceneSpeaker = (speaker, context = {}) => {
-  const key = normalizeSpeakerKey(speaker)
-  const sceneId = context.storyId || ''
-
-  if (TAVERN_RIN_SCENES.has(sceneId) && key === 'doctor') return 'lin'
-  if (CLINIC_SCENES.has(sceneId) && key === 'lin') return 'doctor'
-  return key
-}
-
-const sanitizeSegmentsForContext = (segments, context = {}) => (
-  segments.map(segment => ({
-    ...segment,
-    speaker: sanitizeSceneSpeaker(segment.speaker, context),
-  }))
-)
-
-const toUiLog = (history = [], context = {}, sanitizeLatest = false) => {
+const toUiLog = (history = []) => {
   if (!history || history.length === 0) return []
-  const latestAssistantIndex = sanitizeLatest
-    ? history.map(item => item.role).lastIndexOf('assistant')
-    : -1
-  return history.flatMap((item, index) => {
+  return history.flatMap((item) => {
     if (item.role !== 'assistant') {
       return [{
         who: 'player',
@@ -189,15 +144,7 @@ const toUiLog = (history = [], context = {}, sanitizeLatest = false) => {
       }]
     }
 
-    const inferredStoryId = inferStoryIdFromText(item.content || '')
-    const itemContext = {
-      storyId: item.storyId || inferredStoryId || (index === latestAssistantIndex ? context.storyId : ''),
-      location: item.location || (index === latestAssistantIndex ? context.location : ''),
-    }
-    const segments = sanitizeSegmentsForContext(
-      normalizeStorySegments(item.segments, item.content || '', item.speaker || 'gm'),
-      itemContext,
-    )
+    const segments = normalizeStorySegments(item.segments, item.content || '', item.speaker || 'gm')
     return segments.map(segment => ({
       who: segment.speaker,
       text: segment.text,
@@ -208,29 +155,14 @@ const toUiLog = (history = [], context = {}, sanitizeLatest = false) => {
 
 const getLastNpcSpeaker = (log) => {
   const lastNpc = [...log].reverse().find(m => m.who !== 'player' && CHARACTER_MODELS.some(c => c.speaker === m.who))
-  return lastNpc?.who || DEFAULT_STAGE_SPEAKER
+  return lastNpc?.who || CHARACTER_MODELS[0].speaker
 }
 
-const inferStageSpeaker = (text = '', location = '') => {
-  const source = `${text || ''}\n${location || ''}`
-  if (/린\s*주점\s*점원|주점\s*점원|점원/.test(source)) return 'tavern_clerk'
-  if (/린|여관|주점/.test(source)) return 'lin'
-  if (/의사|진료소|진료실|의무실/.test(source)) return 'doctor'
-  if (/가일/.test(source)) return 'gail'
-  if (/마르타|오두막|전설/.test(source)) return 'marta'
-  if (/토비/.test(source)) return 'tobi'
-  if (/카르가스|봉우리/.test(source)) return 'kargas'
-  return null
-}
-
-const getCharacter = (speaker) => CHARACTER_MODELS.find(c => c.speaker === speaker) || null
+const getCharacter = (speaker) => CHARACTER_MODELS.find(c => c.speaker === speaker) || CHARACTER_MODELS[0]
 
 const getPersonaForSpeaker = (speaker) => {
-  if (speaker === 'gm') return GM_TTS_PERSONA
-  const direct = getPersona(speaker)
-  if (direct) return direct
   const character = getCharacter(speaker)
-  return getPersona(character?.personaId) || getPersona(speaker) || PERSONAS.doctor
+  return getPersona(character.personaId) || getPersona(speaker) || PERSONAS.doctor
 }
 
 const getSpeakerPresentation = (speaker) => {
@@ -251,19 +183,6 @@ const getTtsInstructions = (persona, emotion) => {
   const base = persona?.tts?.instructions || ''
   const extra = emotion ? (persona?.tts?.byEmotion?.[emotion] || '') : ''
   return `${base} ${extra}`.trim()
-}
-
-const stripRollLineForNoRollChoice = (answer, data) => {
-  if (data?.roll !== null) return answer
-  return String(answer || '')
-    .split('\n')
-    .filter(line => !line.includes('D12'))
-    .join('\n')
-}
-
-const stripRollSegmentsForNoRollChoice = (segments, data) => {
-  if (data?.roll !== null || !Array.isArray(segments)) return segments
-  return segments.filter(segment => !String(segment?.text || '').includes('D12'))
 }
 
 // 텍스트에서 인라인 톤 지시문 (괄호/대괄호) 추출.
@@ -696,12 +615,11 @@ async function speakNpc(text, speaker = 'gm', options = {}) {
   }
 }
 
-export default function Dialogue({ session, story, history, onHistoryChange, onSessionChange, onStoryChange, onEnding, runMapStep }) {
-  const initialContext = { storyId: story?.id || '', location: story?.location || session?.location || '' }
-  const [log, setLog] = useState(() => toUiLog(history, initialContext, true))
+export default function Dialogue({ session, history, onHistoryChange, onSessionChange, onEnding, runMapStep }) {
+  const [log, setLog] = useState(() => toUiLog(history))
   const [input, setInput] = useState('')
   const [choiceMode, setChoiceMode] = useState(false)
-  const [activeSpeaker, setActiveSpeaker] = useState(() => getLastNpcSpeaker(toUiLog(history, initialContext, true)))
+  const [activeSpeaker, setActiveSpeaker] = useState(() => getLastNpcSpeaker(toUiLog(history)))
   const [stageLocation, setStageLocation] = useState(null)
   const [judge, setJudge] = useState(null)
   const [judgeResult, setJudgeResult] = useState(null)
@@ -716,52 +634,6 @@ export default function Dialogue({ session, story, history, onHistoryChange, onS
   const mappingRef = useRef(false)
   const spokenRef = useRef(new Set())
   const mineBgmRef = useRef(null)
-  const holdChoicesRef = useRef(false)
-  const storyChoicesRef = useRef([])
-  const sceneContext = {
-    storyId: story?.id || '',
-    location: stageLocation || story?.location || session?.location || '',
-  }
-
-  const normalizeChoices = (value) => {
-    if (!Array.isArray(value)) return []
-    return value
-      .map((choice, index) => {
-        if (typeof choice === 'string') return { id: `roll-${index}`, text: choice, kind: 'roll' }
-        if (choice && typeof choice === 'object') return { ...choice, kind: choice.kind || 'story' }
-        return null
-      })
-      .filter(Boolean)
-  }
-
-  const getChoiceText = (choice) => typeof choice === 'string' ? choice : choice?.text
-
-  const fallbackChoicesForExplicitQuestion = (text) => {
-    const source = String(text || '')
-    const asksFirstRoute = /린을\s*찾아가|여관의\s*린|여관.*린/.test(source)
-      && /광산\s*쪽|광산.*상황|광산으로/.test(source)
-      && /겠습니까|습니까|까요|\?/.test(source)
-    if (asksFirstRoute) return normalizeChoices([
-      { id: 'clinic_to_tavern', text: '여관에서 린과 마을 소문을 거래한다', kind: 'story' },
-      { id: 'clinic_to_mine', text: '광산 쪽 상황을 직접 살핀다', kind: 'story' },
-    ])
-
-    const asksRinNextAction = /다음\s*행동|행동을\s*선택|어떤\s*정보|정보를\s*제공|다른\s*질문/.test(source)
-      && /린|여관|주점|소문/.test(source)
-    if (asksRinNextAction) return normalizeChoices([
-      { id: 'rin_follow_hint', text: '린에게 광부 실종 소문의 출처를 묻는다', kind: 'story' },
-      { id: 'rin_press_plot', text: '린이 숨기는 의도를 떠본다', kind: 'story' },
-      { id: 'rin_to_mine', text: '여관을 나와 광산에서 직접 확인한다', kind: 'story' },
-    ])
-
-    return []
-  }
-
-  const getRollTier = (value) => {
-    if (value <= 4) return { key: 'bad', label: 'Bad', className: 'fail' }
-    if (value <= 8) return { key: 'normal', label: 'Normal', className: 'normal' }
-    return { key: 'good', label: 'Good', className: 'success' }
-  }
 
   useEffect(() => {
     const last = history?.[history.length - 1]
@@ -770,174 +642,61 @@ export default function Dialogue({ session, story, history, onHistoryChange, onS
 
     if (last?.role === 'assistant' && last?.speak && !spokenRef.current.has(key)) {
       const previousLog = toUiLog(history.slice(0, -1))
-      const liveContext = {
-        storyId: last.storyId || inferStoryIdFromText(last.content || '') || sceneContext.storyId,
-        location: last.location || sceneContext.location,
-      }
-      const liveSegments = sanitizeSegmentsForContext(
-        normalizeStorySegments(last.segments, last.content || '', speaker),
-        liveContext,
-      )
-      const firstSpeaker = CHARACTER_MODELS.some(c => c.speaker === liveSegments[0]?.speaker)
-        ? liveSegments[0].speaker
-        : null
       setLog(previousLog)
-      setChoices([])
-      setActiveSpeaker(firstSpeaker)
+      setActiveSpeaker(getLastNpcSpeaker(previousLog))
       spokenRef.current.add(key)
-      let choicesRevealed = false
-      const revealChoices = () => {
-        if (choicesRevealed) return
-        choicesRevealed = true
-        holdChoicesRef.current = false
-        const explicit = normalizeChoices(last.choicesToReveal)
-        const storyFallback = storyChoicesRef.current
-        const questionFallback = fallbackChoicesForExplicitQuestion(last.content)
-        const reveal = explicit.length ? explicit : (storyFallback.length ? storyFallback : questionFallback)
-        setChoices(reveal)
-      }
       setTimeout(() => {
         speakNpc(last.content || '', speaker, {
-          segments: liveSegments,
+          segments: normalizeStorySegments(last.segments, last.content || '', speaker),
           onSegmentStart: (segment) => {
-            const displaySpeaker = sanitizeSceneSpeaker(segment.speaker, liveContext)
-            if (displaySpeaker === 'gm') {
-              setActiveSpeaker('gm')
-            } else if (CHARACTER_MODELS.some(c => c.speaker === displaySpeaker)) {
-              setActiveSpeaker(displaySpeaker)
-            }
-            setLog(prev => [...prev, { who: displaySpeaker, text: segment.text, speak: false }])
+            setActiveSpeaker(segment.speaker)
+            setLog(prev => [...prev, { who: segment.speaker, text: segment.text, speak: false }])
           },
           onFallback: (segments) => {
             setLog(prev => [
               ...prev,
-              ...sanitizeSegmentsForContext(segments, liveContext)
-                .map(segment => ({ who: segment.speaker, text: segment.text, speak: false })),
+              ...segments.map(segment => ({ who: segment.speaker, text: segment.text, speak: false })),
             ])
           },
-        }).then(revealChoices)
+        })
       }, 250)
       return
     }
 
-    const next = toUiLog(history, sceneContext, true)
+    const next = toUiLog(history)
     setLog(next)
-    const lastAssistant = [...(history || [])].reverse().find(item => item.role === 'assistant')
-    const lastSegments = lastAssistant
-      ? sanitizeSegmentsForContext(
-        normalizeStorySegments(lastAssistant.segments, lastAssistant.content || '', lastAssistant.speaker || 'gm'),
-        {
-          storyId: lastAssistant.storyId || inferStoryIdFromText(lastAssistant.content || '') || sceneContext.storyId,
-          location: lastAssistant.location || sceneContext.location,
-        },
-      )
-      : []
-    const lastSegment = lastSegments[lastSegments.length - 1]
-    const lastSpeaker = CHARACTER_MODELS.some(c => c.speaker === lastSegment?.speaker)
-      ? lastSegment.speaker
-      : null
-    setActiveSpeaker(lastAssistant ? lastSpeaker : getLastNpcSpeaker(next))
-    if (lastAssistant) {
-      const questionFallback = fallbackChoicesForExplicitQuestion(lastAssistant.content)
-      if (questionFallback.length) setChoices(questionFallback)
-    }
-  }, [history, sceneContext.storyId, sceneContext.location])
-
-  useEffect(() => {
-    if (holdChoicesRef.current) return
-    const last = history?.[history.length - 1]
-    if (last?.role === 'assistant' && last?.speak) return
-    const storyChoices = normalizeChoices(story?.choices)
-    const questionFallback = last?.role === 'assistant'
-      ? fallbackChoicesForExplicitQuestion(last.content)
-      : []
-    storyChoicesRef.current = storyChoices
-    setChoices(storyChoices.length ? storyChoices : questionFallback)
-  }, [story?.id, story?.choices, history])
-
-  useEffect(() => {
-    storyChoicesRef.current = normalizeChoices(story?.choices)
-  }, [story?.id, story?.choices])
-
-  useEffect(() => {
-    let cancelled = false
-    if (!session?.id) {
-      setChoices([])
-      return () => { cancelled = true }
-    }
-
-    apiStoryCurrent(session.id)
-      .then(data => {
-        if (cancelled) return
-        const nextStory = data?.story || null
-        if (nextStory) onStoryChange?.(nextStory)
-        const storyChoices = normalizeChoices(nextStory?.choices)
-        const last = history?.[history.length - 1]
-        const questionFallback = last?.role === 'assistant'
-          ? fallbackChoicesForExplicitQuestion(last.content)
-          : []
-        storyChoicesRef.current = storyChoices
-        if (!(last?.role === 'assistant' && last?.speak)) {
-          setChoices(storyChoices.length ? storyChoices : questionFallback)
-        }
-      })
-      .catch(() => {})
-
-    return () => { cancelled = true }
-  }, [session?.id])
+    setActiveSpeaker(getLastNpcSpeaker(next))
+  }, [history])
 
   const push = (who, text, options = {}) => {
-    const targetContext = {
-      storyId: options.storyId || sceneContext.storyId,
-      location: options.location || sceneContext.location,
-    }
-    const displaySpeaker = sanitizeSceneSpeaker(who, targetContext)
-    const displaySegments = who === 'player'
-      ? []
-      : sanitizeSegmentsForContext(
-        normalizeStorySegments(options.segments, text, who),
-        targetContext,
-      )
-
-    if (displaySpeaker !== 'player' && displaySpeaker !== 'gm' && CHARACTER_MODELS.some(c => c.speaker === displaySpeaker)) {
-      setActiveSpeaker(displaySpeaker)
-    } else if (displaySpeaker === 'gm') {
-      setActiveSpeaker(null)
+    if (who !== 'player' && CHARACTER_MODELS.some(c => c.speaker === who)) {
+      setActiveSpeaker(who)
     }
 
     if (onHistoryChange) {
       const role = who === 'player' ? 'user' : 'assistant'
       onHistoryChange(prev => [...prev, {
         role,
-        speaker: displaySpeaker,
+        speaker: who,
         content: text,
-        location: targetContext.location,
-        storyId: targetContext.storyId,
-        segments: who === 'player' ? options.segments : displaySegments,
+        segments: options.segments,
         speak: Boolean(options.speak),
-        choicesToReveal: options.choicesToReveal,
       }])
     } else {
       const next = who === 'player'
         ? [{ who, text, speak: Boolean(options.speak) }]
-        : displaySegments.map(segment => ({ who: segment.speaker, text: segment.text, speak: false }))
+        : splitSpeechSegments(text, who).map(segment => ({ who: segment.speaker, text: segment.text, speak: false }))
       if (who !== 'player' && options.speak) {
         speakNpc(text, who, {
-          segments: displaySegments,
+          segments: options.segments,
           onSegmentStart: (segment) => {
-            const segmentSpeaker = sanitizeSceneSpeaker(segment.speaker, targetContext)
-            if (segmentSpeaker === 'gm') {
-              setActiveSpeaker('gm')
-            } else if (CHARACTER_MODELS.some(c => c.speaker === segmentSpeaker)) {
-              setActiveSpeaker(segmentSpeaker)
-            }
-            setLog(l => [...l, { who: segmentSpeaker, text: segment.text, speak: false }])
+            setActiveSpeaker(segment.speaker)
+            setLog(l => [...l, { who: segment.speaker, text: segment.text, speak: false }])
           },
           onFallback: (segments) => {
             setLog(l => [
               ...l,
-              ...sanitizeSegmentsForContext(segments, targetContext)
-                .map(segment => ({ who: segment.speaker, text: segment.text, speak: false })),
+              ...segments.map(segment => ({ who: segment.speaker, text: segment.text, speak: false })),
             ])
           },
         })
@@ -988,84 +747,28 @@ export default function Dialogue({ session, story, history, onHistoryChange, onS
 
   const triggerJudge = (dc = 11, stat = '지각', opts = {}) => {
     judgeRef.current = {
-      dc, stat, after: opts.after, storyChoice: opts.storyChoice,
+      dc, stat, after: opts.after,
       onSuccess: opts.onSuccess || 'shop', onFail: opts.onFail || 'event', success: null,
     }
-    setJudge({ dc, stat, storyChoice: opts.storyChoice })
+    setJudge({ dc, stat })
     setJudgeResult(null)
   }
 
   const handleRollDone = (result) => {
-    if (judgeRef.current?.storyChoice) {
-      const tier = getRollTier(result)
-      judgeRef.current.rollResult = result
-      setJudgeResult({ result, success: tier.key !== 'bad', tier })
-      clearTimeout(judgeTimerRef.current)
-      judgeTimerRef.current = setTimeout(() => doCloseJudge(), 1400)
-      return
-    }
-
     const dc = judgeRef.current?.dc ?? 0
     const success = result >= dc
     if (judgeRef.current) judgeRef.current.success = success
-    if (judgeRef.current) judgeRef.current.rollResult = result
     setJudgeResult({ result, success })
     clearTimeout(judgeTimerRef.current)
     judgeTimerRef.current = setTimeout(() => doCloseJudge(), 3000)
   }
 
-  const doCloseJudge = async () => {
+  const doCloseJudge = () => {
     clearTimeout(judgeTimerRef.current)
     const ref = judgeRef.current || {}
-    const result = ref.rollResult ?? judgeResult?.result
     judgeRef.current = null
     setJudge(null)
     setJudgeResult(null)
-    if (ref.storyChoice) {
-      if (!session?.id || !result) return
-      setSending(true)
-      try {
-        const tier = getRollTier(result)
-        const choiceText = getChoiceText(ref.storyChoice)
-        let data = null
-        if (ref.storyChoice.kind === 'story') {
-          try {
-            data = await apiStoryChoice(session.id, ref.storyChoice.id, result)
-          } catch (storyErr) {
-            console.warn('Story choice API fallback to chat:', storyErr)
-          }
-        }
-        if (!data) {
-          data = await apiChat(
-            session.id,
-            `[선택] ${choiceText}\nD12 결과: ${result} (${tier.label}). 이 결과를 반영해 장면을 진행해 주세요. 전투는 아직 제외합니다.`,
-          )
-        }
-        const nextStory = data.story || data.scene
-        onSessionChange?.(data.session, nextStory)
-        onStoryChange?.(nextStory)
-        setStageLocation(nextStory?.location || data.session?.location || null)
-        const responseChoices = normalizeChoices(data.choices)
-        const storyChoices = normalizeChoices(nextStory?.choices)
-        const revealChoices = responseChoices.length ? responseChoices : storyChoices
-        holdChoicesRef.current = true
-        const answerText = stripRollLineForNoRollChoice(data.answer, data)
-        const answerSegments = stripRollSegmentsForNoRollChoice(data.segments, data)
-        push('gm', answerText, {
-          speak: true,
-          segments: normalizeStorySegments(answerSegments, answerText, 'gm'),
-          choicesToReveal: revealChoices,
-          location: nextStory?.location || data.session?.location || null,
-          storyId: nextStory?.id || null,
-        })
-        if (data.ending_reached) onEnding?.(data.ending_reached)
-      } catch (err) {
-        push('gm', `스토리 진행 오류: ${err.message}`, { speak: false })
-      } finally {
-        setSending(false)
-      }
-      return
-    }
     if (ref.after) ref.after()
     else if (ref.stat) push('gm', `${ref.stat} 판정 ${ref.success ? '성공' : '실패'} - 길이 갈라진다.`, { speak: true })
     const dest = ref.success ? ref.onSuccess : ref.onFail
@@ -1159,21 +862,12 @@ export default function Dialogue({ session, story, history, onHistoryChange, onS
     setSending(true)
     try {
       const data = await apiChat(session.id, text)
-      const nextStory = data.story || data.scene
-      onSessionChange?.(data.session, nextStory)
-      onStoryChange?.(nextStory)
-      setStageLocation(nextStory?.location || data.session?.location || null)
-      const chatChoices = normalizeChoices(data.choices)
-      const storyChoices = normalizeChoices(nextStory?.choices)
-      const revealChoices = chatChoices.length ? chatChoices : storyChoices
-      holdChoicesRef.current = true
+      onSessionChange?.(data.session)
       push('gm', data.answer, {
         speak: true,
         segments: normalizeStorySegments(data.segments, data.answer, 'gm'),
-        choicesToReveal: revealChoices,
-        location: nextStory?.location || data.session?.location || null,
-        storyId: nextStory?.id || null,
       })
+      setChoices(Array.isArray(data.choices) ? data.choices : [])
     } catch (err) {
       push('gm', `오류: ${err.message}`, { speak: false })
     } finally {
@@ -1216,46 +910,7 @@ export default function Dialogue({ session, story, history, onHistoryChange, onS
     }
   }
 
-  const pickStoryChoice = async (choice) => {
-    const text = getChoiceText(choice)
-    if (!text || sending) return
-    stopSpeaking()
-    push('player', `[선택] ${text}`)
-    setChoiceMode(false)
-    setChoices([])
-    if (choice.no_roll || choice.noRoll) {
-      setSending(true)
-      try {
-        const data = await apiStoryChoice(session.id, choice.id, null)
-        const nextStory = data.story || data.scene
-        onSessionChange?.(data.session, nextStory)
-        onStoryChange?.(nextStory)
-        setStageLocation(nextStory?.location || data.session?.location || null)
-        const responseChoices = normalizeChoices(data.choices)
-        const storyChoices = normalizeChoices(nextStory?.choices)
-        const revealChoices = responseChoices.length ? responseChoices : storyChoices
-        const answerText = stripRollLineForNoRollChoice(data.answer, data)
-        const answerSegments = stripRollSegmentsForNoRollChoice(data.segments, data)
-        holdChoicesRef.current = true
-        push('gm', answerText, {
-          speak: true,
-          segments: normalizeStorySegments(answerSegments, answerText, 'gm'),
-          choicesToReveal: revealChoices,
-          location: nextStory?.location || data.session?.location || null,
-          storyId: nextStory?.id || null,
-        })
-        if (data.ending_reached) onEnding?.(data.ending_reached)
-      } catch (err) {
-        push('gm', `스토리 진행 오류: ${err.message}`, { speak: false })
-      } finally {
-        setSending(false)
-      }
-      return
-    }
-    triggerJudge(1, '분기 주사위', { storyChoice: choice })
-  }
-
-  const activeCharacter = CHARACTER_MODELS.find(c => c.speaker === activeSpeaker) || null
+  const activeCharacter = CHARACTER_MODELS.find(c => c.speaker === activeSpeaker) || CHARACTER_MODELS[0]
   const npcTestCharacters = NPC_TEST_SPEAKERS
     .map(speaker => CHARACTER_MODELS.find(c => c.speaker === speaker))
     .filter(Boolean)
@@ -1263,7 +918,7 @@ export default function Dialogue({ session, story, history, onHistoryChange, onS
     .filter(character => character.speaker !== activeSpeaker)
     .concat(npcTestCharacters.filter(character => character.speaker === activeSpeaker))
   const testStageRunning = npcTestRunning || shortTtsTestRunning
-  const locationBackground = getLocationBackground(stageLocation || story?.location || session?.location)
+  const locationBackground = getLocationBackground(stageLocation || session?.location)
   const isMineLocation = locationBackground?.includes('/mine.png')
 
   useEffect(() => {
@@ -1298,17 +953,15 @@ export default function Dialogue({ session, story, history, onHistoryChange, onS
         <div className="dice-modal-overlay" onClick={closeJudgeModal}>
           <div className="dice-modal">
             <button className="dice-modal-close" onClick={closeJudgeModal}>×</button>
-            <div className="dice-modal-title">
-              {judge.storyChoice ? '선택 결과 판정 · D12' : `${judge.stat} 판정 · DC ${judge.dc}`}
-            </div>
+            <div className="dice-modal-title">{judge.stat} 판정 · DC {judge.dc}</div>
             <D12 size={130} autoRoll={{ dc: judge.dc }} onDone={handleRollDone} />
             {judgeResult && (
               <>
-                <div className={`dice-modal-result ${judgeResult.tier?.className || (judgeResult.success ? 'success' : 'fail')}`}>
-                  {judgeResult.tier?.label || (judgeResult.success ? '성공!' : '실패')}
+                <div className={`dice-modal-result ${judgeResult.success ? 'success' : 'fail'}`}>
+                  {judgeResult.success ? '성공!' : '실패'}
                 </div>
                 <div className="dice-modal-roll-num">
-                  {judge.storyChoice ? `${judgeResult.result} / 12` : `${judgeResult.result} / DC ${judge.dc}`}
+                  {judgeResult.result} / DC {judge.dc}
                 </div>
                 <div className="dice-modal-hint">클릭하거나 3초 뒤 자동으로 닫힙니다</div>
               </>
@@ -1361,9 +1014,8 @@ export default function Dialogue({ session, story, history, onHistoryChange, onS
               )
             })}
           </div>
-        ) : activeCharacter && activeCharacter.speaker === 'gm' ? (
-          <div className="gm-stage-window">
-            <div className="gm-stage-title">GM</div>
+        ) : activeSpeaker !== 'gm' && (
+          <div className="char-center">
             <Character3D
               key={activeCharacter.speaker}
               modelPath={activeCharacter.modelPath}
@@ -1376,18 +1028,19 @@ export default function Dialogue({ session, story, history, onHistoryChange, onS
               motionIntensity={activeCharacter.motionIntensity}
             />
           </div>
-        ) : activeCharacter && (
-          <div className="char-center" data-speaker={activeCharacter.speaker}>
+        )}
+
+        {gmSpeaking && (
+          <div className="gm-face-popup">
             <Character3D
-              key={activeCharacter.speaker}
-              modelPath={activeCharacter.modelPath}
-              modelRotation={activeCharacter.modelRotation}
-              modelScale={activeCharacter.modelScale}
-              modelOffset={activeCharacter.modelOffset}
-              framingOffsetY={activeCharacter.framingOffsetY}
-              framingScale={activeCharacter.framingScale}
-              preferEmbeddedAnimations={activeCharacter.preferEmbeddedAnimations}
-              motionIntensity={activeCharacter.motionIntensity}
+              key="gm-popup"
+              modelPath={CHARACTER_MODELS[0].modelPath}
+              modelScale={CHARACTER_MODELS[0].modelScale}
+              modelOffset={CHARACTER_MODELS[0].modelOffset}
+              motionIntensity={CHARACTER_MODELS[0].motionIntensity}
+              cameraPosition={[0, 830, 150]}
+              cameraTarget={[0, 820, 0]}
+              cameraFov={25}
             />
           </div>
         )}
@@ -1430,11 +1083,11 @@ export default function Dialogue({ session, story, history, onHistoryChange, onS
           <div className="choice-block">
             <div className="choice-flavor">{FLAVOR_CHOICE}</div>
             {choices.map((c, i) => (
-              <button key={`${i}-${getChoiceText(c).slice(0, 8)}`}
+              <button key={`${i}-${c.slice(0, 8)}`}
                 className="choice-row"
-                onClick={() => c.kind === 'story' ? pickStoryChoice(c) : sendText(getChoiceText(c))}>
+                onClick={() => sendText(c)}>
                 <span className="cn">{i + 1}</span>
-                <span>{getChoiceText(c)}</span>
+                <span>{c}</span>
               </button>
             ))}
             <div className="choice-note">또는 아래 입력창에 자유롭게 행동을 적어도 됩니다.</div>
