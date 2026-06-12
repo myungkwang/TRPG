@@ -1,0 +1,51 @@
+{
+  "audio_file": "11e6d923-ae6a-4828-b2c4-5b55c6aa4f31.wav",
+  "audio_float32_npy": "11e6d923-ae6a-4828-b2c4-5b55c6aa4f31.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "\"어머, 이게 누구십니까?",
+  "request_text_repr": "'\"어머, 이게 누구십니까?'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "\"어머, 이게 누구십니까?",
+      "text_token_len": 9,
+      "text_tokens": [
+        [
+          1,
+          31079,
+          132125,
+          11,
+          139365,
+          138660,
+          127421,
+          125716,
+          30
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    48000,
+    1
+  ],
+  "audio_min": -0.6066295504570007,
+  "audio_max": 0.5308124423027039,
+  "audio_mean": 0.0004825119103770703
+}

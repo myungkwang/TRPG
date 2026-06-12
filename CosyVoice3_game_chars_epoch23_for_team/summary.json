@@ -1,0 +1,900 @@
+{
+  "run_name": "game_chars_gpu",
+  "checkpoint": "C:\\Users\\Chan\\Desktop\\2차_프로젝트\\steamscale_repaired\\external\\finetune_runs\\game_chars_gpu\\exp\\cosyvoice3\\flow\\torch_ddp\\epoch_23_whole.pt",
+  "eval_model_dir": "C:\\Users\\Chan\\Desktop\\2차_프로젝트\\steamscale_repaired\\external\\finetune_runs\\game_chars_gpu\\eval\\epoch_23_whole\\eval_model",
+  "generated_dir": "C:\\Users\\Chan\\Desktop\\2차_프로젝트\\steamscale_repaired\\external\\finetune_runs\\game_chars_gpu\\eval\\epoch_23_whole\\generated",
+  "metrics_csv": "C:\\Users\\Chan\\Desktop\\2차_프로젝트\\steamscale_repaired\\external\\finetune_runs\\game_chars_gpu\\eval\\epoch_23_whole\\metrics.csv",
+  "num_samples": 30,
+  "torch_cuda": true,
+  "gpu": "NVIDIA GeForce RTX 4070 Ti",
+  "onnx_providers": [
+    "CPUExecutionProvider"
+  ],
+  "aggregate": {
+    "duration_abs_error_seconds": {
+      "mean": 1.76745,
+      "std": 0.971664,
+      "min": 0.24,
+      "max": 3.58
+    },
+    "duration_error_ratio": {
+      "mean": 0.483553,
+      "std": 0.17698,
+      "min": 0.175707,
+      "max": 0.777778
+    },
+    "f0_corr": {
+      "mean": 0.059577,
+      "std": 0.145681,
+      "min": -0.295294,
+      "max": 0.316683
+    },
+    "f0_median_delta_hz": {
+      "mean": 9.181331,
+      "std": 63.003645,
+      "min": -251.05368,
+      "max": 138.873362
+    },
+    "f0_rmse_hz": {
+      "mean": 156.856646,
+      "std": 33.35615,
+      "min": 109.798061,
+      "max": 246.766363
+    },
+    "mcd_db": {
+      "mean": 406.809131,
+      "std": 57.91749,
+      "min": 284.812383,
+      "max": 518.524891
+    },
+    "ref_duration_seconds": {
+      "mean": 3.518117,
+      "std": 1.259982,
+      "min": 1.2,
+      "max": 6.18
+    },
+    "ref_rms_dbfs": {
+      "mean": -38.296957,
+      "std": 6.109308,
+      "min": -49.553261,
+      "max": -26.454702
+    },
+    "rtf": {
+      "mean": 0.944721,
+      "std": 0.2814,
+      "min": 0.696223,
+      "max": 2.277251
+    },
+    "speaker_cosine": {
+      "mean": 0.59605,
+      "std": 0.122693,
+      "min": 0.302057,
+      "max": 0.785927
+    },
+    "syn_duration_seconds": {
+      "mean": 1.750667,
+      "std": 0.795365,
+      "min": 0.68,
+      "max": 3.88
+    },
+    "syn_rms_dbfs": {
+      "mean": -23.94212,
+      "std": 3.990228,
+      "min": -38.880829,
+      "max": -17.513194
+    },
+    "synthesis_seconds": {
+      "mean": 1.530232,
+      "std": 0.510422,
+      "min": 0.845958,
+      "max": 3.04869
+    }
+  },
+  "by_speaker": {
+    "char_doctor": {
+      "duration_abs_error_seconds": {
+        "mean": 1.233333,
+        "std": 0.080554,
+        "min": 1.12,
+        "max": 1.3
+      },
+      "duration_error_ratio": {
+        "mean": 0.453004,
+        "std": 0.074371,
+        "min": 0.367816,
+        "max": 0.54902
+      },
+      "f0_corr": {
+        "mean": 0.018416,
+        "std": 0.067983,
+        "min": -0.067229,
+        "max": 0.09907
+      },
+      "f0_median_delta_hz": {
+        "mean": -5.209707,
+        "std": 12.767018,
+        "min": -21.710785,
+        "max": 9.387558
+      },
+      "f0_rmse_hz": {
+        "mean": 204.35549,
+        "std": 4.137816,
+        "min": 199.343078,
+        "max": 209.476859
+      },
+      "mcd_db": {
+        "mean": 414.935059,
+        "std": 26.769222,
+        "min": 379.515902,
+        "max": 444.220447
+      },
+      "ref_duration_seconds": {
+        "mean": 2.82,
+        "std": 0.59397,
+        "min": 2.04,
+        "max": 3.48
+      },
+      "ref_rms_dbfs": {
+        "mean": -41.208345,
+        "std": 0.886631,
+        "min": -42.446182,
+        "max": -40.416246
+      },
+      "rtf": {
+        "mean": 1.334546,
+        "std": 0.667262,
+        "min": 0.826607,
+        "max": 2.277251
+      },
+      "speaker_cosine": {
+        "mean": 0.720821,
+        "std": 0.055598,
+        "min": 0.650088,
+        "max": 0.785927
+      },
+      "syn_duration_seconds": {
+        "mean": 1.586667,
+        "std": 0.523917,
+        "min": 0.92,
+        "max": 2.2
+      },
+      "syn_rms_dbfs": {
+        "mean": -21.243627,
+        "std": 3.997372,
+        "min": -26.880227,
+        "max": -18.051119
+      },
+      "synthesis_seconds": {
+        "mean": 1.796415,
+        "std": 0.253366,
+        "min": 1.475637,
+        "max": 2.095071
+      }
+    },
+    "char_gail": {
+      "duration_abs_error_seconds": {
+        "mean": 1.873333,
+        "std": 0.292271,
+        "min": 1.48,
+        "max": 2.18
+      },
+      "duration_error_ratio": {
+        "mean": 0.653607,
+        "std": 0.064874,
+        "min": 0.563218,
+        "max": 0.712418
+      },
+      "f0_corr": {
+        "mean": 0.111727,
+        "std": 0.192765,
+        "min": -0.160656,
+        "max": 0.257582
+      },
+      "f0_median_delta_hz": {
+        "mean": 49.118996,
+        "std": 11.465141,
+        "min": 40.786877,
+        "max": 65.331052
+      },
+      "f0_rmse_hz": {
+        "mean": 155.731945,
+        "std": 5.493255,
+        "min": 148.553651,
+        "max": 161.893609
+      },
+      "mcd_db": {
+        "mean": 377.719101,
+        "std": 65.929861,
+        "min": 284.812383,
+        "max": 430.982469
+      },
+      "ref_duration_seconds": {
+        "mean": 2.9,
+        "std": 0.550636,
+        "min": 2.16,
+        "max": 3.48
+      },
+      "ref_rms_dbfs": {
+        "mean": -48.854663,
+        "std": 0.789281,
+        "min": -49.553261,
+        "max": -47.751429
+      },
+      "rtf": {
+        "mean": 1.062595,
+        "std": 0.162132,
+        "min": 0.85048,
+        "max": 1.244056
+      },
+      "speaker_cosine": {
+        "mean": 0.602601,
+        "std": 0.043276,
+        "min": 0.542048,
+        "max": 0.640572
+      },
+      "syn_duration_seconds": {
+        "mean": 1.026667,
+        "std": 0.358267,
+        "min": 0.68,
+        "max": 1.52
+      },
+      "syn_rms_dbfs": {
+        "mean": -31.050832,
+        "std": 6.628053,
+        "min": -38.880829,
+        "max": -22.673213
+      },
+      "synthesis_seconds": {
+        "mean": 1.033582,
+        "std": 0.189276,
+        "min": 0.845958,
+        "max": 1.29273
+      }
+    },
+    "char_gm": {
+      "duration_abs_error_seconds": {
+        "mean": 3.4,
+        "std": 0.226863,
+        "min": 3.08,
+        "max": 3.58
+      },
+      "duration_error_ratio": {
+        "mean": 0.708495,
+        "std": 0.095947,
+        "min": 0.572816,
+        "max": 0.777778
+      },
+      "f0_corr": {
+        "mean": 0.077835,
+        "std": 0.060642,
+        "min": -0.006367,
+        "max": 0.13403
+      },
+      "f0_median_delta_hz": {
+        "mean": -45.050387,
+        "std": 148.457423,
+        "min": -251.05368,
+        "max": 93.042454
+      },
+      "f0_rmse_hz": {
+        "mean": 191.181,
+        "std": 40.83627,
+        "min": 149.819898,
+        "max": 246.766363
+      },
+      "mcd_db": {
+        "mean": 333.537611,
+        "std": 14.332457,
+        "min": 320.939386,
+        "max": 353.587816
+      },
+      "ref_duration_seconds": {
+        "mean": 4.92,
+        "std": 0.930806,
+        "min": 3.96,
+        "max": 6.18
+      },
+      "ref_rms_dbfs": {
+        "mean": -39.746926,
+        "std": 1.869198,
+        "min": -41.709432,
+        "max": -37.231958
+      },
+      "rtf": {
+        "mean": 0.906858,
+        "std": 0.131483,
+        "min": 0.721364,
+        "max": 1.010814
+      },
+      "speaker_cosine": {
+        "mean": 0.515225,
+        "std": 0.064093,
+        "min": 0.445274,
+        "max": 0.600121
+      },
+      "syn_duration_seconds": {
+        "mean": 1.52,
+        "std": 0.794649,
+        "min": 0.88,
+        "max": 2.64
+      },
+      "syn_rms_dbfs": {
+        "mean": -21.856717,
+        "std": 3.141994,
+        "min": -24.839988,
+        "max": -17.513194
+      },
+      "synthesis_seconds": {
+        "mean": 1.27395,
+        "std": 0.449364,
+        "min": 0.889516,
+        "max": 1.904402
+      }
+    },
+    "char_kargas": {
+      "duration_abs_error_seconds": {
+        "mean": 1.673333,
+        "std": 0.229395,
+        "min": 1.38,
+        "max": 1.94
+      },
+      "duration_error_ratio": {
+        "mean": 0.420873,
+        "std": 0.082612,
+        "min": 0.304659,
+        "max": 0.489362
+      },
+      "f0_corr": {
+        "mean": 0.048731,
+        "std": 0.0753,
+        "min": -0.033042,
+        "max": 0.148694
+      },
+      "f0_median_delta_hz": {
+        "mean": -10.221622,
+        "std": 13.366299,
+        "min": -28.963074,
+        "max": 1.283441
+      },
+      "f0_rmse_hz": {
+        "mean": 183.244421,
+        "std": 20.878491,
+        "min": 153.971478,
+        "max": 201.225763
+      },
+      "mcd_db": {
+        "mean": 410.792508,
+        "std": 39.276522,
+        "min": 355.24722,
+        "max": 438.657112
+      },
+      "ref_duration_seconds": {
+        "mean": 4.18,
+        "std": 1.12712,
+        "min": 2.82,
+        "max": 5.58
+      },
+      "ref_rms_dbfs": {
+        "mean": -41.687743,
+        "std": 1.287326,
+        "min": -43.487761,
+        "max": -40.551592
+      },
+      "rtf": {
+        "mean": 0.811506,
+        "std": 0.056432,
+        "min": 0.758972,
+        "max": 0.889802
+      },
+      "speaker_cosine": {
+        "mean": 0.609635,
+        "std": 0.091014,
+        "min": 0.485678,
+        "max": 0.701638
+      },
+      "syn_duration_seconds": {
+        "mean": 2.506667,
+        "std": 1.019455,
+        "min": 1.44,
+        "max": 3.88
+      },
+      "syn_rms_dbfs": {
+        "mean": -23.249233,
+        "std": 1.57754,
+        "min": -25.480099,
+        "max": -22.114486
+      },
+      "synthesis_seconds": {
+        "mean": 1.999914,
+        "std": 0.758361,
+        "min": 1.281315,
+        "max": 3.04869
+      }
+    },
+    "char_marta": {
+      "duration_abs_error_seconds": {
+        "mean": 1.173333,
+        "std": 0.482862,
+        "min": 0.66,
+        "max": 1.82
+      },
+      "duration_error_ratio": {
+        "mean": 0.327095,
+        "std": 0.051697,
+        "min": 0.255814,
+        "max": 0.376812
+      },
+      "f0_corr": {
+        "mean": -0.050319,
+        "std": 0.02629,
+        "min": -0.087239,
+        "max": -0.028057
+      },
+      "f0_median_delta_hz": {
+        "mean": 48.723151,
+        "std": 24.428319,
+        "min": 17.545996,
+        "max": 77.199821
+      },
+      "f0_rmse_hz": {
+        "mean": 136.689569,
+        "std": 12.053999,
+        "min": 123.755103,
+        "max": 152.773092
+      },
+      "mcd_db": {
+        "mean": 389.109304,
+        "std": 27.586546,
+        "min": 358.533578,
+        "max": 425.382162
+      },
+      "ref_duration_seconds": {
+        "mean": 3.52,
+        "std": 1.204326,
+        "min": 2.58,
+        "max": 5.22
+      },
+      "ref_rms_dbfs": {
+        "mean": -41.329026,
+        "std": 0.907229,
+        "min": -42.137309,
+        "max": -40.06198
+      },
+      "rtf": {
+        "mean": 0.772847,
+        "std": 0.035078,
+        "min": 0.72872,
+        "max": 0.814541
+      },
+      "speaker_cosine": {
+        "mean": 0.665541,
+        "std": 0.056652,
+        "min": 0.604561,
+        "max": 0.741034
+      },
+      "syn_duration_seconds": {
+        "mean": 2.346667,
+        "std": 0.749281,
+        "min": 1.72,
+        "max": 3.4
+      },
+      "syn_rms_dbfs": {
+        "mean": -23.042626,
+        "std": 1.351243,
+        "min": -24.93459,
+        "max": -21.863964
+      },
+      "synthesis_seconds": {
+        "mean": 1.789065,
+        "std": 0.488212,
+        "min": 1.401011,
+        "max": 2.477649
+      }
+    },
+    "char_miner": {
+      "duration_abs_error_seconds": {
+        "mean": 0.633333,
+        "std": 0.435227,
+        "min": 0.24,
+        "max": 1.24
+      },
+      "duration_error_ratio": {
+        "mean": 0.255679,
+        "std": 0.039476,
+        "min": 0.2,
+        "max": 0.287037
+      },
+      "f0_corr": {
+        "mean": 0.168355,
+        "std": 0.108534,
+        "min": 0.048539,
+        "max": 0.311345
+      },
+      "f0_median_delta_hz": {
+        "mean": 23.088525,
+        "std": 20.127274,
+        "min": -5.354383,
+        "max": 38.264702
+      },
+      "f0_rmse_hz": {
+        "mean": 143.335814,
+        "std": 30.143901,
+        "min": 109.798061,
+        "max": 182.894963
+      },
+      "mcd_db": {
+        "mean": 393.249395,
+        "std": 35.197697,
+        "min": 351.49012,
+        "max": 437.590469
+      },
+      "ref_duration_seconds": {
+        "mean": 2.34,
+        "std": 1.405418,
+        "min": 1.2,
+        "max": 4.32
+      },
+      "ref_rms_dbfs": {
+        "mean": -29.789151,
+        "std": 1.83254,
+        "min": -32.001569,
+        "max": -27.514093
+      },
+      "rtf": {
+        "mean": 0.940907,
+        "std": 0.173171,
+        "min": 0.696223,
+        "max": 1.072176
+      },
+      "speaker_cosine": {
+        "mean": 0.52453,
+        "std": 0.080135,
+        "min": 0.416008,
+        "max": 0.607067
+      },
+      "syn_duration_seconds": {
+        "mean": 1.706667,
+        "std": 0.972328,
+        "min": 0.96,
+        "max": 3.08
+      },
+      "syn_rms_dbfs": {
+        "mean": -22.493745,
+        "std": 1.431889,
+        "min": -23.915666,
+        "max": -20.534159
+      },
+      "synthesis_seconds": {
+        "mean": 1.437441,
+        "std": 0.501863,
+        "min": 1.029289,
+        "max": 2.144367
+      }
+    },
+    "char_nurse": {
+      "duration_abs_error_seconds": {
+        "mean": 1.001167,
+        "std": 0.615178,
+        "min": 0.537167,
+        "max": 1.8705
+      },
+      "duration_error_ratio": {
+        "mean": 0.284875,
+        "std": 0.124778,
+        "min": 0.175707,
+        "max": 0.459526
+      },
+      "f0_corr": {
+        "mean": 0.130981,
+        "std": 0.085627,
+        "min": 0.06258,
+        "max": 0.251721
+      },
+      "f0_median_delta_hz": {
+        "mean": 2.343862,
+        "std": 36.873571,
+        "min": -43.942779,
+        "max": 46.287437
+      },
+      "f0_rmse_hz": {
+        "mean": 122.164192,
+        "std": 8.870924,
+        "min": 112.307189,
+        "max": 133.813523
+      },
+      "mcd_db": {
+        "mean": 480.12962,
+        "std": 27.277977,
+        "min": 457.694031,
+        "max": 518.524891
+      },
+      "ref_duration_seconds": {
+        "mean": 3.281167,
+        "std": 0.575275,
+        "min": 2.715833,
+        "max": 4.0705
+      },
+      "ref_rms_dbfs": {
+        "mean": -29.8392,
+        "std": 3.570952,
+        "min": -34.777435,
+        "max": -26.454702
+      },
+      "rtf": {
+        "mean": 0.779535,
+        "std": 0.007631,
+        "min": 0.769203,
+        "max": 0.7874
+      },
+      "speaker_cosine": {
+        "mean": 0.707122,
+        "std": 0.060986,
+        "min": 0.632694,
+        "max": 0.782075
+      },
+      "syn_duration_seconds": {
+        "mean": 2.28,
+        "std": 0.17282,
+        "min": 2.12,
+        "max": 2.52
+      },
+      "syn_rms_dbfs": {
+        "mean": -22.41246,
+        "std": 0.529574,
+        "min": -22.90471,
+        "max": -21.677519
+      },
+      "synthesis_seconds": {
+        "mean": 1.777878,
+        "std": 0.142472,
+        "min": 1.630711,
+        "max": 1.970641
+      }
+    },
+    "char_rin": {
+      "duration_abs_error_seconds": {
+        "mean": 1.606667,
+        "std": 0.855154,
+        "min": 0.84,
+        "max": 2.8
+      },
+      "duration_error_ratio": {
+        "mean": 0.548602,
+        "std": 0.164231,
+        "min": 0.401361,
+        "max": 0.777778
+      },
+      "f0_corr": {
+        "mean": -0.019561,
+        "std": 0.253476,
+        "min": -0.295294,
+        "max": 0.316683
+      },
+      "f0_median_delta_hz": {
+        "mean": 50.110717,
+        "std": 64.204584,
+        "min": -10.830727,
+        "max": 138.873362
+      },
+      "f0_rmse_hz": {
+        "mean": 147.639611,
+        "std": 15.429018,
+        "min": 133.419767,
+        "max": 169.082325
+      },
+      "mcd_db": {
+        "mean": 374.922618,
+        "std": 39.930229,
+        "min": 330.840492,
+        "max": 427.528521
+      },
+      "ref_duration_seconds": {
+        "mean": 2.78,
+        "std": 0.743505,
+        "min": 1.8,
+        "max": 3.6
+      },
+      "ref_rms_dbfs": {
+        "mean": -35.530518,
+        "std": 2.4618,
+        "min": -38.991085,
+        "max": -33.470015
+      },
+      "rtf": {
+        "mean": 0.971411,
+        "std": 0.122786,
+        "min": 0.862104,
+        "max": 1.142913
+      },
+      "speaker_cosine": {
+        "mean": 0.411257,
+        "std": 0.078727,
+        "min": 0.302057,
+        "max": 0.484655
+      },
+      "syn_duration_seconds": {
+        "mean": 1.173333,
+        "std": 0.419947,
+        "min": 0.8,
+        "max": 1.76
+      },
+      "syn_rms_dbfs": {
+        "mean": -25.640677,
+        "std": 2.673058,
+        "min": -28.741757,
+        "max": -22.217883
+      },
+      "synthesis_seconds": {
+        "mean": 1.101493,
+        "std": 0.294509,
+        "min": 0.872847,
+        "max": 1.517302
+      }
+    },
+    "char_tavern_clerk": {
+      "duration_abs_error_seconds": {
+        "mean": 1.94,
+        "std": 0.704462,
+        "min": 1.12,
+        "max": 2.84
+      },
+      "duration_error_ratio": {
+        "mean": 0.575143,
+        "std": 0.102961,
+        "min": 0.444444,
+        "max": 0.696078
+      },
+      "f0_corr": {
+        "mean": 0.112158,
+        "std": 0.132336,
+        "min": -0.070063,
+        "max": 0.240226
+      },
+      "f0_median_delta_hz": {
+        "mean": -17.735043,
+        "std": 32.807604,
+        "min": -63.768304,
+        "max": 10.302798
+      },
+      "f0_rmse_hz": {
+        "mean": 120.987416,
+        "std": 6.067993,
+        "min": 112.407987,
+        "max": 125.437979
+      },
+      "mcd_db": {
+        "mean": 475.342029,
+        "std": 13.541242,
+        "min": 458.444331,
+        "max": 491.59464
+      },
+      "ref_duration_seconds": {
+        "mean": 3.26,
+        "std": 0.639375,
+        "min": 2.52,
+        "max": 4.08
+      },
+      "ref_rms_dbfs": {
+        "mean": -33.73364,
+        "std": 4.099708,
+        "min": -38.839729,
+        "max": -28.802087
+      },
+      "rtf": {
+        "mean": 0.950231,
+        "std": 0.033785,
+        "min": 0.902746,
+        "max": 0.978564
+      },
+      "speaker_cosine": {
+        "mean": 0.479937,
+        "std": 0.067599,
+        "min": 0.403718,
+        "max": 0.568021
+      },
+      "syn_duration_seconds": {
+        "mean": 1.32,
+        "std": 0.06532,
+        "min": 1.24,
+        "max": 1.4
+      },
+      "syn_rms_dbfs": {
+        "mean": -23.069305,
+        "std": 1.39959,
+        "min": -24.934085,
+        "max": -21.562263
+      },
+      "synthesis_seconds": {
+        "mean": 1.252527,
+        "std": 0.037472,
+        "min": 1.202034,
+        "max": 1.291704
+      }
+    },
+    "char_toby": {
+      "duration_abs_error_seconds": {
+        "mean": 3.14,
+        "std": 0.283314,
+        "min": 2.84,
+        "max": 3.52
+      },
+      "duration_error_ratio": {
+        "mean": 0.608156,
+        "std": 0.040911,
+        "min": 0.563492,
+        "max": 0.662338
+      },
+      "f0_corr": {
+        "mean": -0.002554,
+        "std": 0.113029,
+        "min": -0.160651,
+        "max": 0.096926
+      },
+      "f0_median_delta_hz": {
+        "mean": -3.35518,
+        "std": 11.897272,
+        "min": -19.322699,
+        "max": 9.221659
+      },
+      "f0_rmse_hz": {
+        "mean": 163.237002,
+        "std": 15.190783,
+        "min": 146.945161,
+        "max": 183.510237
+      },
+      "mcd_db": {
+        "mean": 418.354066,
+        "std": 64.764966,
+        "min": 367.629607,
+        "max": 509.76191
+      },
+      "ref_duration_seconds": {
+        "mean": 5.18,
+        "std": 0.523832,
+        "min": 4.62,
+        "max": 5.88
+      },
+      "ref_rms_dbfs": {
+        "mean": -41.250356,
+        "std": 1.739131,
+        "min": -43.704085,
+        "max": -39.877626
+      },
+      "rtf": {
+        "mean": 0.916771,
+        "std": 0.094675,
+        "min": 0.79671,
+        "max": 1.028125
+      },
+      "speaker_cosine": {
+        "mean": 0.723827,
+        "std": 0.022284,
+        "min": 0.692574,
+        "max": 0.742957
+      },
+      "syn_duration_seconds": {
+        "mean": 2.04,
+        "std": 0.34564,
+        "min": 1.56,
+        "max": 2.36
+      },
+      "syn_rms_dbfs": {
+        "mean": -25.361982,
+        "std": 0.365186,
+        "min": -25.731607,
+        "max": -24.8648
+      },
+      "synthesis_seconds": {
+        "mean": 1.840053,
+        "std": 0.178708,
+        "min": 1.603875,
+        "max": 2.03605
+      }
+    }
+  },
+  "notes": {
+    "mos": "MOS is a human listening test; this script outputs automatic proxy metrics only.",
+    "pesq_stoi": "Computed only when optional pesq/pystoi packages are installed.",
+    "cer_wer": "Computed only when --enable-asr succeeds."
+  }
+}
