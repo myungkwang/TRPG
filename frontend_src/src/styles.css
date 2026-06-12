@@ -156,14 +156,45 @@ button{font-family:var(--font-body);cursor:pointer}
     linear-gradient(180deg,rgba(0,0,0,.24),rgba(0,0,0,.1) 45%,rgba(0,0,0,.36)),
     radial-gradient(70% 70% at 50% 40%,rgba(255,210,130,.08),transparent 65%),
     var(--location-bg);
-  background-size:cover,cover,cover;
-  background-position:center,center,center;
+  background-size:cover,cover,116%;            /* 이미지 레이어만 살짝 확대 → 천천히 팬할 여유 */
+  background-position:center,center,50% 50%;
   background-repeat:no-repeat;
+  animation:bgDrift 34s ease-in-out infinite alternate;   /* 미세한 Ken Burns 팬 */
 }
+@keyframes bgDrift{
+  from{background-position:center,center,45% 47%}
+  to{background-position:center,center,55% 53%}
+}
+
+/* 떠다니는 분위기 레이어: 불티(본체) + 영석 입자(::before) + 안개 흐름(::after) */
 .bg-embers{position:absolute;inset:0;pointer-events:none;z-index:0;
   background:radial-gradient(2px 2px at 20% 70%,rgba(255,200,120,.4),transparent),
   radial-gradient(2px 2px at 72% 80%,rgba(255,180,90,.35),transparent),
-  radial-gradient(1px 1px at 45% 60%,rgba(255,210,140,.35),transparent)}
+  radial-gradient(1px 1px at 45% 60%,rgba(255,210,140,.35),transparent);
+  animation:emberFloat 20s linear infinite}
+.bg-embers::before{content:'';position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(2px 2px at 30% 50%,rgba(120,200,255,.5),transparent),
+  radial-gradient(1.5px 1.5px at 64% 38%,rgba(140,210,255,.45),transparent),
+  radial-gradient(2px 2px at 50% 78%,rgba(120,200,255,.4),transparent),
+  radial-gradient(1.5px 1.5px at 82% 65%,rgba(150,215,255,.4),transparent);
+  animation:etherFloat 24s linear infinite}
+.bg-embers::after{content:'';position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(100deg,transparent 0%,rgba(200,212,224,.07) 42%,transparent 72%);
+  background-size:220% 100%;animation:fogDrift 46s linear infinite}
+/* 배경 생성 로딩 화면 */
+.bg-loading{position:absolute;inset:0;z-index:40;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:16px;
+  background:radial-gradient(80% 80% at 50% 45%,rgba(10,14,18,.86),rgba(6,8,11,.96));
+  backdrop-filter:blur(3px)}
+.bg-loading-spinner{width:54px;height:54px;border-radius:50%;
+  border:3px solid rgba(120,200,255,.18);border-top-color:#7ad0ee;
+  animation:bgSpin 1s linear infinite;box-shadow:0 0 24px rgba(122,208,238,.35)}
+.bg-loading-text{font-family:var(--font-disp,serif);font-size:20px;color:#cfe6f2;letter-spacing:2px}
+.bg-loading-sub{font-size:13px;color:#7e94a4}
+@keyframes bgSpin{to{transform:rotate(360deg)}}
+@keyframes emberFloat{from{transform:translateY(8px)}to{transform:translateY(-34px)}}
+@keyframes etherFloat{from{transform:translateY(14px);opacity:.45}to{transform:translateY(-46px);opacity:.9}}
+@keyframes fogDrift{from{background-position:0% 0}to{background-position:220% 0}}
 
 /* 상단 무대: 캐릭터 중앙 */
 .vn-stage{flex:1;position:relative;min-height:0;z-index:1}

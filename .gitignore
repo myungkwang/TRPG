@@ -76,3 +76,11 @@ docs/superpowers/
 *.pkl
 *.npy
 *.npz
+# LoRA 학습 데이터 / 결과 (용량 큼 — 드라이브/HF로 따로 공유, 스크립트는 추적)
+lora_dataset/img/
+lora_dataset/train/
+lora_dataset/model/
+lora_dataset/log/
+
+# 런타임 생성 배경 캐시 (각자 로컬에서 생성됨)
+static/backgrounds/gen/
