@@ -1,0 +1,57 @@
+{
+  "audio_file": "1c11d29e-1a5b-424a-be2e-73af4e8dabaa.wav",
+  "audio_float32_npy": "1c11d29e-1a5b-424a-be2e-73af4e8dabaa.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "\"그런데, 제가 알고 있는 이야기는 조금 다릅니다.",
+  "request_text_repr": "'\"그런데, 제가 알고 있는 이야기는 조금 다릅니다.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "\"그런데, 제가 알고 있는 이야기는 조금 다릅니다.",
+      "text_token_len": 15,
+      "text_tokens": [
+        [
+          1,
+          48606,
+          125120,
+          124419,
+          11,
+          132254,
+          135420,
+          64521,
+          130861,
+          16560,
+          134422,
+          49367,
+          144256,
+          21953,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    98880,
+    1
+  ],
+  "audio_min": -0.5558140277862549,
+  "audio_max": 0.6686415076255798,
+  "audio_mean": 4.367870496935211e-05
+}

@@ -1,13 +1,6 @@
 from __future__ import annotations
 
-import base64
-import json
 import os
-import random
-import time
-import urllib.parse
-import urllib.request
-import uuid as _uuid
 from openai import OpenAI
 from dotenv import load_dotenv
 
@@ -121,6 +114,7 @@ def generate_image(prompt: str, size: str = "1024x1024", negative: str | None = 
     if IMAGE_PROVIDER in ("comfyui", "local"):
         return _image_comfyui(prompt, size, negative)
     return _image_openai(prompt, size)
+
 
 def embed_text(text: str) -> list[float]:
     response = client.embeddings.create(model=EMBEDDING_MODEL, input=text)

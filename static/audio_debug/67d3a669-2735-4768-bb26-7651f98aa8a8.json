@@ -1,0 +1,52 @@
+{
+  "audio_file": "67d3a669-2735-4768-bb26-7651f98aa8a8.wav",
+  "audio_float32_npy": "67d3a669-2735-4768-bb26-7651f98aa8a8.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "혹시 무엇을 도와드릴까요?",
+  "request_text_repr": "'혹시 무엇을 도와드릴까요?'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "혹시 무엇을 도와드릴까요?",
+      "text_token_len": 10,
+      "text_tokens": [
+        [
+          138334,
+          29326,
+          132779,
+          17877,
+          129392,
+          80573,
+          29346,
+          135379,
+          138965,
+          30
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    34560,
+    1
+  ],
+  "audio_min": -0.7274643778800964,
+  "audio_max": 0.574154794216156,
+  "audio_mean": 0.00045549715287052095
+}

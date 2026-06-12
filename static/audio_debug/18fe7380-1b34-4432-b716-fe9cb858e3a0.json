@@ -1,0 +1,54 @@
+{
+  "audio_file": "18fe7380-1b34-4432-b716-fe9cb858e3a0.wav",
+  "audio_float32_npy": "18fe7380-1b34-4432-b716-fe9cb858e3a0.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "드디어 제 여관에 오셨군요.",
+  "request_text_repr": "'드디어 제 여관에 오셨군요.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "드디어 제 여관에 오셨군요.",
+      "text_token_len": 12,
+      "text_tokens": [
+        [
+          29346,
+          89235,
+          31079,
+          62071,
+          83518,
+          124780,
+          19391,
+          73077,
+          127677,
+          129534,
+          35711,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    41280,
+    1
+  ],
+  "audio_min": -0.5586755871772766,
+  "audio_max": 0.5087125301361084,
+  "audio_mean": 0.0005007954314351082
+}

@@ -213,12 +213,90 @@ export const PERSONAS = {
       },
     },
   },
+
+  miner: {
+    id: 'miner',
+    name: '광부',
+    role: '광산과 갱도를 오가는 엑스트라 NPC',
+    species: '인간', age: '성인',
+    personality: '피곤하고 경계심이 많지만 동료 일에는 쉽게 지나치지 못한다.',
+    goal: '사라진 광부들의 실제 숫자와 갱도 심부의 이상 징후를 알리고 싶어 한다.',
+    secret: '공식 보고보다 훨씬 많은 광부가 사라졌고, 밤마다 갱도 심부에서 구조 신호 같은 두드림을 들었다.',
+    speech: '짧고 투박하다. 주변을 살피며 낮게 말한다.',
+    knows: ['광산 교대 상황', '광부들 사이의 소문', '갱도 안쪽의 소리와 표식'],
+    notKnows: ['카르가스의 정체', '린의 진짜 의도'],
+    relationToPlayer: 0,
+    locations: ['광산', '갱도', '갱도 심부'],
+    emotions: ['idle', 'talk', 'thinking'],
+    color: '#8a6a3e',
+    model: null,
+    tts: {
+      voice: 'echo',
+      instructions: '성인 남성. 먼지를 마신 듯 거칠고 낮은 목소리. 짧고 조심스럽게, 주변을 살피며 말한다.',
+      byEmotion: {
+        talk: '낮고 투박하게.',
+        thinking: '말을 고르며 조심스럽게.',
+      },
+    },
+  },
+
+  nurse: {
+    id: 'nurse',
+    name: '간호사',
+    role: '재끝 마을 진료소 간호사',
+    species: '인간', age: '성인',
+    personality: '침착하고 현실적이다. 환자 기록과 부상자 숫자를 꼼꼼히 기억한다.',
+    goal: '다친 사람들을 살리고 은폐된 부상 기록이 묻히지 않게 한다.',
+    secret: '공식 실종자 수와 실제 진료소로 들어온 부상자 수가 맞지 않는다는 것을 안다.',
+    speech: '조용하고 단정하다. 확실한 것만 말한다.',
+    knows: ['진료소 기록', '부상 패턴', '광산 사고 뒤처리'],
+    notKnows: ['봉우리 전설', '제국 내부 명령'],
+    relationToPlayer: 0,
+    locations: ['진료소'],
+    emotions: ['idle', 'talk', 'thinking'],
+    color: '#6b8c8a',
+    model: null,
+    tts: {
+      voice: 'nova',
+      instructions: '성인 여성. 차분하고 또렷한 중음. 감정을 크게 드러내지 않고 신중하게 말한다.',
+      byEmotion: {
+        talk: '침착하고 단정하게.',
+        thinking: '확실한 사실을 정리하듯 차분하게.',
+      },
+    },
+  },
+
+  tavern_clerk: {
+    id: 'tavern_clerk',
+    name: '린 주점 점원',
+    role: '여관 주점 엑스트라 NPC',
+    species: '인간', age: '성인',
+    personality: '눈치가 빠르고 말수가 적다. 린의 눈치를 많이 본다.',
+    goal: '손님들의 대화에서 위험한 소문을 가려 린에게 전한다.',
+    secret: '린이 특정 손님과 광산 관계자들의 동선을 따로 기록한다는 것을 안다.',
+    speech: '공손하지만 조심스럽다. 말끝을 흐린다.',
+    knows: ['여관 손님', '술자리 소문', '린이 관심 두는 방문자'],
+    notKnows: ['린의 정체', '카르가스의 진실'],
+    relationToPlayer: 0,
+    locations: ['여관'],
+    emotions: ['idle', 'talk'],
+    color: '#9a6f55',
+    model: null,
+    tts: {
+      voice: 'shimmer',
+      instructions: '젊은 성인. 공손하고 조심스러운 중성적인 목소리. 작게 말하며 문장 끝을 살짝 흐린다.',
+      byEmotion: {
+        talk: '공손하고 낮게.',
+      },
+    },
+  },
 }
 
 // 등장 순서(도감/플롯 기준) 목록
 export const PERSONA_LIST = [
   PERSONAS.lin, PERSONAS.gail, PERSONAS.marta,
   PERSONAS.tobi, PERSONAS.doctor, PERSONAS.kargas,
+  PERSONAS.miner, PERSONAS.nurse, PERSONAS.tavern_clerk,
 ]
 
 // ID로 단건 조회

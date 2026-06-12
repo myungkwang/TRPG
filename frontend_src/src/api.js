@@ -7,6 +7,8 @@ export function authHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
+const JSON_HEADERS = { 'Content-Type': 'application/json; charset=utf-8' }
+
 export function getStoredUser() {
   try {
     return JSON.parse(localStorage.getItem('user') || 'null')
@@ -43,7 +45,7 @@ export async function fetchJson(url, options = {}) {
 export async function apiSignup({ username, password, name, email }) {
   return fetchJson('/api/auth/signup', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: JSON_HEADERS,
     body: JSON.stringify({ username, password, name, email }),
   })
 }
@@ -51,7 +53,7 @@ export async function apiSignup({ username, password, name, email }) {
 export async function apiLogin({ username, password }) {
   const data = await fetchJson('/api/auth/login', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: JSON_HEADERS,
     body: JSON.stringify({ username, password }),
   })
   localStorage.setItem('access_token', data.access_token)
@@ -72,6 +74,34 @@ export async function apiNewSession() {
   })
 }
 
+export async function apiCharacterQuestions() {
+  return fetchJson('/api/character/questions', {
+    headers: { ...authHeaders() },
+  })
+}
+
+export async function apiCharacterPreview(sessionId, answers) {
+  return fetchJson('/api/character/preview', {
+    method: 'POST',
+    headers: {
+      ...JSON_HEADERS,
+      ...authHeaders(),
+    },
+    body: JSON.stringify({ session_id: sessionId, answers }),
+  })
+}
+
+export async function apiCharacterConfirm(sessionId, answers) {
+  return fetchJson('/api/character/confirm', {
+    method: 'POST',
+    headers: {
+      ...JSON_HEADERS,
+      ...authHeaders(),
+    },
+    body: JSON.stringify({ session_id: sessionId, answers }),
+  })
+}
+
 export async function apiLoadSession(sessionId) {
   return fetchJson(`/api/session/${sessionId}`, {
     headers: { ...authHeaders() },
@@ -82,7 +112,7 @@ export async function apiChat(sessionId, message) {
   return fetchJson('/api/chat', {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
+      ...JSON_HEADERS,
       ...authHeaders(),
     },
     body: JSON.stringify({ session_id: sessionId, message }),
@@ -93,23 +123,15 @@ export async function apiMove(sessionId, location) {
   return fetchJson('/api/move', {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
+      ...JSON_HEADERS,
       ...authHeaders(),
     },
     body: JSON.stringify({ session_id: sessionId, location }),
   })
 }
 
-export async function apiLockEnding(sessionId) {
-  return fetchJson('/api/ending/lock', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeaders() },
-    body: JSON.stringify({ session_id: sessionId }),
-  })
-}
-
-export async function apiGetEnding(sessionId) {
-  return fetchJson(`/api/ending/${sessionId}`, {
+export async function apiStoryCurrent(sessionId) {
+  return fetchJson(`/api/story/${sessionId}`, {
     headers: { ...authHeaders() },
   })
 }
@@ -139,6 +161,17 @@ export async function apiDebugEnding(sessionId, ending) {
   })
 }
 
+export async function apiStoryChoice(sessionId, choiceId, roll) {
+  return fetchJson('/api/story/choice', {
+    method: 'POST',
+    headers: {
+      ...JSON_HEADERS,
+      ...authHeaders(),
+    },
+    body: JSON.stringify({ session_id: sessionId, choice_id: choiceId, roll }),
+  })
+}
+
 export async function apiTTS(text, options = {}) {
   const body = typeof options === 'string'
     ? { text, voice: options }
@@ -147,9 +180,23 @@ export async function apiTTS(text, options = {}) {
   return fetchJson('/api/tts', {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
+      ...JSON_HEADERS,
       ...authHeaders(),
     },
     body: JSON.stringify(body),
+  })
+}
+
+export async function apiLockEnding(sessionId) {
+  return fetchJson('/api/ending/lock', {
+    method: 'POST',
+    headers: { ...JSON_HEADERS, ...authHeaders() },
+    body: JSON.stringify({ session_id: sessionId }),
+  })
+}
+
+export async function apiGetEnding(sessionId) {
+  return fetchJson(`/api/ending/${sessionId}`, {
+    headers: { ...authHeaders() },
   })
 }

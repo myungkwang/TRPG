@@ -1,0 +1,56 @@
+{
+  "audio_file": "2121e0f8-4f8c-474a-88fe-a45bb57cdb2c.wav",
+  "audio_float32_npy": "2121e0f8-4f8c-474a-88fe-a45bb57cdb2c.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "혹시 저에게 궁금한 것이 있으신가요?\"",
+  "request_text_repr": "'혹시 저에게 궁금한 것이 있으신가요?\"'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "혹시 저에게 궁금한 것이 있으신가요?\"",
+      "text_token_len": 14,
+      "text_tokens": [
+        [
+          138334,
+          29326,
+          125569,
+          126327,
+          142451,
+          223,
+          125052,
+          23573,
+          128584,
+          135354,
+          82528,
+          19969,
+          35711,
+          7521
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    68160,
+    1
+  ],
+  "audio_min": -0.4745223820209503,
+  "audio_max": 0.3087141215801239,
+  "audio_mean": 0.0002601317537482828
+}

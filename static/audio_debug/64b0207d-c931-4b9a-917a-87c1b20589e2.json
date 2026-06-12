@@ -1,0 +1,59 @@
+{
+  "audio_file": "64b0207d-c931-4b9a-917a-87c1b20589e2.wav",
+  "audio_float32_npy": "64b0207d-c931-4b9a-917a-87c1b20589e2.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "특히, 광부들이 사라진 일에 대해서는요.",
+  "request_text_repr": "'특히, 광부들이 사라진 일에 대해서는요.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "특히, 광부들이 사라진 일에 대해서는요.",
+      "text_token_len": 17,
+      "text_tokens": [
+        [
+          126952,
+          125511,
+          11,
+          8620,
+          112,
+          239,
+          63089,
+          126253,
+          32129,
+          50340,
+          85251,
+          83556,
+          19391,
+          130869,
+          16560,
+          35711,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    70080,
+    1
+  ],
+  "audio_min": -0.6023930907249451,
+  "audio_max": 0.6154525279998779,
+  "audio_mean": 0.0003061862080357969
+}

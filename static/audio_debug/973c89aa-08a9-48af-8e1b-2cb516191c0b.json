@@ -1,0 +1,48 @@
+{
+  "audio_file": "973c89aa-08a9-48af-8e1b-2cb516191c0b.wav",
+  "audio_float32_npy": "973c89aa-08a9-48af-8e1b-2cb516191c0b.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "니가 날 알어",
+  "request_text_repr": "'니가 날 알어'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "니가 날 알어",
+      "text_token_len": 6,
+      "text_tokens": [
+        [
+          83036,
+          19969,
+          37195,
+          254,
+          125214,
+          31079
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    115200,
+    1
+  ],
+  "audio_min": -0.4595074951648712,
+  "audio_max": 0.7092682719230652,
+  "audio_mean": 3.8952031900407746e-05
+}

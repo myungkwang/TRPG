@@ -45,12 +45,27 @@ EVENT_RELATION_REWARDS = {
 }
 
 # 장면 위치 — AI GM이 set_location 도구로 바꾼다. 프론트가 배경 이미지를 이 값으로 고른다.
-# (배경 이미지가 있는 곳: 진료소/여관/정제소/광산·갱도. 그 외는 배경 없이 진행)
 LOCATIONS = [
     "진료소", "여관", "정제소", "광산", "갱도", "갱도 심부",
     "봉우리", "마을 광장", "산기슭 오두막",
 ]
 
+# 스토리 단계(장면)로 재는 진행도. 각 단계의 '도달 표식'(이벤트 노드)이 켜지면 그 단계 도달.
+STORY_STAGES = [
+    ("도입 — 진료소 각성", "EVT_INTRO"),
+    ("마을·광산 조사", "EVT_MINE_INVESTIGATE"),
+    ("단서 수집·갱도 심부", "EVT_MINE_DEEP"),
+    ("절정 — 봉우리 대면(선택)", "EVT_PEAK_CONFRONT"),
+    ("결말 — 에필로그", "EVT_EPILOGUE"),
+]
+# 이 % 이상이면 '정산 국면' — 엔딩을 확정(lock)하고 이미지 생성을 시작한다.
+SETTLE_THRESHOLD = 70
+
+# 엔딩 서술에 쓰는 '달성/누락 비트' (요약용).
+PROGRESS_BEATS = [
+    "FLG_CLUE_01", "FLG_CLUE_02", "FLG_CLUE_03", "FLG_CLUE_04",
+    "EVT_PEAK_CONFRONT", "FLG_KARGAS_ALLY",
+]
 
 # 도감에서 확인하는 '해금 단서' (인벤토리 아이템이 아니다).
 # 연결된 플래그가 켜지면 도감에 자동으로 열린다. (05-사건 '해금 단서' / 7_단서비트)
@@ -62,27 +77,6 @@ CODEX_CLUES = {
     "잊혀진 자장가": {"unlock": "FLG_MEMORY_RECOVERED",
                 "desc": "토비가 흥얼대는 노래. 어딘가 주인공의 기억을 건드린다."},
 }
-
-
-# --- 진행도: '스토리 단계(장면)'로 잰다 (엔딩 조건과 분리된 축) ---
-# 각 단계의 '도달 표식'(이벤트 노드)이 켜지면 그 단계에 온 것.
-# 누구나 같은 단계를 지나고(재생시간 보장), 엔딩 분기는 그 위에서 따로 결정된다.
-# 절정(선택)은 4단계(80%)에 두고, 5단계(에필로그)는 확정된 엔딩을 보여주는 마무리.
-STORY_STAGES = [
-    ("도입 — 진료소 각성", "EVT_INTRO"),
-    ("마을·광산 조사", "EVT_MINE_INVESTIGATE"),
-    ("단서 수집·갱도 심부", "EVT_MINE_DEEP"),
-    ("절정 — 봉우리 대면(선택)", "EVT_PEAK_CONFRONT"),
-    ("결말 — 에필로그", "EVT_EPILOGUE"),
-]
-# 이 % 이상이면 '정산 국면' — 엔딩을 확정(lock)하고 이미지 생성을 시작한다.
-SETTLE_THRESHOLD = 70
-
-# 엔딩 서술에 쓰는 '달성/누락 비트' (요약용 — 진행도 측정과는 별개).
-PROGRESS_BEATS = [
-    "FLG_CLUE_01", "FLG_CLUE_02", "FLG_CLUE_03", "FLG_CLUE_04",
-    "EVT_PEAK_CONFRONT", "FLG_KARGAS_ALLY",
-]
 
 
 def stage_index(flags: dict) -> int:
@@ -173,19 +167,6 @@ def set_flag(session_id: str, flag: str, value: bool = True) -> dict:
     return flags
 
 
-def set_location(session_id: str, location: str) -> str:
-    """현재 장면 위치를 바꾼다(배경 전환용). 갱신된 location을 돌려준다."""
-    location = (location or "").strip()
-    if not location:
-        raise ValueError("location is empty")
-    with get_conn() as conn:
-        conn.execute(
-            "UPDATE game_sessions SET location = %s, updated_at = now() WHERE id = %s",
-            (location, session_id),
-        )
-    return location
-
-
 def visit_event(session_id: str, node_id: str) -> dict:
     """이벤트 통과를 기록하고, 그 이벤트에 정해진 호감도·아이템 보상을 적용한다.
 
@@ -225,6 +206,19 @@ def unlocked_clues(session_id: str) -> list[dict]:
         for name, clue in CODEX_CLUES.items()
         if flags.get(clue["unlock"])
     ]
+
+
+def set_location(session_id: str, location: str) -> str:
+    """현재 장면 위치를 바꾼다(배경 전환용). 갱신된 location을 돌려준다."""
+    location = (location or "").strip()
+    if not location:
+        raise ValueError("location is empty")
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE game_sessions SET location = %s, updated_at = now() WHERE id = %s",
+            (location, session_id),
+        )
+    return location
 
 
 def give_item(session_id: str, item: str) -> dict:
