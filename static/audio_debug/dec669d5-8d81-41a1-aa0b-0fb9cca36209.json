@@ -1,0 +1,64 @@
+{
+  "audio_file": "dec669d5-8d81-41a1-aa0b-0fb9cca36209.wav",
+  "audio_float32_npy": "dec669d5-8d81-41a1-aa0b-0fb9cca36209.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "이 마을 사람들은 그 사건이 단순한 사고가 아니라고 믿고 있어요.",
+  "request_text_repr": "'이 마을 사람들은 그 사건이 단순한 사고가 아니라고 믿고 있어요.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "이 마을 사람들은 그 사건이 단순한 사고가 아니라고 믿고 있어요.",
+      "text_token_len": 22,
+      "text_tokens": [
+        [
+          12802,
+          95577,
+          17877,
+          124889,
+          128901,
+          54825,
+          138629,
+          12802,
+          129400,
+          130237,
+          23573,
+          32129,
+          34395,
+          19969,
+          126523,
+          129254,
+          125713,
+          123,
+          34395,
+          127353,
+          35711,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    111360,
+    1
+  ],
+  "audio_min": -0.9900000095367432,
+  "audio_max": 0.9900000095367432,
+  "audio_mean": 4.009364056400955e-05
+}

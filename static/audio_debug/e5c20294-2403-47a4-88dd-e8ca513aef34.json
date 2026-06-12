@@ -1,0 +1,56 @@
+{
+  "audio_file": "e5c20294-2403-47a4-88dd-e8ca513aef34.wav",
+  "audio_float32_npy": "e5c20294-2403-47a4-88dd-e8ca513aef34.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "마을의 비밀을 알고 싶으신가요?",
+  "request_text_repr": "'마을의 비밀을 알고 싶으신가요?'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "마을의 비밀을 알고 싶으신가요?",
+      "text_token_len": 14,
+      "text_tokens": [
+        [
+          125544,
+          17877,
+          20401,
+          73986,
+          134372,
+          17877,
+          135420,
+          28927,
+          114,
+          33509,
+          82528,
+          19969,
+          35711,
+          30
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    44160,
+    1
+  ],
+  "audio_min": -0.5571891665458679,
+  "audio_max": 0.8019468784332275,
+  "audio_mean": 0.00016273748769890517
+}
