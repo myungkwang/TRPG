@@ -1,0 +1,52 @@
+{
+  "audio_file": "87c39f8e-f97e-49bf-976d-fc3ff9f59ba7.wav",
+  "audio_float32_npy": "87c39f8e-f97e-49bf-976d-fc3ff9f59ba7.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "안개를 헤치고 거래",
+  "request_text_repr": "'안개를 헤치고 거래'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "안개를 헤치고 거래",
+      "text_token_len": 10,
+      "text_tokens": [
+        [
+          126246,
+          59761,
+          18411,
+          10764,
+          245,
+          97,
+          59698,
+          34395,
+          126352,
+          53442
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    36480,
+    1
+  ],
+  "audio_min": -0.5574365258216858,
+  "audio_max": 0.6323811411857605,
+  "audio_mean": 0.00041862158104777336
+}

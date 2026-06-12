@@ -187,6 +187,52 @@ button{font-family:var(--font-body);cursor:pointer}
 .model-select option{background:#1a120e;color:var(--gold-soft)}
 .char-center{position:absolute;left:50%;bottom:0;transform:translateX(-50%);height:100%;
   display:flex;align-items:flex-end;justify-content:center}
+.char-center[data-speaker="gm"]{
+  left:auto;
+  right:clamp(18px,4vw,76px);
+  transform:none;
+  width:clamp(170px,16vw,280px);
+  z-index:4;
+}
+.char-center[data-speaker="gm"] .character3d{
+  width:100%;
+}
+.gm-stage-window{
+  position:absolute;
+  right:clamp(18px,3.5vw,62px);
+  bottom:0;
+  width:clamp(180px,16vw,300px);
+  height:clamp(260px,42vh,430px);
+  z-index:5;
+  display:flex;
+  align-items:flex-end;
+  justify-content:center;
+  overflow:hidden;
+  pointer-events:none;
+  border:1px solid var(--gold);
+  border-bottom:none;
+  border-radius:8px 8px 0 0;
+  background:linear-gradient(180deg,rgba(28,19,12,.58),rgba(8,5,3,.86));
+  box-shadow:0 0 22px rgba(201,162,75,.2),0 8px 28px #000a;
+}
+.gm-stage-title{
+  position:absolute;
+  top:8px;
+  right:10px;
+  z-index:2;
+  font-family:var(--font-disp);
+  color:var(--gold-soft);
+  font-size:13px;
+  letter-spacing:0;
+  padding:3px 8px;
+  border:1px solid rgba(201,162,75,.65);
+  border-radius:999px;
+  background:rgba(26,18,14,.82);
+}
+.gm-stage-window .character3d{
+  width:115%;
+  height:100%;
+}
 .char-ensemble{position:absolute;inset:0;pointer-events:none;overflow:hidden}
 .char-slot{position:absolute;left:50%;bottom:0;width:clamp(240px,26vw,420px);height:100%;
   transform:translateX(calc(-50% + var(--slot-x, 0px)));
@@ -268,6 +314,7 @@ button{font-family:var(--font-body);cursor:pointer}
   animation:pop .3s both}
 .dice-modal-result.success{color:#7de8a8;text-shadow:0 0 24px rgba(125,232,168,.55)}
 .dice-modal-result.fail{color:#e87070;text-shadow:0 0 24px rgba(232,112,112,.55)}
+.dice-modal-result.normal{color:#e5c26d;text-shadow:0 0 24px rgba(229,194,109,.48)}
 .dice-modal-roll-num{font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
 .dice-modal-hint{font-size:12px;color:#6a5f52;margin-top:2px}
 .dice-modal-close{position:absolute;top:10px;right:13px;background:none;border:none;

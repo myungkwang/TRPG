@@ -1,0 +1,62 @@
+{
+  "audio_file": "39b0d50d-7085-4dd1-8795-52cd7d37c087.wav",
+  "audio_float32_npy": "39b0d50d-7085-4dd1-8795-52cd7d37c087.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "린은 바에서 당신의 모습을 보고 미소를 지으며 손짓합니다.",
+  "request_text_repr": "'린은 바에서 당신의 모습을 보고 미소를 지으며 손짓합니다.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "린은 바에서 당신의 모습을 보고 미소를 지으며 손짓합니다.",
+      "text_token_len": 20,
+      "text_tokens": [
+        [
+          129807,
+          33704,
+          81718,
+          56475,
+          131502,
+          20401,
+          136665,
+          17877,
+          63332,
+          34395,
+          125714,
+          43590,
+          18411,
+          66790,
+          127378,
+          77596,
+          238,
+          140847,
+          60838,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    85440,
+    1
+  ],
+  "audio_min": -0.7795538902282715,
+  "audio_max": 0.787842869758606,
+  "audio_mean": 0.00020354233856778592
+}

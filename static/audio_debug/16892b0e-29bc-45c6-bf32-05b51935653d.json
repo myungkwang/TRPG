@@ -1,0 +1,62 @@
+{
+  "audio_file": "16892b0e-29bc-45c6-bf32-05b51935653d.wav",
+  "audio_float32_npy": "16892b0e-29bc-45c6-bf32-05b51935653d.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "당신은 여관으로 향하며 안개 속을 걸어갑니다.",
+  "request_text_repr": "'당신은 여관으로 향하며 안개 속을 걸어갑니다.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "당신은 여관으로 향하며 안개 속을 걸어갑니다.",
+      "text_token_len": 20,
+      "text_tokens": [
+        [
+          64795,
+          82528,
+          33704,
+          83518,
+          124780,
+          42039,
+          10764,
+          244,
+          98,
+          130705,
+          95170,
+          59761,
+          77596,
+          235,
+          17877,
+          131961,
+          31079,
+          138685,
+          21953,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    66240,
+    1
+  ],
+  "audio_min": -0.5963066816329956,
+  "audio_max": 0.774407684803009,
+  "audio_mean": 4.485269892029464e-05
+}

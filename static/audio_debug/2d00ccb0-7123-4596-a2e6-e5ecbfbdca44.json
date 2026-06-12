@@ -1,0 +1,51 @@
+{
+  "audio_file": "2d00ccb0-7123-4596-a2e6-e5ecbfbdca44.wav",
+  "audio_float32_npy": "2d00ccb0-7123-4596-a2e6-e5ecbfbdca44.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_toby",
+  "mode": "sft",
+  "text_frontend": false,
+  "request_text": "내일 아침 여덟 시 알람해줘",
+  "request_text_repr": "'내일 아침 여덟 시 알람해줘'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "내일 아침 여덟 시 알람해줘",
+      "text_token_len": 11,
+      "text_tokens": [
+        [
+          95218,
+          32077,
+          48408,
+          130436,
+          83518,
+          144987,
+          44518,
+          125214,
+          133016,
+          33883,
+          144131
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    960,
+    1
+  ],
+  "audio_min": -0.003962136339396238,
+  "audio_max": 0.0031263709533959627,
+  "audio_mean": 6.102594852563925e-06
+}
