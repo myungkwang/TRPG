@@ -7,6 +7,7 @@ import {
   STATUS, INV_COLS, INV_ROWS, INV_ITEMS, EQUIP_SLOTS, EQUIPMENT,
 } from '../data.js'
 import { ITEMS, categoryLabel, priceLabel } from '../items.js'
+import { QUALITY_PRESETS, loadSettings, subscribeSettings, updateSetting } from '../settings.js'
 
 const slotKeyOf = (item) => EQUIP_SLOTS.find(s => s.label === item?.slot)?.key
 
@@ -482,14 +483,47 @@ export function FullMapPanel({ onClose, journey = [] }) {
 }
 
 /* ---------- 설정 (템플릿 없음 — 비활성 자리) ---------- */
+function PercentSlider({ label, value, onChange }) {
+  const percent = Math.round(value * 100)
+  return (
+    <label className="set-row">
+      <span>{label}</span>
+      <input
+        type="range"
+        min="0"
+        max="100"
+        value={percent}
+        onChange={(event) => onChange(Number(event.target.value) / 100)}
+      />
+      <b>{percent}%</b>
+    </label>
+  )
+}
+
 export function SettingsPanel({ onClose }) {
+  const [settings, setSettings] = useState(() => loadSettings())
+
+  useEffect(() => subscribeSettings(setSettings), [])
+
+  const setValue = (key, value) => {
+    setSettings(updateSetting(key, value))
+  }
+
   return (
     <Overlay title="설정" onClose={onClose} className="settings">
-      <p className="set-note">설정 UI는 아직 템플릿이 없어 자리만 잡아둔 화면입니다. (동작 안 함)</p>
-      <div className="set-row"><span>마스터 볼륨</span><input type="range" disabled /></div>
-      <div className="set-row"><span>BGM</span><input type="range" disabled /></div>
-      <div className="set-row"><span>효과음</span><input type="range" disabled /></div>
-      <div className="set-row"><span>화면 품질</span><select disabled><option>높음</option></select></div>
+      <p className="set-note">볼륨 설정은 즉시 적용되며 이 브라우저에 저장됩니다.</p>
+      <PercentSlider label="마스터 볼륨" value={settings.masterVolume} onChange={(value) => setValue('masterVolume', value)} />
+      <PercentSlider label="BGM 볼륨" value={settings.bgmVolume} onChange={(value) => setValue('bgmVolume', value)} />
+      <PercentSlider label="효과음 볼륨" value={settings.sfxVolume} onChange={(value) => setValue('sfxVolume', value)} />
+      <label className="set-row">
+        <span>화면 품질</span>
+        <select value={settings.quality} onChange={(event) => setValue('quality', event.target.value)}>
+          {Object.entries(QUALITY_PRESETS).map(([key, preset]) => (
+            <option key={key} value={key}>{preset.label}</option>
+          ))}
+        </select>
+        <b>{QUALITY_PRESETS[settings.quality]?.label || '높음'}</b>
+      </label>
     </Overlay>
   )
 }
