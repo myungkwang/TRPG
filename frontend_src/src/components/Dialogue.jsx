@@ -37,8 +37,8 @@ const NPC_TEST_STAGE_X = {
 const CHARACTER_MODELS = [
   {
     speaker: 'gm',
-    personaId: 'doctor',
-    name: PERSONAS.doctor.name,
+    personaId: 'gm',
+    name: SPEAKERS.gm?.name || 'GM',
     modelPath: '/static/models/ShapeKey_10_anim_05.glb',
     modelScale: 0.75,
     modelOffset: [0, 80, 0],
@@ -97,6 +97,16 @@ const CHARACTER_MODELS = [
     modelPath: '/static/models/GM_Base_WithShapeKeys_04.glb',
     modelScale: 0.75,
     modelOffset: [0, 80, 0],
+  },
+  {
+    speaker: 'tavern_clerk',
+    personaId: 'tavern_clerk',
+    name: PERSONAS.tavern_clerk.name,
+    modelPath: '/static/models/Waitress_01.glb',
+    modelScale: 0.72,
+    modelOffset: [0, -100, 0],
+    preferEmbeddedAnimations: true,
+    motionIntensity: 0.55,
   },
 ]
 
@@ -285,6 +295,10 @@ const SPEAKER_LABELS = [
   ['마르타', 'marta'],
   ['토비', 'tobi'],
   ['카르가스', 'kargas'],
+  ['광부', 'miner'],
+  ['간호사', 'nurse'],
+  ['린 주점 점원', 'tavern_clerk'],
+  ['주점 점원', 'tavern_clerk'],
 ]
 
 const normalizeSpeakerLabel = (label) => {
@@ -435,7 +449,7 @@ const splitSpeechSegments = (text, fallbackSpeaker = 'gm') => {
   const source = String(text || '').trim()
   if (!source) return []
 
-  const labelPattern = /(여우\s*린|린|GM|진행자|의사|가일|마르타|토비|카르가스)\s*[:：]\s*/g
+  const labelPattern = /(여우\s*린|린|GM|진행자|의사|가일|마르타|토비|카르가스|광부|간호사|린\s*주점\s*점원|주점\s*점원|점원)\s*[:：]\s*/g
   const matches = [...source.matchAll(labelPattern)]
   if (!matches.length) return splitAttributedQuotes(source, fallbackSpeaker)
 

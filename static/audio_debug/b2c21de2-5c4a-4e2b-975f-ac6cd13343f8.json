@@ -1,0 +1,53 @@
+{
+  "audio_file": "b2c21de2-5c4a-4e2b-975f-ac6cd13343f8.wav",
+  "audio_float32_npy": "b2c21de2-5c4a-4e2b-975f-ac6cd13343f8.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "혹시 제가 뭘 알아야 할까요?\"",
+  "request_text_repr": "'혹시 제가 뭘 알아야 할까요?\"'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "혹시 제가 뭘 알아야 할까요?\"",
+      "text_token_len": 11,
+      "text_tokens": [
+        [
+          138334,
+          29326,
+          132254,
+          5140,
+          255,
+          246,
+          137676,
+          89659,
+          95002,
+          138965,
+          7521
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    48000,
+    1
+  ],
+  "audio_min": -0.32017964124679565,
+  "audio_max": 0.3974621593952179,
+  "audio_mean": 0.00015103266923688352
+}

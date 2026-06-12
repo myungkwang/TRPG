@@ -1,0 +1,51 @@
+{
+  "audio_file": "eeef3732-4dae-4d6b-824c-344abe94cd78.wav",
+  "audio_float32_npy": "eeef3732-4dae-4d6b-824c-344abe94cd78.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "아니면 다른 질문을 할까요?",
+  "request_text_repr": "'아니면 다른 질문을 할까요?'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "아니면 다른 질문을 할까요?",
+      "text_token_len": 9,
+      "text_tokens": [
+        [
+          52959,
+          83036,
+          32290,
+          128772,
+          138520,
+          17877,
+          95002,
+          138965,
+          30
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    53760,
+    1
+  ],
+  "audio_min": -0.6785798668861389,
+  "audio_max": 0.9270527958869934,
+  "audio_mean": 0.0001259981218026951
+}

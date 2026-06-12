@@ -1,0 +1,48 @@
+{
+  "audio_file": "14363fe8-8289-4262-a87e-fa66b55ab08d.wav",
+  "audio_float32_npy": "14363fe8-8289-4262-a87e-fa66b55ab08d.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_rin",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "월요일 날씨",
+  "request_text_repr": "'월요일 날씨'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "월요일 날씨",
+      "text_token_len": 6,
+      "text_tokens": [
+        [
+          128514,
+          35711,
+          32077,
+          37195,
+          254,
+          135562
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    115200,
+    1
+  ],
+  "audio_min": -0.6326348185539246,
+  "audio_max": 0.5635834336280823,
+  "audio_mean": 0.00012736178177874535
+}

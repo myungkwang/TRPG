@@ -1,0 +1,63 @@
+{
+  "audio_file": "577471c9-554f-43f6-8ea2-9e51fda3b670.wav",
+  "audio_float32_npy": "577471c9-554f-43f6-8ea2-9e51fda3b670.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "린은 당신의 의도를 의심하는 듯한 눈빛을 보냅니다.",
+  "request_text_repr": "'린은 당신의 의도를 의심하는 듯한 눈빛을 보냅니다.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "린은 당신의 의도를 의심하는 듯한 눈빛을 보냅니다.",
+      "text_token_len": 21,
+      "text_tokens": [
+        [
+          129807,
+          33704,
+          131502,
+          20401,
+          124970,
+          47985,
+          18411,
+          124970,
+          125512,
+          42905,
+          55838,
+          107,
+          23573,
+          138658,
+          230,
+          143467,
+          17877,
+          63332,
+          144662,
+          21953,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    131520,
+    1
+  ],
+  "audio_min": -0.750859260559082,
+  "audio_max": 0.9152013659477234,
+  "audio_mean": 0.0001574464258737862
+}
