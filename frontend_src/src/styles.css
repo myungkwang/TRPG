@@ -703,8 +703,12 @@ button{font-family:var(--font-body);cursor:pointer}
 
 /* 설정 */
 .settings .set-note{color:var(--muted);margin-bottom:16px;font-style:italic}
-.set-row{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:12px 0;
-  color:#d8c7a6;font-size:14px;opacity:.6}
+.set-row{display:grid;grid-template-columns:120px minmax(140px,1fr) 72px;align-items:center;gap:14px;margin:14px 0;
+  color:#d8c7a6;font-size:14px}
+.set-row input[type="range"]{width:100%;accent-color:var(--gold)}
+.set-row select{width:100%;padding:9px 12px;border-radius:8px;border:1px solid var(--gold);
+  background:#150e0bee;color:var(--text);font-family:var(--font-body)}
+.set-row b{font-weight:400;color:var(--gold-soft);text-align:right;font-variant-numeric:tabular-nums}
 
 /* ============ Phaser 지도 오버레이 ============ */
 .map-overlay{position:absolute;inset:0;z-index:50;background:#11161b}
