@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import uuid
 from pathlib import Path
@@ -33,6 +34,8 @@ AUDIO_DIR = STATIC_DIR / "audio"
 AUDIO_DIR.mkdir(exist_ok=True)
 ENDING_DIR = STATIC_DIR / "endings"
 ENDING_DIR.mkdir(exist_ok=True)
+GEN_BG_DIR = STATIC_DIR / "backgrounds" / "gen"   # AI가 즉석 생성한 배경 캐시
+GEN_BG_DIR.mkdir(parents=True, exist_ok=True)
 openai_client = OpenAI()
 
 app = FastAPI(title="증기와 비늘 Web Test")
@@ -211,30 +214,33 @@ def _static_image_url(filename: str | None) -> str | None:
     return None
 
 
+def _gen_ending_image(result: dict) -> str | None:
+    """라이브 생성기(comfyui/openai)가 켜져 있으면 엔딩 일러스트를 AI로 생성한다."""
+    if llm.IMAGE_PROVIDER not in llm.LIVE_IMAGE_PROVIDERS:
+        return None
+    try:
+        img = generate_image(_ending_image_prompt(result))
+        filename = f"{uuid.uuid4()}.png"
+        (ENDING_DIR / filename).write_bytes(img)
+        return f"/static/endings/{filename}"
+    except Exception:
+        return None
+
+
 def _finalize_ending(session_id: str) -> dict:
     """엔딩 분기를 확정해 서술 + 일러스트를 정하고 세션·도감에 저장한다.
 
-    - 정규(노멀/트루/히든): 미리 만든 고정 이미지를 그대로 사용(런타임 생성 X).
-    - 베드: 생성 시도 → 실패 시 고정 폴백 이미지.
+    - 정규(노멀/트루/히든): 고정 이미지가 있으면 그걸, 없으면 AI 생성.
+    - 베드: AI 생성 시도 → 실패 시 고정 폴백 이미지.
     """
     result = generate_ending(session_id)  # {kind, id, name, progress, text}
 
     if result["kind"] == "good":
-        # 정규 엔딩 — 고정 일러스트(있으면)만 연결, 생성 안 함.
-        image_url = _static_image_url(FIXED_ENDING_IMAGES.get(result["name"]))
+        # 정규 엔딩 — 고정 일러스트 우선, 없으면 AI 생성.
+        image_url = _static_image_url(FIXED_ENDING_IMAGES.get(result["name"])) or _gen_ending_image(result)
     else:
-        # 베드 — 라이브 생성기(comfyui/openai)가 켜져 있을 때만 생성 시도, 아니면 고정 폴백.
-        image_url = None
-        if llm.IMAGE_PROVIDER in llm.LIVE_IMAGE_PROVIDERS:
-            try:
-                img = generate_image(_ending_image_prompt(result))
-                filename = f"{uuid.uuid4()}.png"
-                (ENDING_DIR / filename).write_bytes(img)
-                image_url = f"/static/endings/{filename}"
-            except Exception:
-                image_url = None
-        if not image_url:
-            image_url = _static_image_url(BAD_FALLBACK_IMAGE)
+        # 베드 — AI 생성 우선, 실패/미설정 시 고정 폴백.
+        image_url = _gen_ending_image(result) or _static_image_url(BAD_FALLBACK_IMAGE)
 
     ending = {
         "kind": result["kind"], "id": result["id"], "name": result["name"],
@@ -346,6 +352,107 @@ def get_account_codex(
 ) -> dict[str, Any]:
     """계정 단위로 누적된 도감(단서·엔딩·인물). 회차가 바뀌어도 사라지지 않는다."""
     return codex.get_codex(user_id)
+
+
+class BackgroundRequest(BaseModel):
+    session_id: str
+    location: str
+
+
+# 세계관 결속용 공통 태그 — 캐릭터 렌더(소프트 페인터리·반실사·정갈)와 맞춘 톤.
+# 음울하되 지저분하지 않게: 차분한 채도 + 부드러운 분위기. 장소별 색·조명은 location에서 준다.
+_BG_STYLE = (
+    "stylized 3D game environment art, soft painterly PBR render, semi-realistic, clean detailed, "
+    "atmospheric, 1800s steampunk eastern-fantasy, dark muted ashen palette, low-key lighting, "
+    "deep shadows, dim and gloomy, wide landscape, no people, no text"
+)
+
+# AI 생성 장소용 공통 스타일(LoRA 트리거는 llm 쪽에서 자동으로 앞에 붙는다).
+# 'eastern-fantasy'는 한글 장소명과 만나면 동양 사찰로 빠지므로 의도적으로 뺀다.
+_AIGEN_STYLE = (
+    "dark atmospheric painterly game concept art, semi-realistic stylized game environment, "
+    "1800s steampunk, dark muted ashen palette, pale-blue spirit-stone glow, deep shadows, dim, no people, no text"
+)
+
+# 한글 장소명 → 영어 장면 프롬프트(SDXL은 한글을 못 읽으므로 영어로 매핑). 구체적 키워드를 먼저 둔다.
+_LOC_SCENES: list[tuple[str, str, str]] = [
+    ("교단", "the vast interior of a grand gothic cathedral serving as an ominous ash-cult sanctuary, "
+             "towering pointed gothic arches and a high ribbed vaulted ceiling, stone columns lining a long "
+             "central nave toward a raised altar, tall stained-glass windows depicting an ancient dragon, "
+             "grey-ash braziers with ember and pale-blue fire, draconic carvings, drifting incense, interior wide shot down the nave",
+             "exterior, building facade, pagoda, temple roof, rooftop, asian temple, seen from outside, aerial view, bright, sunny"),
+    ("성소", "the vast interior of a grand gothic ash-cult cathedral, pointed arches, ribbed vaulted ceiling, "
+             "long nave to a dragon-motif altar, stained-glass with a dragon, ash braziers with ember and blue glow, interior wide shot",
+             "exterior, facade, pagoda, temple roof, asian temple, seen from outside, bright, sunny"),
+    ("풀무", "a warm cramped blacksmith forge interior, a glowing furnace and a large leather bellows, anvil "
+             "hammers and tongs, brass steampunk pipes and parts, glowing embers and pale-blue light, smoky gloom",
+             "exterior, factory, train station, pagoda, abandoned, daytime, bright"),
+    ("대장간", "a warm cramped blacksmith forge interior, a glowing furnace and a large leather bellows, anvil "
+             "hammers and tongs, brass steampunk pipes and parts, glowing embers and pale-blue light, smoky gloom",
+             "exterior, factory, train station, pagoda, abandoned, daytime, bright"),
+    ("정제소", "a grimy spirit-essence refinery interior, tall brass pipes vats and tanks, hissing steam, heavy "
+              "machinery, pale-blue spirit-stone glow, industrial gloom",
+              "pagoda, asian temple, clean, bright, sunny, daytime"),
+    ("심부", "the deep inner gallery of a mine, dark tunnels braced with timber, lantern-lit rock walls, glowing "
+             "pale-blue spirit-stone veins in dark stone, ore carts and bent rails, damp gloom",
+             "building, house, pagoda, sky, bright, sunny, daytime"),
+    ("갱도", "the deep inner gallery of a mine, dark tunnels braced with timber, lantern-lit rock walls, glowing "
+             "pale-blue spirit-stone veins in dark stone, ore carts and bent rails, damp gloom",
+             "building, house, pagoda, sky, bright, sunny, daytime"),
+    ("폐광", "a vast abandoned collapsed mine cavern, a caved-in vertical shaft, broken timber frames and snapped "
+             "beams, rusted chains and ladders, rubble, dark charcoal-grey ashen stone, glowing pale-blue spirit-stone veins",
+             "house, cabin, building, pagoda, intact, bright, sunny"),
+    ("수직갱", "a vast abandoned collapsed mine cavern, a caved-in vertical shaft, broken timber frames, rusted "
+              "chains and ladders, rubble, dark charcoal-grey ashen stone, glowing pale-blue spirit-stone veins",
+              "house, cabin, building, pagoda, intact, bright, sunny"),
+    ("광산", "a foggy mine entrance carved into a rocky mountainside, a timber-framed adit, ore carts and rails, "
+             "scattered mining gear, drifting grey fog, gloomy",
+             "interior hall, pagoda, asian temple, bright, sunny, clear sky"),
+    ("암시장", "a narrow back-alley night bazaar packed wall-to-wall with crowded covered market stalls, contraband "
+              "crates and barrels, hanging lanterns and goods overhead, caged pale-blue spirit-stone shards, hushed illicit gloom",
+              "empty street, plain houses, pagoda, daytime, bright, clean, festival"),
+]
+
+
+def _location_prompt(location: str) -> tuple[str, str]:
+    """한글 장소명을 영어 장면 프롬프트(+부정)로 변환한다. 미매핑이면 톤만 맞춘 일반 배경."""
+    loc = location.replace(" ", "")
+    for kw, pos, neg in _LOC_SCENES:
+        if kw in loc:
+            return f"{pos}, {_AIGEN_STYLE}", neg
+    # 미매핑 자유 장소 — 한글이라 내용 신호는 약하지만 동양 사찰로 빠지지 않게 막고 톤만 맞춘다.
+    return (f"a moody atmospheric steampunk location, {_AIGEN_STYLE}",
+            "pagoda, asian temple, bright, sunny, daytime, modern")
+
+
+@app.post("/api/background")
+def gen_background(
+    req: BackgroundRequest,
+    user_id: str = Depends(get_user_id_from_token),
+) -> dict[str, Any]:
+    """주요 장소가 아닌 곳으로 이동 시, 그 장소 배경을 즉석 생성한다(같은 장소는 캐시 재사용).
+
+    라이브 이미지 생성기(comfyui/openai)가 꺼져 있으면 url=None (배경 없이 진행).
+    """
+    assert_session_owner(req.session_id, user_id)
+    location = (req.location or "").strip()
+    if not location:
+        return {"url": None, "generated": False}
+    if llm.IMAGE_PROVIDER not in llm.LIVE_IMAGE_PROVIDERS:
+        return {"url": None, "generated": False}
+
+    key = hashlib.md5(location.encode("utf-8")).hexdigest()[:16]
+    fpath = GEN_BG_DIR / f"{key}.png"
+    url = f"/static/backgrounds/gen/{key}.png"
+    if fpath.exists():
+        return {"url": url, "generated": True, "cached": True}
+    try:
+        pos, neg = _location_prompt(location)
+        img = generate_image(pos, size="1344x768", negative=neg)
+        fpath.write_bytes(img)
+        return {"url": url, "generated": True}
+    except Exception:
+        return {"url": None, "generated": False}
 
 
 @app.post("/api/chat")

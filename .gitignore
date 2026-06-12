@@ -1,10 +1,10 @@
-# Environment and secrets
+Environment and secrets
 .env
 .env.*
 !.env.example
 
-# Python
-__pycache__/
+Python
+pycache/
 *.py[cod]
 *$py.class
 .pytest_cache/
@@ -14,50 +14,73 @@ __pycache__/
 venv/
 env/
 
-# Node / Vite
+Node / Vite
 node_modules/
 frontend_src/dist/
 steamscale-proto/dist/
 .vite/
 *.log
 
-# Built frontend assets (Vite output with hashed filenames)
+Built frontend assets (Vite output with hashed filenames)
 static/assets/
 
-# Binary / large files
+Binary / large files
 *.zip
-*.docx
+.docx
 
-# 3D model and animation files must always be tracked
-!*.glb
-!*.fbx
-!*.vrm
+3D model and animation files must always be tracked
+!.glb
+!.fbx
+!.vrm
 !static/models/
 !static/animations/
 !steamscale-proto/public/models/
 !steamscale-proto/public/animations/
 
-# Local databases and generated data
+Local databases and generated data
 *.db
 *.sqlite
-*.sqlite3
+.sqlite3
 chroma/
 chroma_db/
 vectorstore/
 
-# Generated media / backups
+Generated media / backups
 static/audio/
 static_backup/
 
-# 엔딩 이미지: 런타임 생성물(uuid.png)은 무시, 고정 일러스트만 커밋
-static/endings/*
+엔딩 이미지: 런타임 생성물(uuid.png)은 무시, 고정 일러스트만 커밋
+static/endings/
 !static/endings/normal.png
 !static/endings/true.png
 !static/endings/hidden.png
 !static/endings/bad.png
 
-# OS / editor
+OS / editor
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
+
+
+external/
+CosyVoice3_game_chars_epoch23_for_team/eval_model/
+docs/superpowers/
+
+*.pt
+*.pth
+*.onnx
+*.safetensors
+*.ckpt
+*.bin
+*.pkl
+*.npy
+*.npz
+# LoRA 학습 데이터 / 결과 (용량 큼 — 드라이브/HF로 따로 공유, 스크립트는 추적)
+lora_dataset/img/
+lora_dataset/train/
+lora_dataset/model/
+lora_dataset/log/
+
+# 런타임 생성 배경 캐시 (각자 로컬에서 생성됨)
+static/backgrounds/gen/

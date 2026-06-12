@@ -2,7 +2,7 @@
 import { SPEAKERS, FLAVOR_CHOICE, CHOICES } from '../data.js'
 import D12 from './D12.jsx'
 import Character3D from './Character3D.jsx'
-import { apiChat, apiTTS, apiDebugEnding } from '../api.js'
+import { apiChat, apiTTS, apiDebugEnding, apiGenerateBackground } from '../api.js'
 import { PERSONAS, getPersona } from '../personas.js'
 
 const CRYSTAL_MINE_BGM = '/static/audio/bgm/crystal-mine.mp3'
@@ -75,11 +75,14 @@ const CHARACTER_MODELS = [
   },
 ]
 
+// 핵심 장소(주요 NPC 거점)만 고정 배경. 그 외 모든 장소는 AI 자동생성.
 const LOCATION_BACKGROUNDS = [
-  { aliases: ['진료소', '진료실', '의무실', 'clinic', 'hospital'], path: '/static/backgrounds/clinic.png' },
-  { aliases: ['여관', 'tavern', 'inn'], path: '/static/backgrounds/inn.png' },
-  { aliases: ['정제소', 'refinery'], path: '/static/backgrounds/refinery.png' },
-  { aliases: ['갱도', '갱도사무소', '광산', 'mine', 'mineshaft'], path: '/static/backgrounds/mine.png' },
+  { aliases: ['진료소', '진료실', '의무실', 'clinic'], path: '/static/backgrounds/clinic.png' },
+  { aliases: ['여관', '주점', '여우길', 'tavern', 'inn'], path: '/static/backgrounds/inn.png' },
+  { aliases: ['주둔소', '영석공사', '가일', 'garrison'], path: '/static/backgrounds/garrison.png' },
+  { aliases: ['봉우리', '정상', '둥지', '카르가스', 'peak'], path: '/static/backgrounds/peak.png' },
+  { aliases: ['오두막', '산기슭', '마르타', 'hut', 'cabin'], path: '/static/backgrounds/hut.png' },
+  { aliases: ['광장', 'square'], path: '/static/backgrounds/square.png' },
 ]
 
 const getLocationBackground = (location) => {
@@ -88,15 +91,6 @@ const getLocationBackground = (location) => {
   return LOCATION_BACKGROUNDS.find(bg =>
     bg.aliases.some(alias => normalized.includes(alias.replace(/\s+/g, '').toLowerCase())),
   )?.path || null
-}
-
-const getMapResultLocation = (kind) => {
-  const normalized = String(kind || '').replace(/\s+/g, '').toLowerCase()
-  if (!normalized) return null
-  if (['shop', '거래', '상점', '정제소'].some(key => normalized.includes(key))) return '정제소'
-  if (['battle', '전투', '갱도', '광산', 'boss'].some(key => normalized.includes(key))) return '갱도'
-  if (['event', '이벤트', '여관', 'mystery', '미지'].some(key => normalized.includes(key))) return '여관'
-  return null
 }
 const toUiLog = (history = []) => {
   if (!history || history.length === 0) return []
@@ -421,7 +415,10 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
   const [choices, setChoices] = useState([])
   const [choiceMode, setChoiceMode] = useState(false)
   const [activeSpeaker, setActiveSpeaker] = useState(() => getLastNpcSpeaker(toUiLog(history)))
-  const [stageLocation, setStageLocation] = useState(null)
+  const [genBg, setGenBg] = useState({})        // 장소 → 생성된 배경 url
+  const [bgLoading, setBgLoading] = useState(false)
+  const bgTriedRef = useRef(new Set())
+  const pendingRevealRef = useRef(null)   // 배경 생성 중일 때 보류해 둔 GM 대사(생성 후 공개)
   const [judge, setJudge] = useState(null)
   const [judgeResult, setJudgeResult] = useState(null)
   const [sending, setSending] = useState(false)
@@ -495,22 +492,12 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
     }
   }
 
-  const advanceOnMap = (dest, opts = {}) => {
+  // 말판은 '시각적 진행 표시'일 뿐 — 장소/배경/나레이션은 모두 스토리(set_location)가 정한다.
+  // 여기선 캔드 메시지·장소 강제 없이 말판만 한 칸 움직인다.
+  const advanceOnMap = (dest) => {
     if (!runMapStep || mappingRef.current) return
     mappingRef.current = true
-    runMapStep(dest).then(({ ending, aborted, kind }) => {
-      mappingRef.current = false
-      if (aborted) return
-      // 자동(AI 이벤트) 이동이면 배경·나레이션은 AI가 이미 처리하므로 건드리지 않는다.
-      if (opts.silent) return
-      const nextLocation = getMapResultLocation(kind)
-      if (nextLocation) setStageLocation(nextLocation)
-      if (ending) {
-        push('gm', '안갯속 길의 끝. 봉우리의 둥지가 모습을 드러낸다. (엔딩 노드 도달)', { speak: true })
-        return
-      }
-      push('gm', `안개를 헤치고 '${kind}' 발판에 닿았다. 다시 이야기가 이어진다.`, { speak: true })
-    })
+    runMapStep(dest).then(() => { mappingRef.current = false })
   }
 
   // AI가 스토리 이벤트로 스테이지를 진행시키면(visit_event) 말판이 자동으로 한 칸 전진한다.
@@ -536,10 +523,7 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
   useEffect(() => () => clearTimeout(judgeTimerRef.current), [])
 
   const triggerJudge = (dc = 11, stat = '지각', opts = {}) => {
-    judgeRef.current = {
-      dc, stat, after: opts.after,
-      onSuccess: opts.onSuccess || 'shop', onFail: opts.onFail || 'event', success: null,
-    }
+    judgeRef.current = { dc, stat, after: opts.after, choiceText: opts.choiceText || null, success: null }
     setJudge({ dc, stat })
     setJudgeResult(null)
   }
@@ -559,10 +543,11 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
     judgeRef.current = null
     setJudge(null)
     setJudgeResult(null)
-    if (ref.after) ref.after()
-    else if (ref.stat) push('gm', `${ref.stat} 판정 ${ref.success ? '성공' : '실패'} - 길이 갈라진다.`, { speak: true })
-    const dest = ref.success ? ref.onSuccess : ref.onFail
-    advanceOnMap(dest)
+    if (ref.after) { ref.after(); return }
+    // 판정 결과를 GM에게 넘겨 이야기를 자연스럽게 잇는다 (말판/캔드 메시지 없음)
+    const outcome = ref.success ? '성공' : '실패'
+    const prefix = ref.choiceText ? `${ref.choiceText} ` : ''
+    sendText(`${prefix}(${ref.stat} 판정 ${outcome})`)
   }
 
   const closeJudgeModal = () => {
@@ -621,8 +606,17 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
     try {
       const data = await apiChat(session.id, text)
       onSessionChange?.(data.session)
-      push('gm', data.answer, { speak: true })
-      setChoices(Array.isArray(data.choices) ? data.choices : [])
+      const newLoc = data.session?.location
+      const choicesArr = Array.isArray(data.choices) ? data.choices : []
+      // 이 응답으로 비고정 장소 배경이 새로 '생성'될 예정이면, 생성이 끝난 뒤 대사를 공개한다.
+      const willGenerate = newLoc && !getLocationBackground(newLoc)
+        && !genBg[newLoc] && !bgTriedRef.current.has(newLoc)
+      if (willGenerate) {
+        pendingRevealRef.current = { answer: data.answer, choices: choicesArr }
+      } else {
+        push('gm', data.answer, { speak: true })
+        setChoices(choicesArr)
+      }
     } catch (err) {
       push('gm', `오류: ${err.message}`, { speak: false })
     } finally {
@@ -650,21 +644,44 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
   }
 
   const pickChoice = (c) => {
-    push('player', `[선택] ${c.text}`)
     setChoiceMode(false)
     if (c.judge) {
-      triggerJudge(c.dc, c.stat)
+      push('player', `[선택] ${c.text}`)
+      triggerJudge(c.dc, c.stat, { choiceText: c.text })
     } else {
-      setTimeout(() => {
-        push('lin', '그래요, 거래는 늘 환영이죠.', { speak: true })
-        advanceOnMap()
-      }, 450)
+      // 선택지를 그대로 GM에게 보내 이야기를 잇는다 (캔드 대사·말판 강제 없음)
+      sendText(c.text)
     }
   }
 
   const activeCharacter = CHARACTER_MODELS.find(c => c.speaker === activeSpeaker) || CHARACTER_MODELS[0]
-  const locationBackground = getLocationBackground(stageLocation || session?.location)
+  const curLocation = session?.location   // 장소는 오직 스토리(set_location)가 결정
+  const fixedBackground = getLocationBackground(curLocation)
+  // 주요 장소엔 고정 배경, 그 외엔 AI가 생성한 배경(genBg)을 쓴다.
+  const locationBackground = fixedBackground || (curLocation ? genBg[curLocation] : null) || null
   const isMineLocation = locationBackground?.includes('/mine.png')
+
+  // 고정 배경이 없는 장소로 이동하면 배경을 즉석 생성(로딩 화면 표시). 같은 장소는 1회만.
+  useEffect(() => {
+    if (!curLocation || !session?.id) return
+    if (getLocationBackground(curLocation)) return       // 주요 장소 = 고정 배경
+    if (genBg[curLocation] || bgTriedRef.current.has(curLocation)) return
+    bgTriedRef.current.add(curLocation)
+    setBgLoading(true)
+    apiGenerateBackground(session.id, curLocation)
+      .then(d => { if (d.url) setGenBg(prev => ({ ...prev, [curLocation]: d.url })) })
+      .catch(() => {})
+      .finally(() => {
+        setBgLoading(false)
+        // 배경이 준비됐으니 보류해 둔 GM 대사를 이제 공개·재생한다.
+        const pr = pendingRevealRef.current
+        if (pr) {
+          pendingRevealRef.current = null
+          push('gm', pr.answer, { speak: true })
+          setChoices(pr.choices)
+        }
+      })
+  }, [curLocation])
 
   useEffect(() => {
     if (!mineBgmRef.current) {
@@ -693,6 +710,14 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
       style={locationBackground ? { '--location-bg': `url("${locationBackground}")` } : undefined}
     >
       <div className="bg-embers" />
+
+      {bgLoading && (
+        <div className="bg-loading">
+          <div className="bg-loading-spinner" />
+          <div className="bg-loading-text">AI가 로딩 중입니다…</div>
+          <div className="bg-loading-sub">새로운 장소의 풍경을 그리는 중</div>
+        </div>
+      )}
 
       {judge && (
         <div className="dice-modal-overlay" onClick={closeJudgeModal}>
@@ -761,14 +786,17 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
         {choices.length > 0 && !sending && (
           <div className="choice-block">
             <div className="choice-flavor">{FLAVOR_CHOICE}</div>
-            {choices.map((c, i) => (
-              <button key={`${i}-${c.slice(0, 8)}`}
-                className="choice-row"
-                onClick={() => sendText(c)}>
-                <span className="cn">{i + 1}</span>
-                <span>{c}</span>
-              </button>
-            ))}
+            {choices.map((raw, i) => {
+              const c = typeof raw === 'string' ? { text: raw, judge: false } : (raw || { text: '', judge: false })
+              return (
+                <button key={`${i}-${(c.text || '').slice(0, 8)}`}
+                  className={`choice-row${c.judge ? ' choice-judge' : ''}`}
+                  onClick={() => pickChoice(c)}>
+                  <span className="cn">{i + 1}</span>
+                  <span>{c.judge ? `🎲 ${c.text}` : c.text}</span>
+                </button>
+              )
+            })}
             <div className="choice-note">또는 아래 입력창에 자유롭게 행동을 적어도 됩니다.</div>
           </div>
         )}

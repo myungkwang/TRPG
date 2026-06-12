@@ -44,7 +44,7 @@ def _image_openai(prompt: str, size: str) -> bytes:
     raise RuntimeError("image response had neither b64_json nor url")
 
 
-def _image_comfyui(prompt: str, size: str = "1024x1024") -> bytes:
+def _image_comfyui(prompt: str, size: str = "1024x1024", negative: str | None = None) -> bytes:
     """로컬/공유 ComfyUI(SDXL base)로 이미지를 생성한다. GPU PC만 켜져 있으면 무료·무제한.
 
     표준 SDXL txt2img 그래프를 API로 보내고(/prompt), 완료를 폴링(/history)한 뒤
@@ -54,7 +54,8 @@ def _image_comfyui(prompt: str, size: str = "1024x1024") -> bytes:
         w, h = (int(x) for x in size.lower().split("x"))
     except Exception:
         w, h = 1024, 1024
-    negative = "text, watermark, signature, blurry, lowres, ugly, deformed, extra limbs"
+    base_neg = "text, watermark, signature, blurry, lowres, ugly, deformed, extra limbs"
+    negative = f"{negative}, {base_neg}" if negative else base_neg
     seed = random.randint(0, 2**31 - 1)
     if COMFY_LORA_TRIGGER:
         prompt = f"{COMFY_LORA_TRIGGER}, {prompt}"
@@ -115,10 +116,10 @@ def _image_comfyui(prompt: str, size: str = "1024x1024") -> bytes:
     raise RuntimeError("ComfyUI 이미지 생성 시간 초과 (서버가 켜져 있는지 확인)")
 
 
-def generate_image(prompt: str, size: str = "1024x1024") -> bytes:
-    """엔딩 일러스트를 생성해 이미지 바이트로 돌려준다. IMAGE_PROVIDER 로 생성기 선택."""
+def generate_image(prompt: str, size: str = "1024x1024", negative: str | None = None) -> bytes:
+    """이미지를 생성해 바이트로 돌려준다. IMAGE_PROVIDER 로 생성기 선택. negative는 comfyui에만 적용."""
     if IMAGE_PROVIDER in ("comfyui", "local"):
-        return _image_comfyui(prompt, size)
+        return _image_comfyui(prompt, size, negative)
     return _image_openai(prompt, size)
 
 def embed_text(text: str) -> list[float]:
