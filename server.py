@@ -7,12 +7,13 @@ import asyncio
 import sys
 import uuid
 import threading
+import random
 from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from dotenv import load_dotenv
@@ -23,6 +24,8 @@ import progression
 import endings
 import codex
 import dialogue
+import character_creation
+import story
 from auth import (
     validate_signup,
     hash_password,
@@ -45,7 +48,9 @@ for env_name in ("MPLCONFIGDIR", "HF_HOME", "TORCH_HOME"):
 
 STATIC_DIR = BASE_DIR / "static"
 AUDIO_DIR = STATIC_DIR / "audio"
+AUDIO_DEBUG_DIR = STATIC_DIR / "audio_debug"
 AUDIO_DIR.mkdir(exist_ok=True)
+AUDIO_DEBUG_DIR.mkdir(exist_ok=True)
 cosyvoice_client = None
 cosyvoice_lock = threading.Lock()
 COSYVOICE_REPO_DIR = BASE_DIR / "external" / "CosyVoice"
@@ -69,6 +74,11 @@ COSYVOICE_MODEL_CANDIDATES = [
 ]
 COSYVOICE_MODEL_DIR = next((path for path in COSYVOICE_MODEL_CANDIDATES if path and path.exists()), COSYVOICE_MODEL_CANDIDATES[1])
 COSYVOICE_DEFAULT_INSTRUCTION = os.getenv("COSYVOICE_DEFAULT_INSTRUCTION", "You are a helpful assistant.<|endofprompt|>")
+COSYVOICE_SFT_INSTRUCTION = os.getenv("COSYVOICE_SFT_INSTRUCTION", COSYVOICE_DEFAULT_INSTRUCTION)
+COSYVOICE_LLM_FILE = os.getenv("COSYVOICE_LLM_FILE", "llm.pt").strip() or "llm.pt"
+COSYVOICE_MODE = os.getenv("COSYVOICE_MODE", "sft").strip().lower()
+COSYVOICE_TEXT_FRONTEND = os.getenv("COSYVOICE_TEXT_FRONTEND", "false").strip().lower() in {"1", "true", "yes", "on"}
+COSYVOICE_SEED = int(os.getenv("COSYVOICE_SEED", "1986"))
 
 COSYVOICE_SPEAKERS = {
     "doctor": "char_doctor",
@@ -100,7 +110,12 @@ EDGE_TTS_VOICES = {
     "toby": "ko-KR-HyunsuMultilingualNeural",
 }
 
-app = FastAPI(title="증기와 비늘 Web Test")
+
+class Utf8JSONResponse(JSONResponse):
+    media_type = "application/json; charset=utf-8"
+
+
+app = FastAPI(title="증기와 비늘 Web Test", default_response_class=Utf8JSONResponse)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -119,6 +134,11 @@ class MoveRequest(BaseModel):
     session_id: str
     location: str
 
+class StoryChoiceRequest(BaseModel):
+    session_id: str
+    choice_id: str
+    roll: int | None = None
+
 
 class TTSRequest(BaseModel):
     text: str
@@ -135,41 +155,62 @@ class DebugEndingRequest(BaseModel):
     ending: str  # "노멀" | "트루" | "히든" | "베드"
 
 
+class CharacterAnswersRequest(BaseModel):
+    session_id: str
+    answers: dict[str, str]
+
+
 def get_cosyvoice_client():
     global cosyvoice_client
     if cosyvoice_client is not None:
         return cosyvoice_client
 
-    if not COSYVOICE_MODEL_DIR.exists():
-        raise HTTPException(status_code=500, detail=f"CosyVoice model directory not found: {COSYVOICE_MODEL_DIR}")
+    with cosyvoice_lock:
+        if cosyvoice_client is not None:
+            return cosyvoice_client
 
-    if COSYVOICE_REPO_DIR.exists():
-        for import_path in (COSYVOICE_REPO_DIR, COSYVOICE_MATCHA_DIR):
-            import_path_text = str(import_path)
-            if import_path_text not in sys.path:
-                sys.path.insert(0, import_path_text)
+        if not COSYVOICE_MODEL_DIR.exists():
+            raise HTTPException(status_code=500, detail=f"CosyVoice model directory not found: {COSYVOICE_MODEL_DIR}")
 
-    try:
-        import torch
-        from cosyvoice.cli.cosyvoice import AutoModel
-    except Exception as exc:
-        raise HTTPException(
-            status_code=500,
-            detail=(
-                "CosyVoice runtime is not installed. Install the FunAudioLLM CosyVoice package "
-                "and its dependencies, then restart the server. "
-                f"Import error: {exc}"
-            ),
-        )
+        if COSYVOICE_REPO_DIR.exists():
+            for import_path in (COSYVOICE_REPO_DIR, COSYVOICE_MATCHA_DIR):
+                import_path_text = str(import_path)
+                if import_path_text not in sys.path:
+                    sys.path.insert(0, import_path_text)
 
-    use_fp16 = os.getenv("COSYVOICE_FP16", "").strip().lower() in {"1", "true", "yes", "on"}
-    cosyvoice_client = AutoModel(model_dir=str(COSYVOICE_MODEL_DIR), fp16=use_fp16)
-    if not use_fp16:
-        for module_name in ("llm", "flow", "hift"):
-            module = getattr(cosyvoice_client.model, module_name, None)
-            if hasattr(module, "float"):
-                module.float()
-    return cosyvoice_client
+        try:
+            import torch
+            from cosyvoice.cli.cosyvoice import AutoModel
+        except Exception as exc:
+            raise HTTPException(
+                status_code=500,
+                detail=(
+                    "CosyVoice runtime is not installed. Install the FunAudioLLM CosyVoice package "
+                    "and its dependencies, then restart the server. "
+                    f"Import error: {exc}"
+                ),
+            )
+
+        use_fp16 = os.getenv("COSYVOICE_FP16", "").strip().lower() in {"1", "true", "yes", "on"}
+        logger.info("Loading CosyVoice model from %s", COSYVOICE_MODEL_DIR)
+        cosyvoice_client = AutoModel(model_dir=str(COSYVOICE_MODEL_DIR), fp16=use_fp16)
+        llm_path = COSYVOICE_MODEL_DIR / COSYVOICE_LLM_FILE
+        if COSYVOICE_LLM_FILE != "llm.pt":
+            if not llm_path.exists():
+                raise HTTPException(status_code=500, detail=f"CosyVoice LLM checkpoint not found: {llm_path}")
+            logger.info("Reloading CosyVoice LLM checkpoint from %s", llm_path)
+            cosyvoice_client.model.load(
+                str(llm_path),
+                str(COSYVOICE_MODEL_DIR / "flow.pt"),
+                str(COSYVOICE_MODEL_DIR / "hift.pt"),
+            )
+        if not use_fp16:
+            for module_name in ("llm", "flow", "hift"):
+                module = getattr(cosyvoice_client.model, module_name, None)
+                if hasattr(module, "float"):
+                    module.float()
+        logger.info("CosyVoice model loaded with llm=%s", COSYVOICE_LLM_FILE)
+        return cosyvoice_client
 
 
 def _cosyvoice_speaker(req: TTSRequest) -> str:
@@ -179,6 +220,20 @@ def _cosyvoice_speaker(req: TTSRequest) -> str:
 
 def _edge_speaker(req: TTSRequest) -> str:
     return (req.speaker or req.voice or "gm").strip().lower()
+
+
+def _cosyvoice3_text(text: str, instruction: str) -> str:
+    if "<|endofprompt|>" in text:
+        return text
+    return f"{instruction}{text}"
+
+
+def _tensor_debug(value: Any) -> Any:
+    if hasattr(value, "detach"):
+        value = value.detach().cpu()
+    if hasattr(value, "tolist"):
+        return value.tolist()
+    return value
 
 
 async def _synthesize_edge_tts_async(text: str, voice: str, out_path: Path) -> None:
@@ -208,9 +263,10 @@ def synthesize_edge_tts(req: TTSRequest, out_path: Path) -> str:
 def synthesize_cosyvoice(req: TTSRequest, out_path: Path) -> str:
     try:
         import torch
-        import torchaudio
+        import numpy as np
+        import soundfile as sf
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"torch/torchaudio is required for CosyVoice saving. Import error: {exc}")
+        raise HTTPException(status_code=500, detail=f"torch/numpy/soundfile is required for CosyVoice saving. Import error: {exc}")
 
     model = get_cosyvoice_client()
     speaker = _cosyvoice_speaker(req)
@@ -221,26 +277,103 @@ def synthesize_cosyvoice(req: TTSRequest, out_path: Path) -> str:
 
     try:
         with cosyvoice_lock:
-            normalized_instruction = model.frontend.text_normalize(instruction, split=False, text_frontend=True)
-            segments = model.frontend.text_normalize(text, split=True, text_frontend=True)
+            random.seed(COSYVOICE_SEED)
+            np.random.seed(COSYVOICE_SEED)
+            torch.manual_seed(COSYVOICE_SEED)
+            if torch.cuda.is_available():
+                torch.cuda.manual_seed_all(COSYVOICE_SEED)
             speeches = []
-            for segment in segments:
-                model_input = model.frontend.frontend_instruct(segment, speaker, normalized_instruction)
-                for chunk in model.model.tts(**model_input, stream=False, speed=1.0):
-                    speech = chunk["tts_speech"].detach().cpu()
-                    if speech.dim() == 1:
-                        speech = speech.unsqueeze(0)
-                    speeches.append(speech)
+            logger.info(
+                "CosyVoice synth mode=%s llm=%s seed=%s text_frontend=%s speaker=%s text=%r",
+                COSYVOICE_MODE,
+                COSYVOICE_LLM_FILE,
+                COSYVOICE_SEED,
+                COSYVOICE_TEXT_FRONTEND,
+                speaker,
+                text,
+            )
+
+            if COSYVOICE_MODE == "instruct":
+                normalized_instruction = model.frontend.text_normalize(
+                    instruction,
+                    split=False,
+                    text_frontend=COSYVOICE_TEXT_FRONTEND,
+                )
+                segments = model.frontend.text_normalize(
+                    text,
+                    split=True,
+                    text_frontend=COSYVOICE_TEXT_FRONTEND,
+                )
+                logger.info("CosyVoice normalized segments=%r", segments)
+                for segment in segments:
+                    model_input = model.frontend.frontend_instruct(segment, speaker, normalized_instruction)
+                    chunks = model.model.tts(**model_input, stream=False, speed=1.0)
+                    for chunk in chunks:
+                        speech = chunk["tts_speech"].detach().cpu()
+                        if speech.dim() == 1:
+                            speech = speech.unsqueeze(0)
+                        speeches.append(speech)
+            else:
+                prompt_text = COSYVOICE_SFT_INSTRUCTION
+                if "<|endofprompt|>" not in prompt_text:
+                    prompt_text = f"{prompt_text}<|endofprompt|>"
+                segments = model.frontend.text_normalize(
+                    text,
+                    split=True,
+                    text_frontend=COSYVOICE_TEXT_FRONTEND,
+                )
+                prompt_text_token, prompt_text_token_len = model.frontend._extract_text_token(prompt_text)
+                debug_segments = []
+                logger.info("CosyVoice sft prompt=%r segments=%r", prompt_text, segments)
+                for segment in segments:
+                    model_input = model.frontend.frontend_sft(segment, speaker)
+                    model_input["prompt_text"] = prompt_text_token
+                    model_input["prompt_text_len"] = prompt_text_token_len
+                    debug_segments.append({
+                        "text": segment,
+                        "text_token_len": int(model_input["text_len"].detach().cpu().item()),
+                        "text_tokens": _tensor_debug(model_input["text"]),
+                    })
+                    chunks = model.model.tts(**model_input, stream=False, speed=1.0)
+                    for chunk in chunks:
+                        speech = chunk["tts_speech"].detach().cpu()
+                        if speech.dim() == 1:
+                            speech = speech.unsqueeze(0)
+                        speeches.append(speech)
             if not speeches:
                 raise RuntimeError("CosyVoice generated no audio.")
             audio = torch.cat(speeches, dim=-1).clamp(-1.0, 1.0)
-            torchaudio.save(
-                str(out_path),
-                audio,
-                getattr(model, "sample_rate", 24000),
-                encoding="PCM_S",
-                bits_per_sample=16,
-            )
+            audio_np = audio.detach().cpu().float().numpy()
+            if audio_np.ndim == 2:
+                audio_np = audio_np.T
+            sf.write(str(out_path), audio_np, getattr(model, "sample_rate", 24000), subtype="PCM_16")
+            if TTS_PROVIDER == "cosyvoice":
+                debug_stem = out_path.stem
+                np.save(AUDIO_DEBUG_DIR / f"{debug_stem}.float32.npy", audio_np.astype(np.float32, copy=False))
+                debug_info = {
+                    "audio_file": out_path.name,
+                    "audio_float32_npy": f"{debug_stem}.float32.npy",
+                    "sample_rate": getattr(model, "sample_rate", 24000),
+                    "speaker": speaker,
+                    "mode": COSYVOICE_MODE,
+                    "llm_file": COSYVOICE_LLM_FILE,
+                    "seed": COSYVOICE_SEED,
+                    "text_frontend": COSYVOICE_TEXT_FRONTEND,
+                    "request_text": text,
+                    "request_text_repr": repr(text),
+                    "prompt_text": prompt_text if COSYVOICE_MODE != "instruct" else instruction,
+                    "prompt_token_len": int(prompt_text_token_len.detach().cpu().item()) if COSYVOICE_MODE != "instruct" else None,
+                    "prompt_tokens": _tensor_debug(prompt_text_token) if COSYVOICE_MODE != "instruct" else None,
+                    "segments": debug_segments if COSYVOICE_MODE != "instruct" else None,
+                    "audio_shape": list(audio_np.shape),
+                    "audio_min": float(audio_np.min()) if audio_np.size else None,
+                    "audio_max": float(audio_np.max()) if audio_np.size else None,
+                    "audio_mean": float(audio_np.mean()) if audio_np.size else None,
+                }
+                (AUDIO_DEBUG_DIR / f"{debug_stem}.json").write_text(
+                    json.dumps(debug_info, ensure_ascii=False, indent=2),
+                    encoding="utf-8",
+                )
     except Exception as exc:
         logger.exception("CosyVoice generation failed")
         raise HTTPException(status_code=500, detail=f"CosyVoice 생성 실패({speaker}): {exc}")
@@ -358,11 +491,117 @@ def get_session(
         return {
             "session": public_session(session_id),
             "history": recent_history(session_id, limit=20),
+            "story": story.current_scene(session_id),
         }
     except HTTPException:
         raise
     except Exception as exc:
         raise HTTPException(status_code=404, detail=str(exc))
+
+
+def _public_character_preview(answers: dict[str, str]) -> dict[str, Any]:
+    character = character_creation.build_character(answers)
+    return {
+        "player_name": character["player_name"],
+        "stats": {
+            "힘": character["str"],
+            "민첩": character["dex"],
+            "지능": character["int_stat"],
+            "매력": character["cha"],
+        },
+        "primary_stat": character["primary_stat"],
+        "talent_grade": character["talent_grade"],
+        "job": character["job"],
+        "location": character["location"],
+        "inventory": character["inventory"],
+    }
+
+
+@app.get("/api/character/questions")
+def character_questions(user_id: str = Depends(get_user_id_from_token)) -> dict[str, Any]:
+    return {"questions": character_creation.QUESTIONS}
+
+
+@app.post("/api/character/preview")
+def character_preview(
+    req: CharacterAnswersRequest,
+    user_id: str = Depends(get_user_id_from_token),
+) -> dict[str, Any]:
+    assert_session_owner(req.session_id, user_id)
+    try:
+        return {"character": _public_character_preview(req.answers)}
+    except KeyError as exc:
+        raise HTTPException(status_code=400, detail=f"missing answer: {exc}") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/character/confirm")
+def character_confirm(
+    req: CharacterAnswersRequest,
+    user_id: str = Depends(get_user_id_from_token),
+) -> dict[str, Any]:
+    assert_session_owner(req.session_id, user_id)
+    try:
+        character = character_creation.create_character(req.session_id, req.answers)
+    except KeyError as exc:
+        raise HTTPException(status_code=400, detail=f"missing answer: {exc}") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    stats = f"힘 {character['str']}, 민첩 {character['dex']}, 지능 {character['int_stat']}, 매력 {character['cha']}"
+    summary = (
+        "의사: \"질문이 끝났군요. 회복하신 듯합니다. "
+        f"{character['player_name']} 님, 당신의 반응은 {character['talent_grade']}에 가깝고, "
+        f"몸은 {character['job']}의 손놀림을 기억하고 있습니다. 능력치는 {stats}입니다. "
+        "변경 광산마을 '재끝'으로 향하시면 됩니다.\""
+    )
+    next_scene = (
+        "GM: 의사가 진료 기록을 덮자, 창밖의 증기관이 낮게 울립니다. "
+        "낡은 진료소 문 너머로 재끝 마을의 축축한 안개와 광산 종소리가 밀려듭니다.\n"
+        "의사: \"무리하지 마십시오. 기억이 돌아오지 않더라도, 마을 사람들과 이야기하다 보면 "
+        "단서가 남아 있을 겁니다. 먼저 여관의 린을 찾아가 보시겠습니까, 아니면 광산 쪽 상황을 살펴보시겠습니까?\""
+    )
+    with get_conn() as conn:
+        conn.execute(
+            """
+            INSERT INTO game_events(session_id, user_id, role, content, metadata)
+            VALUES (%s, %s, %s, %s, %s)
+            """,
+            (
+                req.session_id,
+                user_id,
+                "assistant",
+                summary,
+                json.dumps({"type": "character_creation", "character": character}, ensure_ascii=False),
+            ),
+        )
+        conn.execute(
+            """
+            INSERT INTO game_events(session_id, user_id, role, content, metadata)
+            VALUES (%s, %s, %s, %s, %s)
+            """,
+            (
+                req.session_id,
+                user_id,
+                "assistant",
+                next_scene,
+                json.dumps({"type": "intro_end"}, ensure_ascii=False),
+            ),
+        )
+
+    story_scene = story.ensure_story_started(req.session_id)
+    history = recent_history(req.session_id, limit=20)
+    if history and history[-1].get("role") == "assistant":
+        history[-1]["speak"] = True
+        history[-1]["choicesToReveal"] = story_scene.get("choices", [])
+
+    return {
+        "character": _public_character_preview(req.answers),
+        "session": public_session(req.session_id),
+        "history": history,
+        "story": story_scene,
+    }
 
 
 @app.get("/api/codex/clues/{session_id}")
@@ -396,6 +635,7 @@ def chat(
         "choices": choices,
         "segments": dialogue.split_segments(answer),
         "session": public_session(req.session_id),
+        "story": story.current_scene(req.session_id),
     }
 
 
@@ -433,6 +673,37 @@ def move(
         "choices": choices,
         "segments": dialogue.split_segments(answer),
         "session": public_session(req.session_id),
+        "story": story.current_scene(req.session_id),
+    }
+
+
+@app.get("/api/story/{session_id}")
+def get_story_scene(
+    session_id: str,
+    user_id: str = Depends(get_user_id_from_token),
+) -> dict[str, Any]:
+    assert_session_owner(session_id, user_id)
+    return {"story": story.current_scene(session_id)}
+
+
+@app.post("/api/story/choice")
+def story_choice(
+    req: StoryChoiceRequest,
+    user_id: str = Depends(get_user_id_from_token),
+) -> dict[str, Any]:
+    assert_session_owner(req.session_id, user_id)
+    try:
+        result = story.choose(req.session_id, req.choice_id, req.roll)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    ending = endings.check_session_ending(req.session_id)
+    return {
+        **result,
+        "session": public_session(req.session_id),
+        "ending_reached": ending,
     }
 
 
@@ -530,10 +801,28 @@ def tts(req: TTSRequest, user_id: str = Depends(get_user_id_from_token)) -> dict
         raise HTTPException(status_code=400, detail="text is empty")
 
     use_cosyvoice = TTS_PROVIDER == "cosyvoice"
+    logger.info("TTS request provider=%s speaker=%s text=%s repr=%r", TTS_PROVIDER, req.speaker or req.voice or "gm", text, text)
     filename = f"{uuid.uuid4()}.{'wav' if use_cosyvoice else 'mp3'}"
     out_path = AUDIO_DIR / filename
-    speaker = synthesize_cosyvoice(req, out_path) if use_cosyvoice else synthesize_edge_tts(req, out_path)
-    return {"audio_url": f"/static/audio/{filename}", "voice": speaker}
+    fallback_provider = None
+    if use_cosyvoice:
+        try:
+            speaker = synthesize_cosyvoice(req, out_path)
+        except HTTPException:
+            logger.exception("CosyVoice TTS failed; falling back to Edge TTS")
+            fallback_provider = "edge"
+            filename = f"{uuid.uuid4()}.mp3"
+            out_path = AUDIO_DIR / filename
+            speaker = synthesize_edge_tts(req, out_path)
+    else:
+        speaker = synthesize_edge_tts(req, out_path)
+    response = {"audio_url": f"/static/audio/{filename}", "voice": speaker}
+    if fallback_provider:
+        response["provider"] = fallback_provider
+    if use_cosyvoice and not fallback_provider:
+        response["debug_url"] = f"/static/audio_debug/{out_path.stem}.json"
+        response["debug_float32_url"] = f"/static/audio_debug/{out_path.stem}.float32.npy"
+    return response
 
 
 

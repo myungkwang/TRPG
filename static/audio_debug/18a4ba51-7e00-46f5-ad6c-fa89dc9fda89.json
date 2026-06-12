@@ -1,0 +1,51 @@
+{
+  "audio_file": "18a4ba51-7e00-46f5-ad6c-fa89dc9fda89.wav",
+  "audio_float32_npy": "18a4ba51-7e00-46f5-ad6c-fa89dc9fda89.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_rin",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "text_frontend": false,
+  "request_text": "월요일 날씨",
+  "request_text_repr": "'월요일 날씨'",
+  "prompt_text": "You are a helpful assistant. Please speak Korean.<|endofprompt|>",
+  "prompt_token_len": 11,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      5209,
+      6468,
+      16134,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "월요일 날씨",
+      "text_token_len": 6,
+      "text_tokens": [
+        [
+          128514,
+          35711,
+          32077,
+          37195,
+          254,
+          135562
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    80640,
+    1
+  ],
+  "audio_min": -0.364006370306015,
+  "audio_max": 0.33105021715164185,
+  "audio_mean": 5.21722759003751e-05
+}

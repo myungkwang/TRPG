@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { SPEAKERS, FLAVOR_CHOICE, CHOICES } from '../data.js'
 import D12 from './D12.jsx'
 import Character3D from './Character3D.jsx'
@@ -17,11 +17,28 @@ const NPC_DIALOGUE_TEST_LINES = [
   { speaker: 'lin', text: '두 분 다 잠깐만요. 지금은 손님이 따라올 수 있게 천천히 말하는 게 좋겠어요.' },
 ]
 
+const SHORT_TTS_TEST_LINES = [
+  { speaker: 'doctor', text: '니가 날 알어' },
+  { speaker: 'doctor', text: '나와 함께 포커 게임 할래' },
+  { speaker: 'lin', text: '월요일 날씨' },
+  { speaker: 'lin', text: '게임 찾아줘' },
+  { speaker: 'tobi', text: '내일 아침 여덟 시 알람해줘' },
+  { speaker: 'tobi', text: '적절한 시기의 난방 수준' },
+]
+
+const NPC_TEST_SPEAKERS = ['doctor', 'lin', 'gail', 'tobi']
+const NPC_TEST_STAGE_X = {
+  doctor: -420,
+  lin: -140,
+  gail: 140,
+  tobi: 420,
+}
+
 const CHARACTER_MODELS = [
   {
     speaker: 'gm',
-    personaId: 'doctor',
-    name: PERSONAS.doctor.name,
+    personaId: 'gm',
+    name: SPEAKERS.gm?.name || 'GM',
     modelPath: '/static/models/ShapeKey_10_anim_05.glb',
     modelScale: 0.75,
     modelOffset: [0, 80, 0],
@@ -32,9 +49,10 @@ const CHARACTER_MODELS = [
     personaId: 'lin',
     name: PERSONAS.lin.name,
     modelPath: '/static/models/Lin_ack_shrtleg_decntarm.glb',
-    modelScale: 0.75,
+    modelScale: 0.82,
     modelOffset: [0, -120, 0],
     preferEmbeddedAnimations: true,
+    motionIntensity: 0.9,
   },
   {
     speaker: 'gail',
@@ -49,7 +67,7 @@ const CHARACTER_MODELS = [
     speaker: 'marta',
     personaId: 'marta',
     name: PERSONAS.marta.name,
-    modelPath: '/static/models/static/models/Tobi_01.glb',
+    modelPath: '/static/models/Marta_01.glb',
     modelScale: 0.75,
     modelOffset: [0, 80, 0],
   },
@@ -59,8 +77,8 @@ const CHARACTER_MODELS = [
     name: PERSONAS.tobi.name,
     modelPath: '/static/models/Tobi_01.glb',
     modelRotation: [-Math.PI / 2, Math.PI, Math.PI],
-    modelScale: 0.45,
-    modelOffset: [0, 80, 0],
+    modelScale: 0.15,
+    modelOffset: [0, 60, 0],
   },
   {
     speaker: 'doctor',
@@ -70,7 +88,7 @@ const CHARACTER_MODELS = [
     modelScale: 0.75,
     modelOffset: [0, -120, 0],
     preferEmbeddedAnimations: true,
-    motionIntensity: 2.5,
+    motionIntensity: 0.45,
   },
   {
     speaker: 'kargas',
@@ -79,6 +97,16 @@ const CHARACTER_MODELS = [
     modelPath: '/static/models/GM_Base_WithShapeKeys_04.glb',
     modelScale: 0.75,
     modelOffset: [0, 80, 0],
+  },
+  {
+    speaker: 'tavern_clerk',
+    personaId: 'tavern_clerk',
+    name: PERSONAS.tavern_clerk.name,
+    modelPath: '/static/models/Waitress_01.glb',
+    modelScale: 0.72,
+    modelOffset: [0, -100, 0],
+    preferEmbeddedAnimations: true,
+    motionIntensity: 0.55,
   },
 ]
 
@@ -116,7 +144,8 @@ const toUiLog = (history = []) => {
       }]
     }
 
-    return splitSpeechSegments(item.content || '', item.speaker || 'gm').map(segment => ({
+    const segments = normalizeStorySegments(item.segments, item.content || '', item.speaker || 'gm')
+    return segments.map(segment => ({
       who: segment.speaker,
       text: segment.text,
       speak: false,
@@ -266,6 +295,10 @@ const SPEAKER_LABELS = [
   ['마르타', 'marta'],
   ['토비', 'tobi'],
   ['카르가스', 'kargas'],
+  ['광부', 'miner'],
+  ['간호사', 'nurse'],
+  ['린 주점 점원', 'tavern_clerk'],
+  ['주점 점원', 'tavern_clerk'],
 ]
 
 const normalizeSpeakerLabel = (label) => {
@@ -416,7 +449,7 @@ const splitSpeechSegments = (text, fallbackSpeaker = 'gm') => {
   const source = String(text || '').trim()
   if (!source) return []
 
-  const labelPattern = /(여우\s*린|린|GM|진행자|의사|가일|마르타|토비|카르가스)\s*[:：]\s*/g
+  const labelPattern = /(여우\s*린|린|GM|진행자|의사|가일|마르타|토비|카르가스|광부|간호사|린\s*주점\s*점원|주점\s*점원|점원)\s*[:：]\s*/g
   const matches = [...source.matchAll(labelPattern)]
   if (!matches.length) return splitAttributedQuotes(source, fallbackSpeaker)
 
@@ -447,6 +480,21 @@ const splitSpeechSegments = (text, fallbackSpeaker = 'gm') => {
 
   return splitSegmentsIntoSentences(segments.length ? segments : [{ speaker: fallbackSpeaker, text: source }])
 }
+
+const normalizeStorySegments = (segments, fallbackText = '', fallbackSpeaker = 'gm') => {
+  if (!Array.isArray(segments) || segments.length === 0) {
+    return splitSpeechSegments(fallbackText, fallbackSpeaker)
+  }
+
+  const normalized = segments
+    .map(segment => ({
+      speaker: segment.speaker || (segment.role === 'gm' ? 'gm' : fallbackSpeaker),
+      text: String(segment.text || '').trim(),
+    }))
+    .filter(segment => segment.text)
+
+  return splitSegmentsIntoSentences(normalized.length ? normalized : [{ speaker: fallbackSpeaker, text: fallbackText }])
+}
 const stopSpeaking = () => {
   speechRunId++
   _onGmSpeakChange?.(false)
@@ -470,7 +518,7 @@ async function speakNpc(text, speaker = 'gm', options = {}) {
     }
     cancelBrowserSpeech()
 
-    const segments = mergeShortSpeechSegments(splitSpeechSegments(text, speaker))
+    const segments = mergeShortSpeechSegments(normalizeStorySegments(options.segments, text, speaker))
     console.log('TTS SEGMENTS:', segments)
 
     for (const segment of segments) {
@@ -539,6 +587,14 @@ async function speakNpc(text, speaker = 'gm', options = {}) {
           currentAudio.pause()
           currentAudio = null
         }
+        try {
+          await speakWithBrowserTts(cleanSegment, fallbackDuration)
+          if (runId !== speechRunId) return
+          await new Promise(resolve => setTimeout(resolve, 120))
+          continue
+        } catch (browserFallbackErr) {
+          console.warn('Browser TTS fallback failed:', segment.speaker, browserFallbackErr)
+        }
         window.playLinPerformance?.(spokenText, 'talk', fallbackDuration)
         window.startLinFallbackLipSync?.(spokenText, fallbackDuration)
         await new Promise(resolve => setTimeout(resolve, fallbackDuration * 1000))
@@ -570,6 +626,7 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
   const [sending, setSending] = useState(false)
   const [choices, setChoices] = useState([])
   const [npcTestRunning, setNpcTestRunning] = useState(false)
+  const [shortTtsTestRunning, setShortTtsTestRunning] = useState(false)
   const [gmSpeaking, setGmSpeaking] = useState(false)
   const logRef = useRef(null)
   const judgeRef = useRef(null)
@@ -590,6 +647,7 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
       spokenRef.current.add(key)
       setTimeout(() => {
         speakNpc(last.content || '', speaker, {
+          segments: normalizeStorySegments(last.segments, last.content || '', speaker),
           onSegmentStart: (segment) => {
             setActiveSpeaker(segment.speaker)
             setLog(prev => [...prev, { who: segment.speaker, text: segment.text, speak: false }])
@@ -617,13 +675,20 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
 
     if (onHistoryChange) {
       const role = who === 'player' ? 'user' : 'assistant'
-      onHistoryChange(prev => [...prev, { role, speaker: who, content: text, speak: Boolean(options.speak) }])
+      onHistoryChange(prev => [...prev, {
+        role,
+        speaker: who,
+        content: text,
+        segments: options.segments,
+        speak: Boolean(options.speak),
+      }])
     } else {
       const next = who === 'player'
         ? [{ who, text, speak: Boolean(options.speak) }]
         : splitSpeechSegments(text, who).map(segment => ({ who: segment.speaker, text: segment.text, speak: false }))
       if (who !== 'player' && options.speak) {
         speakNpc(text, who, {
+          segments: options.segments,
           onSegmentStart: (segment) => {
             setActiveSpeaker(segment.speaker)
             setLog(l => [...l, { who: segment.speaker, text: segment.text, speak: false }])
@@ -716,7 +781,7 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
   }
 
   const runNpcDialogueTest = async () => {
-    if (npcTestRunning) return
+    if (npcTestRunning || shortTtsTestRunning) return
     setNpcTestRunning(true)
     setChoiceMode(false)
     setLog(prev => [
@@ -747,6 +812,38 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
     }
   }
 
+  const runShortTtsTest = async () => {
+    if (npcTestRunning || shortTtsTestRunning) return
+    setShortTtsTestRunning(true)
+    setChoiceMode(false)
+    setLog(prev => [
+      ...prev,
+      { who: 'gm', text: '[짧은 TTS 테스트 시작]', speak: false },
+    ])
+
+    try {
+      for (const line of SHORT_TTS_TEST_LINES) {
+        // eslint-disable-next-line no-await-in-loop
+        await speakNpc(line.text, line.speaker, {
+          onSegmentStart: (segment) => {
+            setActiveSpeaker(segment.speaker)
+            setLog(prev => [...prev, { who: segment.speaker, text: segment.text, speak: false }])
+          },
+          onFallback: (segments) => {
+            setLog(prev => [
+              ...prev,
+              ...segments.map(segment => ({ who: segment.speaker, text: segment.text, speak: false })),
+            ])
+          },
+        })
+        // eslint-disable-next-line no-await-in-loop
+        await new Promise(resolve => setTimeout(resolve, 220))
+      }
+    } finally {
+      setShortTtsTestRunning(false)
+    }
+  }
+
   const sendText = async (raw) => {
     const text = String(raw || '').trim()
     if (!text || sending) return
@@ -766,7 +863,10 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
     try {
       const data = await apiChat(session.id, text)
       onSessionChange?.(data.session)
-      push('gm', data.answer, { speak: true })
+      push('gm', data.answer, {
+        speak: true,
+        segments: normalizeStorySegments(data.segments, data.answer, 'gm'),
+      })
       setChoices(Array.isArray(data.choices) ? data.choices : [])
     } catch (err) {
       push('gm', `오류: ${err.message}`, { speak: false })
@@ -811,6 +911,13 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
   }
 
   const activeCharacter = CHARACTER_MODELS.find(c => c.speaker === activeSpeaker) || CHARACTER_MODELS[0]
+  const npcTestCharacters = NPC_TEST_SPEAKERS
+    .map(speaker => CHARACTER_MODELS.find(c => c.speaker === speaker))
+    .filter(Boolean)
+  const stagedNpcTestCharacters = npcTestCharacters
+    .filter(character => character.speaker !== activeSpeaker)
+    .concat(npcTestCharacters.filter(character => character.speaker === activeSpeaker))
+  const testStageRunning = npcTestRunning || shortTtsTestRunning
   const locationBackground = getLocationBackground(stageLocation || session?.location)
   const isMineLocation = locationBackground?.includes('/mine.png')
 
@@ -868,8 +975,11 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
           <button onClick={() => setChoiceMode(v => !v)}>선택지</button>
           <button onClick={() => triggerJudge(11, '지각')}>판정</button>
           <button onClick={() => advanceOnMap()}>지도</button>
-          <button onClick={runNpcDialogueTest} disabled={npcTestRunning}>
+          <button onClick={runNpcDialogueTest} disabled={testStageRunning}>
             {npcTestRunning ? '대화중' : 'NPC 테스트'}
+          </button>
+          <button onClick={runShortTtsTest} disabled={testStageRunning}>
+            {shortTtsTestRunning ? 'TTS중' : '짧은TTS'}
           </button>
           {['노멀', '트루', '히든', '베드'].map(k => (
             <button key={k} onClick={() => jumpEnding(k)} disabled={endingJumping || !session?.id}
@@ -878,7 +988,33 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
             </button>
           ))}
         </div>
-        {activeSpeaker !== 'gm' && (
+        {testStageRunning ? (
+          <div className="char-ensemble">
+            {stagedNpcTestCharacters.map((character) => {
+              const active = character.speaker === activeSpeaker
+              return (
+                <div
+                  key={character.speaker}
+                  className={`char-slot${active ? ' active' : ''}`}
+                  data-speaker={character.speaker}
+                  style={{ '--slot-x': `${NPC_TEST_STAGE_X[character.speaker] || 0}px` }}
+                >
+                  <Character3D
+                    modelPath={character.modelPath}
+                    modelRotation={character.modelRotation}
+                    modelScale={character.modelScale}
+                    modelOffset={character.modelOffset}
+                    framingOffsetY={character.framingOffsetY}
+                    framingScale={character.framingScale}
+                    preferEmbeddedAnimations={character.preferEmbeddedAnimations}
+                    motionIntensity={active ? character.motionIntensity : 0.12}
+                    registerGlobalControls={active}
+                  />
+                </div>
+              )
+            })}
+          </div>
+        ) : activeSpeaker !== 'gm' && (
           <div className="char-center">
             <Character3D
               key={activeCharacter.speaker}
@@ -886,6 +1022,8 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
               modelRotation={activeCharacter.modelRotation}
               modelScale={activeCharacter.modelScale}
               modelOffset={activeCharacter.modelOffset}
+              framingOffsetY={activeCharacter.framingOffsetY}
+              framingScale={activeCharacter.framingScale}
               preferEmbeddedAnimations={activeCharacter.preferEmbeddedAnimations}
               motionIntensity={activeCharacter.motionIntensity}
             />
