@@ -82,7 +82,7 @@ export const PERSONAS = {
     locations: ['광산 입구', '제국 영석공사 주둔소'],
     emotions: ['idle', 'talk', 'angry', 'deny'],
     color: '#7a5e2e',
-    model: '/static/models/Gail_05.glb',
+    model: '/static/models/Gail_07_textureShading_01.glb',
     tts: {
       voice: 'onyx',
       instructions:

@@ -6,6 +6,7 @@ export const DEFAULT_SETTINGS = {
   bgmVolume: 0.7,
   sfxVolume: 0.8,
   quality: 'high',
+  layout: 'split',   // 'split'(가로: 좌 씬/우 대화) | 'stacked'(세로: 원래 상하)
 }
 
 export const QUALITY_PRESETS = {
@@ -26,6 +27,7 @@ function normalizeSettings(raw) {
     bgmVolume: clamp01(raw?.bgmVolume ?? DEFAULT_SETTINGS.bgmVolume),
     sfxVolume: clamp01(raw?.sfxVolume ?? DEFAULT_SETTINGS.sfxVolume),
     quality: QUALITY_PRESETS[raw?.quality] ? raw.quality : DEFAULT_SETTINGS.quality,
+    layout: raw?.layout === 'stacked' ? 'stacked' : 'split',
   }
 }
 
