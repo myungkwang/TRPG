@@ -55,7 +55,6 @@ ENDING_DIR = STATIC_DIR / "endings"
 ENDING_DIR.mkdir(exist_ok=True)
 GEN_BG_DIR = STATIC_DIR / "backgrounds" / "gen"   # AI가 즉석 생성한 배경 캐시
 GEN_BG_DIR.mkdir(parents=True, exist_ok=True)
-openai_client = OpenAI()
 AUDIO_DEBUG_DIR.mkdir(exist_ok=True)
 cosyvoice_client = None
 cosyvoice_lock = threading.Lock()
