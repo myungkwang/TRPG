@@ -1,11 +1,33 @@
-import React, { useEffect, useRef, useState } from 'react'
+﻿import React, { useEffect, useRef, useState } from 'react'
 import { SPEAKERS, FLAVOR_CHOICE, CHOICES } from '../data.js'
 import D12 from './D12.jsx'
 import Character3D from './Character3D.jsx'
-import { apiChat, apiTTS, apiDebugEnding, apiGenerateBackground } from '../api.js'
+import { apiChat, apiTTS, apiDebugEnding, apiStoryChoice } from '../api.js'
 import { PERSONAS, getPersona } from '../personas.js'
+import { applyBgmVolume, applyMasterVolume, applySpeechVolume } from '../audioSettings.js'
 
-const CRYSTAL_MINE_BGM = '/static/audio/bgm/crystal-mine.mp3'
+const LOCATION_BGMS = [
+  {
+    aliases: ['카르가스전투', '카르가스', '봉우리', 'boss'],
+    path: '/static/audio/bgm/ashes-of-kargas.mp3',
+    volume: 0.34,
+  },
+  {
+    aliases: ['진료소', '진료실', '의무실', 'clinic', 'hospital'],
+    path: '/static/audio/bgm/clinic.wav',
+    volume: 0.24,
+  },
+  {
+    aliases: ['재끝마을', '재끝', '잿빛마을', '잿빛', '마을광장', 'village', 'jaekkeut'],
+    path: '/static/audio/bgm/jaekkeut-village.mp3',
+    volume: 0.3,
+  },
+  {
+    aliases: ['갱도', '갱도사무소', '광산', 'mine', 'mineshaft'],
+    path: '/static/audio/bgm/crystal-mine.mp3',
+    volume: 0.28,
+  },
+]
 const USE_BROWSER_TTS = false
 
 const NPC_DIALOGUE_TEST_LINES = [
@@ -34,14 +56,28 @@ const NPC_TEST_STAGE_X = {
   tobi: 420,
 }
 
+const STORY_ENSEMBLES = {
+  tavern_clerk: [
+    { speaker: 'tavern_clerk', x: 0 },
+  ],
+  tavern_both: [
+    { speaker: 'lin', x: -190 },
+    { speaker: 'tavern_clerk', x: 190 },
+  ],
+  tavern_lin: [
+    { speaker: 'lin', x: 0 },
+  ],
+}
+
 const CHARACTER_MODELS = [
   {
     speaker: 'gm',
     personaId: 'gm',
     name: SPEAKERS.gm?.name || 'GM',
-    modelPath: '/static/models/ShapeKey_10_anim_05.glb',
-    modelScale: 0.75,
-    modelOffset: [0, 80, 0],
+    modelPath: '/static/models/GM_v3_Standing W_Briefcase Idle_01.glb',
+    modelRotation: [-Math.PI / 2, Math.PI, Math.PI],
+    modelScale: 0.20,
+    modelOffset: [0, 140, 0],
     motionIntensity: 4,
   },
   {
@@ -58,7 +94,7 @@ const CHARACTER_MODELS = [
     speaker: 'gail',
     personaId: 'gail',
     name: PERSONAS.gail.name,
-    modelPath: '/static/models/Gail_01.glb',
+    modelPath: '/static/models/Gail_07_textureShading_01.glb',
     modelRotation: [-Math.PI / 2, Math.PI, Math.PI],
     modelScale: 0.25,
     modelOffset: [0, 70, 0],
@@ -68,8 +104,9 @@ const CHARACTER_MODELS = [
     personaId: 'marta',
     name: PERSONAS.marta.name,
     modelPath: '/static/models/Marta_01.glb',
+    modelRotation: [-Math.PI / 2, Math.PI, Math.PI],
     modelScale: 0.75,
-    modelOffset: [0, 80, 0],
+    modelOffset: [0, 40, 0],
   },
   {
     speaker: 'tobi',
@@ -94,8 +131,8 @@ const CHARACTER_MODELS = [
     speaker: 'kargas',
     personaId: 'kargas',
     name: PERSONAS.kargas.name,
-    modelPath: '/static/models/GM_Base_WithShapeKeys_04.glb',
-    modelScale: 0.75,
+    modelPath: '/static/models/Kargas_18.glb',
+    modelScale: 0.6,
     modelOffset: [0, 80, 0],
   },
   {
@@ -103,21 +140,22 @@ const CHARACTER_MODELS = [
     personaId: 'tavern_clerk',
     name: PERSONAS.tavern_clerk.name,
     modelPath: '/static/models/Waitress_01.glb',
-    modelScale: 0.72,
-    modelOffset: [0, -100, 0],
+    modelScale: 0.80,
+    modelOffset: [0, -170, 0],
+    framingOffsetY: 70,
     preferEmbeddedAnimations: true,
     motionIntensity: 0.55,
   },
 ]
 
-// 핵심 장소(주요 NPC 거점)만 고정 배경. 그 외 모든 장소는 AI 자동생성.
 const LOCATION_BACKGROUNDS = [
-  { aliases: ['진료소', '진료실', '의무실', 'clinic'], path: '/static/backgrounds/clinic.png' },
-  { aliases: ['여관', '주점', '여우길', 'tavern', 'inn'], path: '/static/backgrounds/inn.png' },
+  { aliases: ['진료소', '진료실', '의무실', 'clinic', 'hospital'], path: '/static/backgrounds/clinic-new.png' },
+  { aliases: ['여관', '주점', '여우길', 'tavern', 'inn'], path: '/static/backgrounds/inn-new.png' },
+  { aliases: ['정재소', '정제소', 'refinery'], path: '/static/backgrounds/refinery-new.png' },
   { aliases: ['주둔소', '영석공사', '가일', 'garrison'], path: '/static/backgrounds/garrison.png' },
   { aliases: ['봉우리', '정상', '둥지', '카르가스', 'peak'], path: '/static/backgrounds/peak.png' },
   { aliases: ['오두막', '산기슭', '마르타', 'hut', 'cabin'], path: '/static/backgrounds/hut.png' },
-  { aliases: ['광산입구', '갱도입구', 'mine'], path: '/static/backgrounds/mine.png' },
+  { aliases: ['갱도', '갱도사무소', '광산입구', '갱도입구', '광산', 'mine', 'mineshaft'], path: '/static/backgrounds/mine.png' },
   { aliases: ['광장', 'square'], path: '/static/backgrounds/square.png' },
 ]
 
@@ -127,6 +165,45 @@ const getLocationBackground = (location) => {
   return LOCATION_BACKGROUNDS.find(bg =>
     bg.aliases.some(alias => normalized.includes(alias.replace(/\s+/g, '').toLowerCase())),
   )?.path || null
+}
+
+const getLocationBgm = (source) => {
+  const normalized = String(source || '').replace(/\s+/g, '').toLowerCase()
+  if (!normalized) return null
+  return LOCATION_BGMS.find(bgm =>
+    bgm.aliases.some(alias => normalized.includes(alias.replace(/\s+/g, '').toLowerCase())),
+  ) || null
+}
+
+const playWhenAllowed = (audio) => {
+  let cleanup = () => {}
+  const retry = () => {
+    audio.play()
+      .then(cleanup)
+      .catch(() => {})
+  }
+
+  audio.play().catch(() => {
+    window.addEventListener('pointerdown', retry, { once: true })
+    window.addEventListener('keydown', retry, { once: true })
+    window.addEventListener('touchstart', retry, { once: true })
+    cleanup = () => {
+      window.removeEventListener('pointerdown', retry)
+      window.removeEventListener('keydown', retry)
+      window.removeEventListener('touchstart', retry)
+    }
+  })
+
+  return () => cleanup()
+}
+
+const getMapResultLocation = (kind) => {
+  const normalized = String(kind || '').replace(/\s+/g, '').toLowerCase()
+  if (!normalized) return null
+  if (['shop', '거래', '상점', '정제소'].some(key => normalized.includes(key))) return '정제소'
+  if (['battle', '전투', '갱도', '광산', 'boss'].some(key => normalized.includes(key))) return '갱도'
+  if (['event', '이벤트', '여관', 'mystery', '미지'].some(key => normalized.includes(key))) return '여관'
+  return null
 }
 const toUiLog = (history = []) => {
   if (!history || history.length === 0) return []
@@ -248,7 +325,7 @@ const speakWithBrowserTts = (segment, fallbackDuration) => new Promise((resolve,
 
   const utterance = new SpeechSynthesisUtterance(segment.text)
   utterance.lang = 'ko-KR'
-  utterance.volume = 1
+  applySpeechVolume(utterance, 1)
   const voice = getBrowserVoice()
   if (voice) utterance.voice = voice
 
@@ -281,6 +358,11 @@ const speakWithBrowserTts = (segment, fallbackDuration) => new Promise((resolve,
 })
 
 const SPEAKER_LABELS = [
+  ['린 주점 점원', 'tavern_clerk'],
+  ['주점 점원', 'tavern_clerk'],
+  ['린', 'lin'],
+  ['마르타', 'marta'],
+  ['카르가스', 'kargas'],
   ['여우 린', 'lin'],
   ['린', 'lin'],
   ['GM', 'gm'],
@@ -445,7 +527,9 @@ const splitSpeechSegments = (text, fallbackSpeaker = 'gm') => {
   if (!source) return []
 
   const labelPattern = /(여우\s*린|린|GM|진행자|의사|가일|마르타|토비|카르가스|광부|간호사|린\s*주점\s*점원|주점\s*점원|점원)\s*[:：]\s*/g
-  const matches = [...source.matchAll(labelPattern)]
+  const cleanLabelPattern = /(린\s*주점\s*점원|주점\s*점원|린|GM|진행자|의사|게일|마르타|토비|카르가스|광부|간호사)\s*[:：]\s*/g
+  const matches = [...source.matchAll(cleanLabelPattern), ...source.matchAll(labelPattern)]
+    .sort((a, b) => a.index - b.index)
   if (!matches.length) return splitAttributedQuotes(source, fallbackSpeaker)
 
   const segments = []
@@ -557,6 +641,7 @@ async function speakNpc(text, speaker = 'gm', options = {}) {
         if (runId !== speechRunId) return
 
         const audio = new Audio(data.audio_url)
+        const stopAudioVolume = applyMasterVolume(audio, 1)
         currentAudio = audio
 
         audio.onplay = () => {
@@ -571,6 +656,7 @@ async function speakNpc(text, speaker = 'gm', options = {}) {
         })
 
         window.stopLinLipSync?.()
+        stopAudioVolume()
         if (currentAudio === audio) currentAudio = null
 
         if (runId !== speechRunId) return
@@ -610,15 +696,21 @@ async function speakNpc(text, speaker = 'gm', options = {}) {
   }
 }
 
-export default function Dialogue({ session, history, onHistoryChange, onSessionChange, onEnding, runMapStep }) {
+export default function Dialogue({
+  session,
+  story,
+  history,
+  onHistoryChange,
+  onSessionChange,
+  onStoryChange,
+  onEnding,
+  runMapStep,
+}) {
   const [log, setLog] = useState(() => toUiLog(history))
   const [input, setInput] = useState('')
   const [choiceMode, setChoiceMode] = useState(false)
   const [activeSpeaker, setActiveSpeaker] = useState(() => getLastNpcSpeaker(toUiLog(history)))
-  const [genBg, setGenBg] = useState({})        // 장소 → 생성된 배경 url
-  const [bgLoading, setBgLoading] = useState(false)
-  const bgTriedRef = useRef(new Set())
-  const pendingRevealRef = useRef(null)   // 배경 생성 중일 때 보류해 둔 GM 대사(생성 후 공개)
+  const [stageLocation, setStageLocation] = useState(null)
   const [judge, setJudge] = useState(null)
   const [judgeResult, setJudgeResult] = useState(null)
   const [sending, setSending] = useState(false)
@@ -626,13 +718,123 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
   const [npcTestRunning, setNpcTestRunning] = useState(false)
   const [shortTtsTestRunning, setShortTtsTestRunning] = useState(false)
   const [gmSpeaking, setGmSpeaking] = useState(false)
+  const [tavernCastMode, setTavernCastMode] = useState('clerk')
+  const tavernCastModeRef = useRef('clerk')
   const logRef = useRef(null)
   const judgeRef = useRef(null)
   const judgeTimerRef = useRef(null)
   const mappingRef = useRef(false)
   const spokenRef = useRef(new Set())
-  const mineBgmRef = useRef(null)
+  const locationBgmRef = useRef({ path: null, audio: null })
+  const holdChoicesRef = useRef(false)
+  const storyChoicesRef = useRef([])
+  const pendingEndingRef = useRef(null)
+  const tavernSegmentRef = useRef(0)
+  const sceneContext = {
+    storyId: story?.id || '',
+    location: stageLocation || story?.location || session?.location || '',
+  }
 
+  const setTavernMode = (mode) => {
+    tavernCastModeRef.current = mode
+    setTavernCastMode(mode)
+  }
+
+  const updateTavernCastMode = (segment) => {
+    if (story?.id !== 'tavern_rin') return
+    const text = String(segment?.text || '')
+    const speaker = segment?.speaker || ''
+    if (text.includes('점원이 물러나자') || text.includes('당신 쪽으로 천천히 다가옵니다')) {
+      setTavernMode('lin')
+      return
+    }
+    if (tavernCastModeRef.current === 'lin') {
+      setTavernMode('lin')
+      return
+    }
+    if (
+      text.includes('당신의 목적') ||
+      text.includes('낮게 보고') ||
+      text.includes('주인님') ||
+      text.includes('어떻게 할까요') ||
+      text.includes('내가 직접 상대') ||
+      text.includes('다른 일') ||
+      text.includes('일 봐')
+    ) {
+      setTavernMode('both')
+      return
+    }
+    if (speaker === 'lin') {
+      setTavernMode('both')
+      return
+    }
+    setTavernMode('clerk')
+  }
+
+  const updateTavernCastModeByStep = () => {
+    if (story?.id !== 'tavern_rin') return
+    const index = tavernSegmentRef.current
+    tavernSegmentRef.current += 1
+    if (index <= 1) {
+      setTavernMode('clerk')
+    } else if (index <= 4) {
+      setTavernMode('both')
+    } else {
+      setTavernMode('lin')
+    }
+  }
+
+  const normalizeChoices = (value) => {
+    if (!Array.isArray(value)) return []
+    return value
+      .map((choice, index) => {
+        if (typeof choice === 'string') return { id: `roll-${index}`, text: choice, kind: 'roll' }
+        if (choice && typeof choice === 'object') return { ...choice, kind: choice.kind || 'story' }
+        return null
+      })
+      .filter(Boolean)
+  }
+
+  const getChoiceText = (choice) => typeof choice === 'string' ? choice : choice?.text
+
+  const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms))
+
+  const getChoiceMapDest = (choice) => {
+    const source = `${choice?.id || ''} ${choice?.text || ''}`.toLowerCase()
+    if (/peak|kargas|boss|deep|mine|miner/.test(source)) return 'battle'
+    if (/tavern|rin|marta|nurse/.test(source)) return 'shop'
+    if (/night|watch|event/.test(source)) return 'event'
+    return 'mystery'
+  }
+
+  const withoutRollLog = (text) => String(text || '').replace(/^GM:\s*D12 result.*(?:\r?\n|$)/m, '').trim()
+
+  const fallbackChoicesForExplicitQuestion = (text) => {
+    const source = String(text || '')
+    const asksFirstRoute = /린을\s*찾아가|여관의\s*린|여관.*린/.test(source)
+      && /광산\s*쪽|광산.*상황|광산으로/.test(source)
+      && /겠습니까|습니까|까요|\?/.test(source)
+    if (asksFirstRoute) return normalizeChoices([
+      { id: 'clinic_to_tavern', text: '여관에서 린과 마을 소문을 거래한다', kind: 'story' },
+      { id: 'clinic_to_mine', text: '광산 쪽 상황을 직접 살핀다', kind: 'story' },
+    ])
+
+    const asksRinNextAction = /다음\s*행동|행동을\s*선택|어떤\s*정보|정보를\s*제공|다른\s*질문/.test(source)
+      && /린|여관|주점|소문/.test(source)
+    if (asksRinNextAction) return normalizeChoices([
+      { id: 'rin_follow_hint', text: '린에게 광부 실종 소문의 출처를 묻는다', kind: 'story' },
+      { id: 'rin_press_plot', text: '린이 숨기는 의도를 떠본다', kind: 'story' },
+      { id: 'rin_to_mine', text: '여관을 나와 광산에서 직접 확인한다', kind: 'story' },
+    ])
+
+    return []
+  }
+
+  const getRollTier = (value) => {
+    if (value <= 4) return { key: 'bad', label: 'Bad', className: 'fail' }
+    if (value <= 8) return { key: 'normal', label: 'Normal', className: 'normal' }
+    return { key: 'good', label: 'Good', className: 'success' }
+  }
   useEffect(() => {
     const last = history?.[history.length - 1]
     const speaker = last?.role === 'assistant' ? (last.speaker || 'gm') : 'player'
@@ -643,20 +845,33 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
       setLog(previousLog)
       setActiveSpeaker(getLastNpcSpeaker(previousLog))
       spokenRef.current.add(key)
-      setTimeout(() => {
-        speakNpc(last.content || '', speaker, {
-          segments: normalizeStorySegments(last.segments, last.content || '', speaker),
-          onSegmentStart: (segment) => {
-            setActiveSpeaker(segment.speaker)
-            setLog(prev => [...prev, { who: segment.speaker, text: segment.text, speak: false }])
-          },
-          onFallback: (segments) => {
-            setLog(prev => [
-              ...prev,
-              ...segments.map(segment => ({ who: segment.speaker, text: segment.text, speak: false })),
-            ])
-          },
-        })
+      holdChoicesRef.current = true
+      setChoices([])
+      setTimeout(async () => {
+        try {
+          await speakNpc(last.content || '', speaker, {
+            segments: normalizeStorySegments(last.segments, last.content || '', speaker),
+            onSegmentStart: (segment) => {
+              updateTavernCastMode(segment)
+              setActiveSpeaker(segment.speaker)
+              setLog(prev => [...prev, { who: segment.speaker, text: segment.text, speak: false }])
+            },
+            onFallback: (segments) => {
+              setLog(prev => [
+                ...prev,
+                ...segments.map(segment => ({ who: segment.speaker, text: segment.text, speak: false })),
+              ])
+            },
+          })
+        } finally {
+          holdChoicesRef.current = false
+          setChoices(storyChoicesRef.current)
+          if (pendingEndingRef.current) {
+            const ending = pendingEndingRef.current
+            pendingEndingRef.current = null
+            onEnding?.(ending)
+          }
+        }
       }, 250)
       return
     }
@@ -665,6 +880,19 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
     setLog(next)
     setActiveSpeaker(getLastNpcSpeaker(next))
   }, [history])
+
+  useEffect(() => {
+    const nextChoices = normalizeChoices(story?.choices || [])
+    storyChoicesRef.current = nextChoices
+    if (!holdChoicesRef.current) setChoices(nextChoices)
+  }, [story?.id, story?.choices])
+
+  useEffect(() => {
+    if (story?.id === 'tavern_rin') {
+      tavernSegmentRef.current = 0
+      setTavernMode('clerk')
+    }
+  }, [story?.id])
 
   const push = (who, text, options = {}) => {
     if (who !== 'player' && CHARACTER_MODELS.some(c => c.speaker === who)) {
@@ -704,24 +932,22 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
     }
   }
 
-  // 말판은 '시각적 진행 표시'일 뿐 — 장소/배경/나레이션은 모두 스토리(set_location)가 정한다.
-  // 여기선 캔드 메시지·장소 강제 없이 말판만 한 칸 움직인다.
-  const advanceOnMap = (dest) => {
+  const advanceOnMap = (dest, opts = {}) => {
     if (!runMapStep || mappingRef.current) return
     mappingRef.current = true
-    runMapStep(dest).then(() => { mappingRef.current = false })
+    runMapStep(dest).then(({ ending, aborted, kind }) => {
+      mappingRef.current = false
+      if (aborted) return
+      if (opts.silent) return
+      const nextLocation = getMapResultLocation(kind)
+      if (nextLocation) setStageLocation(nextLocation)
+      if (ending) {
+        push('gm', '안갯속 길의 끝. 봉우리의 둥지가 모습을 드러낸다. (엔딩 노드 도달)', { speak: true })
+        return
+      }
+      push('gm', `안개를 헤치고 '${kind}' 발판에 닿았다. 다시 이야기가 이어진다.`, { speak: true })
+    })
   }
-
-  const prevStageRef = useRef(null)
-  useEffect(() => {
-    const idx = session?.stage?.index ?? 0
-    if (prevStageRef.current === null) { prevStageRef.current = idx; return }
-    if (idx > prevStageRef.current) {
-      prevStageRef.current = idx
-      const kind = idx >= 4 ? 'boss' : idx === 3 ? 'event' : 'battle'
-      advanceOnMap(kind, { silent: true })
-    }
-  }, [session?.stage?.index])
 
   useEffect(() => {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight
@@ -735,17 +961,30 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
   }, [])
 
   const triggerJudge = (dc = 11, stat = '지각', opts = {}) => {
-    judgeRef.current = { dc, stat, after: opts.after, choiceText: opts.choiceText || null, success: null }
+    judgeRef.current = {
+      dc, stat, after: opts.after,
+      onSuccess: opts.onSuccess || 'shop', onFail: opts.onFail || 'event', success: null,
+      mode: opts.mode, resolve: opts.resolve, result: null,
+    }
     setJudge({ dc, stat })
     setJudgeResult(null)
   }
+
+  const rollForStoryChoice = () => new Promise(resolve => {
+    triggerJudge(9, 'D12', { mode: 'story', resolve })
+  })
 
   const handleRollDone = (result) => {
     const dc = judgeRef.current?.dc ?? 0
     const success = result >= dc
     if (judgeRef.current) judgeRef.current.success = success
+    if (judgeRef.current) judgeRef.current.result = result
     setJudgeResult({ result, success })
     clearTimeout(judgeTimerRef.current)
+    if (judgeRef.current?.mode === 'story') {
+      judgeTimerRef.current = setTimeout(() => doCloseJudge(), 1200)
+      return
+    }
     judgeTimerRef.current = setTimeout(() => doCloseJudge(), 3000)
   }
 
@@ -755,11 +994,14 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
     judgeRef.current = null
     setJudge(null)
     setJudgeResult(null)
-    if (ref.after) { ref.after(); return }
-    // 판정 결과를 GM에게 넘겨 이야기를 자연스럽게 잇는다 (말판/캔드 메시지 없음)
-    const outcome = ref.success ? '성공' : '실패'
-    const prefix = ref.choiceText ? `${ref.choiceText} ` : ''
-    sendText(`${prefix}(${ref.stat} 판정 ${outcome})`)
+    if (ref.mode === 'story') {
+      ref.resolve?.(ref.result)
+      return
+    }
+    if (ref.after) ref.after()
+    else if (ref.stat) push('gm', `${ref.stat} 판정 ${ref.success ? '성공' : '실패'} - 길이 갈라진다.`, { speak: true })
+    const dest = ref.success ? ref.onSuccess : ref.onFail
+    advanceOnMap(dest)
   }
 
   const closeJudgeModal = () => {
@@ -850,18 +1092,12 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
     try {
       const data = await apiChat(session.id, text)
       onSessionChange?.(data.session)
-      const newLoc = data.session?.location
-      const choicesArr = Array.isArray(data.choices) ? data.choices : []
-      const segments = normalizeStorySegments(data.segments, data.answer, 'gm')
-      // 이 응답으로 비고정 장소 배경이 새로 '생성'될 예정이면, 생성이 끝난 뒤 대사를 공개한다.
-      const willGenerate = newLoc && !getLocationBackground(newLoc)
-        && !genBg[newLoc] && !bgTriedRef.current.has(newLoc)
-      if (willGenerate) {
-        pendingRevealRef.current = { answer: data.answer, choices: choicesArr, segments }
-      } else {
-        push('gm', data.answer, { speak: true, segments })
-        setChoices(choicesArr)
-      }
+      if (data.story) onStoryChange?.(data.story)
+      push('gm', data.answer, {
+        speak: true,
+        segments: normalizeStorySegments(data.segments, data.answer, 'gm'),
+      })
+      storyChoicesRef.current = normalizeChoices(data.choices)
     } catch (err) {
       push('gm', `오류: ${err.message}`, { speak: false })
     } finally {
@@ -892,21 +1128,78 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
   }
 
   const pickChoice = (c) => {
+    push('player', `[선택] ${c.text}`)
     setChoiceMode(false)
     if (c.judge) {
-      push('player', `[선택] ${c.text}`)
-      triggerJudge(c.dc, c.stat, { choiceText: c.text })
+      triggerJudge(c.dc, c.stat)
     } else {
-      // 선택지를 그대로 GM에게 보내 이야기를 잇는다 (캔드 대사·말판 강제 없음)
-      sendText(c.text)
+      setTimeout(() => {
+        push('lin', '그래요, 거래는 늘 환영이죠.', { speak: true })
+        advanceOnMap()
+      }, 450)
+    }
+  }
+
+  const chooseVisibleChoice = async (choice) => {
+    const normalized = normalizeChoices([choice])[0]
+    if (!normalized || sending) return
+
+    if (normalized.kind !== 'story') {
+      sendText(normalized.text)
+      return
+    }
+
+    stopSpeaking()
+    holdChoicesRef.current = true
+    setSending(true)
+    setChoices([])
+    setChoiceMode(false)
+    push('player', `[선택] ${normalized.text}`)
+
+    let revealAfterSpeech = false
+    try {
+      await wait(650)
+      const roll = normalized.no_roll ? undefined : await rollForStoryChoice()
+      if (!normalized.no_roll && !roll) {
+        setChoices(storyChoicesRef.current)
+        return
+      }
+
+      const mapResult = runMapStep
+        ? await runMapStep(getChoiceMapDest(normalized))
+        : { aborted: false }
+      if (mapResult?.aborted) {
+        setChoices(storyChoicesRef.current)
+        return
+      }
+
+      const data = await apiStoryChoice(session.id, normalized.id, roll)
+      onSessionChange?.(data.session, data.scene)
+      onStoryChange?.(data.scene)
+      if (data.scene?.location) setStageLocation(data.scene.location)
+      if (data.ending_reached) pendingEndingRef.current = data.ending_reached
+      if (data.roll?.note) {
+        push('gm', `D12 ${data.roll.value} - ${data.roll.note}`, { speak: false })
+      }
+      const spokenAnswer = withoutRollLog(data.answer)
+      push('gm', spokenAnswer, {
+        speak: true,
+        segments: normalizeStorySegments(null, spokenAnswer, 'gm'),
+      })
+      const nextChoices = normalizeChoices(data.choices)
+      storyChoicesRef.current = nextChoices
+      revealAfterSpeech = true
+    } catch (err) {
+      push('gm', `오류: ${err.message}`, { speak: false })
+      holdChoicesRef.current = false
+      setChoices(storyChoicesRef.current)
+    } finally {
+      if (!revealAfterSpeech) holdChoicesRef.current = false
+      setSending(false)
     }
   }
 
   const activeCharacter = CHARACTER_MODELS.find(c => c.speaker === activeSpeaker) || CHARACTER_MODELS[0]
-  const curLocation = session?.location   // 장소는 오직 스토리(set_location)가 결정
-  const fixedBackground = getLocationBackground(curLocation)
-  // 주요 장소엔 고정 배경, 그 외엔 AI가 생성한 배경(genBg)을 쓴다.
-  const locationBackground = fixedBackground || (curLocation ? genBg[curLocation] : null) || null
   const npcTestCharacters = NPC_TEST_SPEAKERS
     .map(speaker => CHARACTER_MODELS.find(c => c.speaker === speaker))
     .filter(Boolean)
@@ -914,50 +1207,48 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
     .filter(character => character.speaker !== activeSpeaker)
     .concat(npcTestCharacters.filter(character => character.speaker === activeSpeaker))
   const testStageRunning = npcTestRunning || shortTtsTestRunning
-  const isMineLocation = locationBackground?.includes('/mine.png')
-
-  // 고정 배경이 없는 장소로 이동하면 배경을 즉석 생성(로딩 화면 표시). 같은 장소는 1회만.
-  useEffect(() => {
-    if (!curLocation || !session?.id) return
-    if (getLocationBackground(curLocation)) return       // 주요 장소 = 고정 배경
-    if (genBg[curLocation] || bgTriedRef.current.has(curLocation)) return
-    bgTriedRef.current.add(curLocation)
-    setBgLoading(true)
-    apiGenerateBackground(session.id, curLocation)
-      .then(d => { if (d.url) setGenBg(prev => ({ ...prev, [curLocation]: d.url })) })
-      .catch(() => {})
-      .finally(() => {
-        setBgLoading(false)
-        // 배경이 준비됐으니 보류해 둔 GM 대사를 이제 공개·재생한다.
-        const pr = pendingRevealRef.current
-        if (pr) {
-          pendingRevealRef.current = null
-          push('gm', pr.answer, { speak: true, segments: pr.segments })
-          setChoices(pr.choices)
-        }
-      })
-  }, [curLocation])
+  const storyEnsemble = story?.id === 'tavern_rin'
+    ? (STORY_ENSEMBLES[`tavern_${tavernCastMode}`] || [])
+    : []
+  const stagedStoryCharacters = storyEnsemble
+    .map(entry => ({
+      ...entry,
+      character: CHARACTER_MODELS.find(c => c.speaker === entry.speaker),
+    }))
+    .filter(entry => entry.character)
+  const locationBackground = getLocationBackground(stageLocation || story?.location || session?.location)
+  const locationBgm = getLocationBgm([
+    sceneContext.storyId,
+    stageLocation || story?.location || session?.location,
+    (session?.stage?.index ?? 0) >= 4 ? '카르가스 전투' : '',
+  ].join(' '))
 
   useEffect(() => {
-    if (!mineBgmRef.current) {
-      const audio = new Audio(CRYSTAL_MINE_BGM)
+    const current = locationBgmRef.current
+    if (current.audio && current.path !== locationBgm?.path) {
+      current.audio.pause()
+      current.audio.currentTime = 0
+      locationBgmRef.current = { path: null, audio: null }
+    }
+
+    if (!locationBgm) return undefined
+
+    if (!locationBgmRef.current.audio) {
+      const audio = new Audio(locationBgm.path)
       audio.loop = true
-      audio.volume = 0.28
-      mineBgmRef.current = audio
+      locationBgmRef.current = { path: locationBgm.path, audio }
     }
 
-    const audio = mineBgmRef.current
-    if (isMineLocation) {
-      audio.play().catch(() => {})
-    } else {
-      audio.pause()
-      audio.currentTime = 0
-    }
+    const audio = locationBgmRef.current.audio
+    const stopVolume = applyBgmVolume(audio, locationBgm.volume)
+    const stopRetry = playWhenAllowed(audio)
 
     return () => {
+      stopVolume()
+      stopRetry()
       audio.pause()
     }
-  }, [isMineLocation])
+  }, [locationBgm?.path, locationBgm?.volume])
 
   return (
     <div
@@ -965,14 +1256,6 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
       style={locationBackground ? { '--location-bg': `url("${locationBackground}")` } : undefined}
     >
       <div className="bg-embers" />
-
-      {bgLoading && (
-        <div className="bg-loading">
-          <div className="bg-loading-spinner" />
-          <div className="bg-loading-text">AI가 로딩 중입니다…</div>
-          <div className="bg-loading-sub">새로운 장소의 풍경을 그리는 중</div>
-        </div>
-      )}
 
       {judge && (
         <div className="dice-modal-overlay" onClick={closeJudgeModal}>
@@ -1039,6 +1322,32 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
               )
             })}
           </div>
+        ) : stagedStoryCharacters.length > 0 ? (
+          <div className="char-ensemble story-ensemble">
+            {stagedStoryCharacters.map(({ character, x }) => {
+              const active = character.speaker === activeSpeaker
+              return (
+                <div
+                  key={character.speaker}
+                  className={`char-slot${active ? ' active' : ''}`}
+                  data-speaker={character.speaker}
+                  style={{ '--slot-x': `${x}px` }}
+                >
+                  <Character3D
+                    modelPath={character.modelPath}
+                    modelRotation={character.modelRotation}
+                    modelScale={character.modelScale}
+                    modelOffset={character.modelOffset}
+                    framingOffsetY={character.framingOffsetY}
+                    framingScale={character.framingScale}
+                    preferEmbeddedAnimations={character.preferEmbeddedAnimations}
+                    motionIntensity={active ? character.motionIntensity : 0.12}
+                    registerGlobalControls={active}
+                  />
+                </div>
+              )
+            })}
+          </div>
         ) : activeSpeaker !== 'gm' && (
           <div className="char-center">
             <Character3D
@@ -1060,6 +1369,7 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
             <Character3D
               key="gm-popup"
               modelPath={CHARACTER_MODELS[0].modelPath}
+              modelRotation={CHARACTER_MODELS[0].modelRotation}
               modelScale={CHARACTER_MODELS[0].modelScale}
               modelOffset={CHARACTER_MODELS[0].modelOffset}
               motionIntensity={CHARACTER_MODELS[0].motionIntensity}
@@ -1107,14 +1417,14 @@ export default function Dialogue({ session, history, onHistoryChange, onSessionC
         {choices.length > 0 && !sending && (
           <div className="choice-block">
             <div className="choice-flavor">{FLAVOR_CHOICE}</div>
-            {choices.map((raw, i) => {
-              const c = typeof raw === 'string' ? { text: raw, judge: false } : (raw || { text: '', judge: false })
+            {choices.map((c, i) => {
+              const text = getChoiceText(c)
               return (
-                <button key={`${i}-${(c.text || '').slice(0, 8)}`}
-                  className={`choice-row${c.judge ? ' choice-judge' : ''}`}
-                  onClick={() => pickChoice(c)}>
+                <button key={c.id || `${i}-${text.slice(0, 8)}`}
+                  className="choice-row"
+                  onClick={() => chooseVisibleChoice(c)}>
                   <span className="cn">{i + 1}</span>
-                  <span>{c.judge ? `🎲 ${c.text}` : c.text}</span>
+                  <span>{text}</span>
                 </button>
               )
             })}
