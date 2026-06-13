@@ -1,0 +1,55 @@
+{
+  "audio_file": "3a754a9e-8b4e-483a-8d95-2fda17d454a3.wav",
+  "audio_float32_npy": "3a754a9e-8b4e-483a-8d95-2fda17d454a3.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "\"아, 반가운 손님이십니다.",
+  "request_text_repr": "'\"아, 반가운 손님이십니다.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "\"아, 반가운 손님이십니다.",
+      "text_token_len": 13,
+      "text_tokens": [
+        [
+          1,
+          52959,
+          11,
+          63757,
+          19969,
+          93672,
+          77596,
+          238,
+          8843,
+          62618,
+          127421,
+          21953,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    55680,
+    1
+  ],
+  "audio_min": -0.38623058795928955,
+  "audio_max": 0.4375864267349243,
+  "audio_mean": 0.00018564591300673783
+}

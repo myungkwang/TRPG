@@ -62,26 +62,21 @@ CREATE TABLE IF NOT EXISTS game_events (
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS user_codex (
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    kind    TEXT NOT NULL,
+    key     TEXT NOT NULL,
+    data    JSONB DEFAULT '{}',
+    created_at TIMESTAMPTZ DEFAULT now(),
+    PRIMARY KEY (user_id, kind, key)
+);
+
 ALTER TABLE game_sessions
 ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE CASCADE;
 ALTER TABLE game_events
 ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE CASCADE;
-
--- 70%에서 확정된 엔딩(분기/서술/이미지)을 저장. 100%에서 그대로 공개.
 ALTER TABLE game_sessions
-ADD COLUMN IF NOT EXISTS ending JSONB;
-
--- 도감(계정 단위 영구 누적). 회차가 바뀌어도(베드엔딩 반복 등) 발견물이 쌓인다.
---   kind: 'clue'(해금단서) | 'ending'(도달한 엔딩) | 'character'(만난 인물)
---   key : 항목 식별자(단서명·엔딩명·인물id), data: 표시용 스냅샷(name/desc 등)
-CREATE TABLE IF NOT EXISTS user_codex (
-    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    kind TEXT NOT NULL,
-    key TEXT NOT NULL,
-    data JSONB DEFAULT '{}',
-    unlocked_at TIMESTAMPTZ DEFAULT now(),
-    PRIMARY KEY (user_id, kind, key)
-);
+ADD COLUMN IF NOT EXISTS ending JSONB DEFAULT NULL;
 """
 
 def main():

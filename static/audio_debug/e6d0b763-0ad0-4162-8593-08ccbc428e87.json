@@ -1,0 +1,60 @@
+{
+  "audio_file": "e6d0b763-0ad0-4162-8593-08ccbc428e87.wav",
+  "audio_float32_npy": "e6d0b763-0ad0-4162-8593-08ccbc428e87.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_gail",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "표식보다 중요한 건 광산 쪽 움직임입니다.",
+  "request_text_repr": "'표식보다 중요한 건 광산 쪽 움직임입니다.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "표식보다 중요한 건 광산 쪽 움직임입니다.",
+      "text_token_len": 18,
+      "text_tokens": [
+        [
+          126414,
+          76337,
+          129885,
+          136361,
+          130270,
+          8620,
+          112,
+          239,
+          85057,
+          3315,
+          103,
+          121,
+          85413,
+          222,
+          125545,
+          93701,
+          78952,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    94080,
+    1
+  ],
+  "audio_min": -0.234202042222023,
+  "audio_max": 0.3542056381702423,
+  "audio_mean": 3.067859142902307e-05
+}

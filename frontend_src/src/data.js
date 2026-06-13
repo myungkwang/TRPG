@@ -1,10 +1,9 @@
 // ===== 임시 데이터 (나중에 서버/시트 데이터로 교체) =====
 import { ITEMS, ITEM_LIST } from './items.js'
 
-// 말풍선 색: GM=나레이터(청록빛 슬레이트, NPC들과 확실히 구분), 린=진홍, 플레이어=회색
-//   (의사 등 NPC는 personas.js의 color를 쓰므로, GM은 그 어떤 NPC와도 겹치지 않는 색으로 둔다)
+// 말풍선 색: GM=밤색, 린=진홍, 플레이어=회색
 export const SPEAKERS = {
-  gm:     { name: 'GM', color: '#3f7d86', tint: 'rgba(63,125,134,0.16)' },    // 청록 슬레이트(나레이터)
+  gm:     { name: 'GM', color: '#7a4a2e', tint: 'rgba(122,74,46,0.18)' },     // 밤색
   lin:    { name: "여우 ‘린’", color: '#9b1c31', tint: 'rgba(155,28,49,0.18)' }, // 진홍
   player: { name: '나', color: '#7d858d', tint: 'rgba(125,133,141,0.16)' },   // 회색
 }
@@ -69,8 +68,9 @@ const INV_LAYOUT = [
   { ref: 'ITM_ESSENCE', x: 0, y: 2, w: 1, h: 1, stack: 10, currency: true },
   { ref: 'ITM_ESSENCE', x: 1, y: 2, w: 1, h: 1, stack: 10, currency: true },
   { ref: 'ITM_ESSENCE', x: 2, y: 2, w: 1, h: 1, stack: 3,  currency: true },
-  // 무기는 '유일무기'만 존재한다. 데모 캐릭터(영석 연금술사)의 시작 유일무기.
-  { ref: 'ITM_UNIQ_REVOLVER', x: 0, y: 3, w: 1, h: 1 },
+  { ref: 'ITM_WPN_OLD_PISTOL_3D', x: 0, y: 3, w: 1, h: 1 },
+  { ref: 'ITM_WPN_ARIA_REVOLVER_3D', x: 1, y: 3, w: 1, h: 1 },
+  { ref: 'ITM_WPN_GUN_3D', x: 2, y: 3, w: 1, h: 1 },
 ]
 export const INV_ITEMS = INV_LAYOUT.map((slot, i) => {
   const m = ITEMS[slot.ref]
@@ -149,22 +149,7 @@ export const CODEX_CLUES = [
   { id:'cl8', no:8, name:'?????', got:false },
 ]
 
-// 정규 엔딩 슬롯(고정). 계정 누적분(/api/codex)과 이름으로 매칭해 해금/요약/이미지를 채운다.
-//   미도달 항목은 ??? 잠김으로 표시.
-export const ENDING_DEX = [
-  { name: '노멀', art: '🌅', teaser: '봉우리의 대면을 지나, 마을은 잿빛 새벽을 맞는다.' },
-  { name: '트루', art: '🐉', teaser: '진실을 모두 꿰뚫은 자만이 닿는 결말.' },
-  { name: '히든', art: '✨', teaser: '잊혀진 기억과 린의 동맹이 여는 숨겨진 길.' },
-]
-
-// 베드 엔딩 — 고정 슬롯이 아니라 AI가 회차마다 새로 쓰는 결말. 도달할 때마다 누적된다.
-export const BAD_ENDING_INFO = {
-  art: '🥀',
-  desc: '베드 엔딩은 정해진 결말이 아닙니다. 단서나 핵심 합의를 놓친 채 이야기가 끝나면, '
-      + 'AI가 그 회차의 선택에 맞춰 매번 새로운 실패 결말을 써냅니다. 도달할 때마다 아래에 누적됩니다.',
-}
-
-// 엔딩 — 일러스트 1개/페이지, 클릭 시 모달 (구 더미 데이터 — 현재는 ENDING_DEX 사용)
+// 엔딩 — 일러스트 1개/페이지, 클릭 시 모달
 export const CODEX_ENDINGS = [
   { id:'en1', no:1, name:'레치타티보 아리아', got:true, art:'🎭',
     summary:'레치타티보, 아리아. 공연의 폐막은 운명의 쉼표일 뿐이다. 당신은 무대를 떠나지만, 막은 다시 오른다.',
