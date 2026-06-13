@@ -82,6 +82,7 @@ const LOCATION_BACKGROUNDS = [
   { aliases: ['주둔소', '영석공사', '가일', 'garrison'], path: '/static/backgrounds/garrison.png' },
   { aliases: ['봉우리', '정상', '둥지', '카르가스', 'peak'], path: '/static/backgrounds/peak.png' },
   { aliases: ['오두막', '산기슭', '마르타', 'hut', 'cabin'], path: '/static/backgrounds/hut.png' },
+  { aliases: ['광산입구', '갱도입구', 'mine'], path: '/static/backgrounds/mine.png' },
   { aliases: ['광장', 'square'], path: '/static/backgrounds/square.png' },
 ]
 
