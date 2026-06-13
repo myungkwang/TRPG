@@ -6,9 +6,18 @@ const NODE_KINDS = {
   event:   { icon: '✦', name: '이벤트' },
   shop:    { icon: '$', name: '거래' },
   mystery: { icon: '?', name: '미지' },
+  clinic:  { icon: '+', name: '진료소' },
+  tavern:  { icon: '杯', name: '여관' },
+  mine:    { icon: '◆', name: '광산' },
+  deep:    { icon: '◇', name: '갱도 심부' },
+  refinery:{ icon: '$', name: '정제소' },
+  village: { icon: '✦', name: '마을 광장' },
+  marta:   { icon: '灯', name: '산기슭 오두막' },
+  peak:    { icon: '△', name: '봉우리' },
+  memory:  { icon: '♪', name: '잊힌 기억' },
   boss:    { icon: '☠', name: '엔딩 · 카르가스' },
 }
-const RANDOM_KEYS = ['battle', 'event', 'shop', 'mystery']
+const RANDOM_KEYS = ['mine', 'village', 'tavern', 'refinery', 'marta', 'memory']
 
 export default class MapScene extends Phaser.Scene {
   constructor() { super('map') }

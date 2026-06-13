@@ -395,7 +395,12 @@ export function InventoryPanel({ onClose, equipment = EQUIPMENT, onEquip }) {
 
 /* ---------- 전체지도 (여정 기록 기반 — 좌우 분기 반영 · 지나온 길 + 안 간 길 ???) ---------- */
 export function FullMapPanel({ onClose, journey = [] }) {
-  const ICON = { 전투: '⚔', 이벤트: '✦', 거래: '$', 미지: '?' }
+  const ICON = {
+    전투: '⚔', 이벤트: '✦', 거래: '$', 미지: '?',
+    진료소: '+', 여관: '杯', 광산: '◆', '갱도 심부': '◇',
+    정제소: '$', '마을 광장': '✦', '산기슭 오두막': '灯',
+    봉우리: '△', '잊힌 기억': '♪',
+  }
   const W = 480, rowH = 86, padTop = 72, padBottom = 84, step = 120
   const levels = journey.length
   const H = padTop + padBottom + Math.max(levels, 1) * rowH

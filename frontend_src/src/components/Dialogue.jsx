@@ -69,6 +69,13 @@ const STORY_ENSEMBLES = {
   ],
 }
 
+const TAVERN_LIN_SCENES = new Set([
+  'tavern_rin',
+  'tavern_miner_followup',
+  'rin_contradiction',
+  'lin_trust_trial',
+])
+
 const CHARACTER_MODELS = [
   {
     speaker: 'gm',
@@ -77,7 +84,7 @@ const CHARACTER_MODELS = [
     modelPath: '/static/models/GM_v3_Standing W_Briefcase Idle_01.glb',
     modelRotation: [-Math.PI / 2, Math.PI, Math.PI],
     modelScale: 0.20,
-    modelOffset: [0, 140, 0],
+    modelOffset: [0, 100, 0],
     motionIntensity: 4,
   },
   {
@@ -105,8 +112,8 @@ const CHARACTER_MODELS = [
     name: PERSONAS.marta.name,
     modelPath: '/static/models/Marta_01.glb',
     modelRotation: [-Math.PI / 2, Math.PI, Math.PI],
-    modelScale: 0.75,
-    modelOffset: [0, 40, 0],
+    modelScale: 0.20,
+    modelOffset: [0, 20, 0],
   },
   {
     speaker: 'tobi',
@@ -134,6 +141,16 @@ const CHARACTER_MODELS = [
     modelPath: '/static/models/Kargas_18.glb',
     modelScale: 0.6,
     modelOffset: [0, 80, 0],
+  },
+  {
+    speaker: 'miner',
+    personaId: 'miner',
+    name: PERSONAS.miner.name,
+    modelPath: '/static/models/광부.glb',
+    modelRotation: [-Math.PI / 2, Math.PI, Math.PI],
+    modelScale: 0.22,
+    modelOffset: [0, 70, 0],
+    motionIntensity: 0.55,
   },
   {
     speaker: 'tavern_clerk',
@@ -196,9 +213,15 @@ const playWhenAllowed = (audio) => {
 const getMapResultLocation = (kind) => {
   const normalized = String(kind || '').replace(/\s+/g, '').toLowerCase()
   if (!normalized) return null
-  if (['shop', '거래', '상점', '정제소'].some(key => normalized.includes(key))) return '정제소'
-  if (['battle', '전투', '갱도', '광산', 'boss'].some(key => normalized.includes(key))) return '갱도'
-  if (['event', '이벤트', '여관', 'mystery', '미지'].some(key => normalized.includes(key))) return '여관'
+  if (['진료소', 'clinic'].some(key => normalized.includes(key))) return '진료소'
+  if (['여관', 'tavern'].some(key => normalized.includes(key))) return '여관'
+  if (['정제소', 'refinery', 'shop', '거래', '상점'].some(key => normalized.includes(key))) return '정제소'
+  if (['갱도심부', 'deep'].some(key => normalized.includes(key))) return '갱도 심부'
+  if (['갱도', '광산', 'mine', 'battle', '전투'].some(key => normalized.includes(key))) return '광산'
+  if (['마을광장', 'village', 'event', '이벤트'].some(key => normalized.includes(key))) return '마을 광장'
+  if (['산기슭오두막', '오두막', 'marta'].some(key => normalized.includes(key))) return '산기슭 오두막'
+  if (['봉우리', 'peak', 'boss'].some(key => normalized.includes(key))) return '봉우리'
+  if (['잊힌기억', 'memory', '미지', 'mystery'].some(key => normalized.includes(key))) return '여관'
   return null
 }
 const toUiLog = (history = []) => {
@@ -705,6 +728,7 @@ export default function Dialogue({
   const [log, setLog] = useState(() => toUiLog(history))
   const [input, setInput] = useState('')
   const [choiceMode, setChoiceMode] = useState(false)
+  const [choicesCollapsed, setChoicesCollapsed] = useState(false)
   const [activeSpeaker, setActiveSpeaker] = useState(() => getLastNpcSpeaker(toUiLog(history)))
   const [stageLocation, setStageLocation] = useState(null)
   const [judge, setJudge] = useState(null)
@@ -730,6 +754,7 @@ export default function Dialogue({
     storyId: story?.id || '',
     location: stageLocation || story?.location || session?.location || '',
   }
+  const isTavernLinScene = TAVERN_LIN_SCENES.has(story?.id)
 
   const setTavernMode = (mode) => {
     tavernCastModeRef.current = mode
@@ -737,9 +762,17 @@ export default function Dialogue({
   }
 
   const updateTavernCastMode = (segment) => {
-    if (story?.id !== 'tavern_rin') return
+    if (!isTavernLinScene) return
     const text = String(segment?.text || '')
     const speaker = segment?.speaker || ''
+    if (story?.id !== 'tavern_rin') {
+      if (speaker === 'tavern_clerk' || text.includes('점원')) {
+        setTavernMode('clerk')
+      } else {
+        setTavernMode('lin')
+      }
+      return
+    }
     if (text.includes('점원이 물러나자') || text.includes('당신 쪽으로 천천히 다가옵니다')) {
       setTavernMode('lin')
       return
@@ -768,7 +801,11 @@ export default function Dialogue({
   }
 
   const updateTavernCastModeByStep = () => {
-    if (story?.id !== 'tavern_rin') return
+    if (!isTavernLinScene) return
+    if (story?.id !== 'tavern_rin') {
+      setTavernMode('lin')
+      return
+    }
     const index = tavernSegmentRef.current
     tavernSegmentRef.current += 1
     if (index <= 1) {
@@ -797,9 +834,15 @@ export default function Dialogue({
 
   const getChoiceMapDest = (choice) => {
     const source = `${choice?.id || ''} ${choice?.text || ''}`.toLowerCase()
-    if (/peak|kargas|boss|deep|mine|miner/.test(source)) return 'battle'
-    if (/tavern|rin|marta|nurse/.test(source)) return 'shop'
-    if (/night|watch|event/.test(source)) return 'event'
+    if (/clinic|nurse|진료소|간호사/.test(source)) return 'clinic'
+    if (/ledger|장부|정제소|암시장|표식/.test(source)) return 'refinery'
+    if (/marta|마르타|오두막|전설/.test(source)) return 'marta'
+    if (/memory|자장가|기억|약속|tobi|토비/.test(source)) return 'memory'
+    if (/deep|심부|갱도/.test(source)) return 'deep'
+    if (/peak|kargas|boss|봉우리|카르가스|엔딩/.test(source)) return 'peak'
+    if (/mine|miner|광산|광부|명부|운송/.test(source)) return 'mine'
+    if (/night|watch|마을|광장|밤|관찰/.test(source)) return 'village'
+    if (/tavern|rin|lin|여관|린/.test(source)) return 'tavern'
     return 'mystery'
   }
 
@@ -881,14 +924,17 @@ export default function Dialogue({
     const nextChoices = normalizeChoices(story?.choices || [])
     storyChoicesRef.current = nextChoices
     if (!holdChoicesRef.current) setChoices(nextChoices)
+    setChoicesCollapsed(false)
   }, [story?.id, story?.choices])
 
   useEffect(() => {
-    if (story?.id === 'tavern_rin') {
+    if (isTavernLinScene) {
       tavernSegmentRef.current = 0
-      setTavernMode('clerk')
+      setTavernMode(story?.id === 'tavern_rin' ? 'clerk' : 'lin')
+    } else {
+      setActiveSpeaker('gm')
     }
-  }, [story?.id])
+  }, [story?.id, isTavernLinScene])
 
   const push = (who, text, options = {}) => {
     if (who !== 'player' && CHARACTER_MODELS.some(c => c.speaker === who)) {
@@ -1203,7 +1249,7 @@ export default function Dialogue({
     .filter(character => character.speaker !== activeSpeaker)
     .concat(npcTestCharacters.filter(character => character.speaker === activeSpeaker))
   const testStageRunning = npcTestRunning || shortTtsTestRunning
-  const storyEnsemble = story?.id === 'tavern_rin'
+  const storyEnsemble = isTavernLinScene
     ? (STORY_ENSEMBLES[`tavern_${tavernCastMode}`] || [])
     : []
   const stagedStoryCharacters = storyEnsemble
@@ -1394,9 +1440,18 @@ export default function Dialogue({
           })}
         </div>
 
-        {choiceMode && (
+        {choiceMode && choicesCollapsed && (
+          <div className="choice-minibar">
+            <button type="button" className="choice-restore" onClick={() => setChoicesCollapsed(false)}>선택지 펼치기</button>
+          </div>
+        )}
+
+        {choiceMode && !choicesCollapsed && (
           <div className="choice-block">
-            <div className="choice-flavor">{FLAVOR_CHOICE}</div>
+            <div className="choice-head">
+              <div className="choice-flavor">{FLAVOR_CHOICE}</div>
+              <button type="button" className="choice-minimize" onClick={() => setChoicesCollapsed(true)} title="선택지 접기">접기</button>
+            </div>
             {CHOICES.map(c => (
               <button key={c.id}
                 className={'choice-row' + (c.tag && c.tag.includes('위험') ? ' danger' : '')}
@@ -1410,9 +1465,18 @@ export default function Dialogue({
           </div>
         )}
 
-        {choices.length > 0 && !sending && (
+        {choices.length > 0 && !sending && choicesCollapsed && (
+          <div className="choice-minibar">
+            <button type="button" className="choice-restore" onClick={() => setChoicesCollapsed(false)}>선택지 펼치기</button>
+          </div>
+        )}
+
+        {choices.length > 0 && !sending && !choicesCollapsed && (
           <div className="choice-block">
-            <div className="choice-flavor">{FLAVOR_CHOICE}</div>
+            <div className="choice-head">
+              <div className="choice-flavor">{FLAVOR_CHOICE}</div>
+              <button type="button" className="choice-minimize" onClick={() => setChoicesCollapsed(true)} title="선택지 접기">접기</button>
+            </div>
             {choices.map((c, i) => {
               const text = getChoiceText(c)
               return (
