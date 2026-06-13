@@ -246,6 +246,22 @@ button{font-family:var(--font-body);cursor:pointer}
 .char-ph span{font-family:var(--font-disp);font-size:34px}
 .char-ph small{color:#8a7c66;text-align:center;line-height:1.5}
 
+/* 모델 검사 뷰어 — 팔 꺾임 점검용 (NPC 모델 1종씩 표시 + 제스처 트리거) */
+.inspect-stage{left:50%;right:auto;transform:translateX(-50%);width:clamp(300px,32vw,520px);z-index:5}
+.inspect-stage .character3d{width:100%}
+.inspect-panel{position:fixed;right:18px;left:auto;top:64px;bottom:auto;transform:none;
+  display:flex;flex-direction:column;gap:8px;align-items:center;z-index:140;
+  padding:10px 14px 12px;border:1px solid var(--gold);border-radius:14px;
+  background:#140d09f2;box-shadow:0 6px 22px #000a;width:230px;max-width:46vw}
+.inspect-drag-handle{cursor:move;user-select:none;touch-action:none;width:100%;
+  padding-bottom:4px;border-bottom:1px dashed #5a4326}
+.inspect-title{font-family:var(--font-disp);font-size:15px;color:var(--gold-soft);text-align:center}
+.inspect-path{font-size:11px;color:#8a7c66;word-break:break-all;text-align:center}
+.inspect-nav,.inspect-gestures{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+.inspect-panel button{font-size:12px;color:var(--gold-soft);padding:5px 11px;border:1px solid var(--gold);
+  border-radius:14px;background:#1a120ecc;transition:.15s;cursor:pointer}
+.inspect-panel button:hover{background:#2a1d12}
+
 /* GM 페이스 팝업 — TTS 발화 중에만 우측 하단 표시 */
 .gm-face-popup{position:absolute;bottom:0;right:24px;width:120px;height:148px;z-index:5;
   border-radius:12px 12px 0 0;overflow:hidden;pointer-events:none;

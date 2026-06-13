@@ -50,7 +50,7 @@ export const PERSONAS = {
     locations: ['여관', '재끝 마을 광장'],
     emotions: ['idle', 'talk', 'cocky', 'thinking', 'happy'],
     color: '#9b1c31',
-    model: '/models/GM_Demo.fbx',
+    model: '/models/Lin_ack_shrtleg_decntarm.glb',
     tts: {
       voice: 'shimmer',
       instructions:
@@ -82,7 +82,7 @@ export const PERSONAS = {
     locations: ['광산 입구', '제국 영석공사 주둔소'],
     emotions: ['idle', 'talk', 'angry', 'deny'],
     color: '#7a5e2e',
-    model: '/models/GM_Demo.fbx',
+    model: '/models/Gail_07_textureShading_01.glb',
     tts: {
       voice: 'onyx',
       instructions:
@@ -112,7 +112,7 @@ export const PERSONAS = {
     locations: ['산기슭 오두막', '재끝 마을 광장'],
     emotions: ['idle', 'talk', 'thinking', 'sigh'],
     color: '#5b7a6b',
-    model: '/models/GM_Demo.fbx',
+    model: '/models/Marta_01.glb',
     tts: {
       voice: 'fable',
       instructions:
@@ -142,7 +142,7 @@ export const PERSONAS = {
     locations: ['광산 입구', '재끝 마을 광장', '폐광 구역'],
     emotions: ['idle', 'talk', 'happy', 'angry'],
     color: '#a06a2e',
-    model: '/models/GM_Demo.fbx',
+    model: '/models/Tobi_01.glb',
     tts: {
       voice: 'alloy',
       instructions:
@@ -172,7 +172,7 @@ export const PERSONAS = {
     locations: ['진료소'],
     emotions: ['idle', 'talk', 'thinking'],
     color: '#7a4a2e',
-    model: '/models/gm_model.glb',
+    model: '/models/Doctor_04_tracksDevided.glb',
     tts: {
       voice: 'echo',
       instructions:
@@ -200,7 +200,7 @@ export const PERSONAS = {
     locations: ['봉우리'],
     emotions: ['idle', 'angry'],
     color: '#4a4f57',
-    model: '/models/GM_Demo.fbx',
+    model: '/models/Kargas_18.glb',
     tts: {
       voice: 'onyx',
       instructions:

@@ -1,0 +1,59 @@
+{
+  "audio_file": "4de919c6-c584-4405-91dd-830e2f53ea4b.wav",
+  "audio_float32_npy": "4de919c6-c584-4405-91dd-830e2f53ea4b.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "그리고 길모퉁이에서 토비를 발견합니다.",
+  "request_text_repr": "'그리고 길모퉁이에서 토비를 발견합니다.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "그리고 길모퉁이에서 토비를 발견합니다.",
+      "text_token_len": 17,
+      "text_tokens": [
+        [
+          48606,
+          28002,
+          34395,
+          40771,
+          116,
+          129439,
+          144975,
+          12802,
+          56475,
+          10764,
+          228,
+          254,
+          70582,
+          18411,
+          142300,
+          60838,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    69120,
+    1
+  ],
+  "audio_min": -0.7648375630378723,
+  "audio_max": 0.8919348120689392,
+  "audio_mean": 0.0001630583719816059
+}

@@ -1,0 +1,51 @@
+{
+  "audio_file": "6e2cee9b-fd09-4119-9829-8ff1b5628548.wav",
+  "audio_float32_npy": "6e2cee9b-fd09-4119-9829-8ff1b5628548.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_toby",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "제 형을 찾고 싶어요...",
+  "request_text_repr": "'제 형을 찾고 싶어요...'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "제 형을 찾고 싶어요...",
+      "text_token_len": 9,
+      "text_tokens": [
+        [
+          37087,
+          141965,
+          17877,
+          138037,
+          34395,
+          28927,
+          114,
+          131355,
+          1112
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    35520,
+    1
+  ],
+  "audio_min": -0.3079129755496979,
+  "audio_max": 0.28874024748802185,
+  "audio_mean": 9.384852455696091e-05
+}

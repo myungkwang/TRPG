@@ -1133,6 +1133,10 @@ export default function Character3D({
     window.playLinPerformance = (text, emotion, duration) => {
       playMotionSequence(text, { emotion, duration, endAnimation: 'idle' })
     }
+    // Debug-only: force the procedural arm/gesture pass directly, bypassing animation
+    // clips, so the model inspector can reproduce the "arm bending" symptom on demand.
+    window.playLinProcedural = (text, emotion, duration) =>
+      startProceduralMotion(text || 'talk', { emotion, duration })
     window.startLinLipSync = startAudioLipSync
     window.startLinFallbackLipSync = startFallbackLipSync
     window.stopLinLipSync = stopAudioLipSync
@@ -1145,6 +1149,40 @@ export default function Character3D({
       setMorph(name, value)
       console.log('test morph:', name, value)
     }
+    // --- 임시 디버그: 팔 꺾임 원인 진단용 (확인 끝나면 제거) ---
+    window.__lin = {
+      // 모든 애니메이션 정지 + 메시를 원본 바인드 포즈로 되돌림 (외부 클립 영향 0)
+      restPose() {
+        clearMotionQueue()
+        mixer?.stopAllAction()
+        let n = 0
+        modelRoot?.traverse((o) => { if (o.isSkinnedMesh) { o.skeleton.pose(); n += 1 } })
+        console.log('[__lin] restPose 적용, skinnedMesh 개수:', n)
+      },
+      // 뼈대 선을 화면에 표시/숨김 토글
+      showSkeleton() {
+        if (this._skel) { scene.remove(this._skel); this._skel = null; console.log('[__lin] 골격 숨김'); return }
+        this._skel = new THREE.SkeletonHelper(modelRoot)
+        scene.add(this._skel)
+        console.log('[__lin] 골격 표시 ON')
+      },
+      // 모델 본 이름 vs idle 클립 트랙 이름 비교
+      names() {
+        const bones = []
+        modelRoot?.traverse((o) => { if (o.isBone) bones.push(o.name) })
+        const clip = clips.get('idle')
+        const tracks = clip ? clip.tracks.map((t) => t.name) : []
+        console.log('[__lin] 모델 본', bones.length, '개:', bones)
+        console.log('[__lin] idle 클립 트랙', tracks.length, '개:', tracks)
+        const boneSet = new Set(bones)
+        const missing = tracks
+          .map((t) => t.split('.')[0])
+          .filter((b) => !boneSet.has(b))
+        console.log('[__lin] 클립에는 있는데 모델에는 없는 본:', [...new Set(missing)])
+        return { bones, tracks }
+      },
+    }
+    // --- 디버그 끝 ---
 
     return () => {
       disposed = true
@@ -1154,6 +1192,7 @@ export default function Character3D({
       if (window.playLinAnimation === playDirectAnimation) delete window.playLinAnimation
       if (window.playLinEmotion) delete window.playLinEmotion
       if (window.playLinPerformance) delete window.playLinPerformance
+      if (window.playLinProcedural) delete window.playLinProcedural
       if (window.startLinLipSync === startAudioLipSync) delete window.startLinLipSync
       if (window.startLinFallbackLipSync === startFallbackLipSync) delete window.startLinFallbackLipSync
       if (window.stopLinLipSync === stopAudioLipSync) delete window.stopLinLipSync

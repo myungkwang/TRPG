@@ -1,0 +1,52 @@
+{
+  "audio_file": "da67d4e6-7fc3-48cb-81c6-7e34e0c4093b.wav",
+  "audio_float32_npy": "da67d4e6-7fc3-48cb-81c6-7e34e0c4093b.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "가일, 서두르지 마십시오.",
+  "request_text_repr": "'가일, 서두르지 마십시오.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "가일, 서두르지 마십시오.",
+      "text_token_len": 10,
+      "text_tokens": [
+        [
+          19969,
+          32077,
+          11,
+          89860,
+          126923,
+          125548,
+          21329,
+          95577,
+          139713,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    41280,
+    1
+  ],
+  "audio_min": -0.3717399835586548,
+  "audio_max": 0.8318186402320862,
+  "audio_mean": 5.251754919299856e-05
+}

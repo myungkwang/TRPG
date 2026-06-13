@@ -5,7 +5,7 @@ import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 
-const DEFAULT_MODEL_PATH = '/models/gm_model.glb'
+const DEFAULT_MODEL_PATH = '/models/GM_v3_Standing W_Briefcase Idle_01.glb'
 
 // 카메라는 모델 바운딩 박스를 기준으로 자동 프레이밍됩니다(frameObject 참고).
 // 아래 값은 모델 로드 전 초기값일 뿐이며, 로드 후 자동으로 덮어써집니다.
