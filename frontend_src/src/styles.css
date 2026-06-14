@@ -160,6 +160,51 @@ button{font-family:var(--font-body);cursor:pointer}
   background-position:center,center,center;
   background-repeat:no-repeat;
 }
+.parallax-bg{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.bg-gen-loading{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:5;
+  padding:12px 22px;border-radius:20px;border:1px solid var(--gold);
+  background:rgba(8,11,15,.78);color:#cfe6f2;font-size:14px;letter-spacing:1px;
+  backdrop-filter:blur(3px);animation:pop .25s both}
+
+/* === 스플릿 레이아웃 (좌: 씬+3D / 우: 대화UI). .dialogue.layout-split 토글 === */
+.dialogue.layout-split{flex-direction:row}
+.dialogue.layout-split .parallax-bg{right:40%}            /* 씬은 왼쪽 60% 패널에만 */
+.dialogue.layout-split .vn-stage{flex:1 1 auto;min-width:0}
+.dialogue.layout-split .chat-section{flex:0 0 40%;height:100%;min-height:0;
+  border-top:2px solid var(--gold);border-left:2px solid var(--gold);box-shadow:-10px 0 34px #0008}
+.dialogue.layout-split .stage-tools{left:96px;right:auto;justify-content:flex-start;
+  max-width:calc(60% - 116px)}
+/* 대화 패널 상단 헤더 바 = '딱 선' (스플릿에서만 노출) */
+.chat-topbar{display:none}
+.dialogue.layout-split .chat-section{padding-top:0}
+.dialogue.layout-split .chat-topbar{display:flex;align-items:center;flex:0 0 auto;
+  height:50px;padding:0 22px;border-bottom:2px solid var(--gold);
+  background:linear-gradient(180deg,rgba(38,26,17,.96),rgba(26,18,13,.96));
+  color:var(--gold-soft);font-family:var(--font-disp,serif);letter-spacing:2px;font-size:15px}
+.dialogue.layout-split .chat-topbar span{opacity:.92}
+
+/* 화면 배치 토글 — 가로↔세로 막대가 부드럽게 회전 */
+.layout-switch{display:flex;align-items:center;gap:10px;padding:6px 12px;border-radius:14px;
+  border:1px solid var(--gold);background:#1a120ecc;color:var(--gold-soft);cursor:pointer}
+.layout-switch:hover{background:#2a1d12}
+.ls-icon{position:relative;width:24px;height:24px;flex:0 0 24px}
+.ls-icon i{position:absolute;background:var(--gold-soft);border-radius:2px;
+  transition:all .38s cubic-bezier(.5,0,.2,1)}
+.layout-switch.split .ls-icon i:nth-child(1){left:0;top:0;width:10px;height:24px}
+.layout-switch.split .ls-icon i:nth-child(2){left:14px;top:0;width:10px;height:24px}
+.layout-switch.stacked .ls-icon i:nth-child(1){left:0;top:0;width:24px;height:10px}
+.layout-switch.stacked .ls-icon i:nth-child(2){left:0;top:14px;width:24px;height:10px}
+.ls-label{font-size:13px;min-width:26px;text-align:left}
+
+/* 설정 패널 안 계정/로그아웃 (큰 알약형) */
+.set-account{margin-top:18px;padding-top:16px;border-top:1px solid #3a2c1d;
+  display:flex;flex-direction:column;align-items:center;gap:12px}
+.set-account-name{color:var(--gold-soft);font-size:14px;letter-spacing:1px}
+.logout-pill{width:100%;padding:14px 0;border-radius:28px;cursor:pointer;
+  font-family:var(--font-body);font-size:15px;letter-spacing:1px;
+  color:#f0d9b0;border:1px solid var(--gold);
+  background:linear-gradient(180deg,#3a2417,#241710);transition:.15s}
+.logout-pill:hover{background:linear-gradient(180deg,#4a2e1c,#2e1d12);color:#fff}
 .bg-embers{position:absolute;inset:0;pointer-events:none;z-index:0;
   background:radial-gradient(2px 2px at 20% 70%,rgba(255,200,120,.4),transparent),
   radial-gradient(2px 2px at 72% 80%,rgba(255,180,90,.35),transparent),
@@ -296,8 +341,16 @@ button{font-family:var(--font-body);cursor:pointer}
 
 /* 선택지 블록 (채팅 섹션 안) */
 .choice-block{padding:8px 26px 6px;border-top:1px solid #3a2c1d;animation:pop .25s both}
+.choice-head{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px}
 .choice-flavor{font-style:italic;color:#b6a98a;opacity:.7;text-align:center;
-  font-family:var(--font-disp);margin:4px 0 12px;font-size:16px}
+  font-family:var(--font-disp);margin:4px 0 12px;font-size:16px;grid-column:2}
+.choice-minimize{grid-column:3;justify-self:end;align-self:start;
+  padding:6px 11px;border-radius:999px;border:1px solid #6a5326;color:#c9b58f;
+  background:#120c09cc;font-size:12px}
+.choice-minimize:hover,.choice-restore:hover{border-color:var(--gold-soft);color:#fff;box-shadow:0 0 12px #c9a24b33}
+.choice-minibar{padding:8px 26px;border-top:1px solid #3a2c1d;display:flex;justify-content:center}
+.choice-restore{padding:8px 18px;border-radius:999px;border:1px solid var(--gold);
+  background:#1d140fcc;color:var(--gold-soft);font-family:var(--font-disp);font-size:13px}
 .choice-row{display:flex;align-items:center;gap:12px;width:100%;text-align:left;color:var(--text);
   font-size:15px;padding:11px 14px;margin:7px 0;border-radius:10px;border:1px solid var(--gold);
   background:#1d140fcc;transition:.15s}

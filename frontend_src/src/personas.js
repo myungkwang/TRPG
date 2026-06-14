@@ -82,7 +82,7 @@ export const PERSONAS = {
     locations: ['광산 입구', '제국 영석공사 주둔소'],
     emotions: ['idle', 'talk', 'angry', 'deny'],
     color: '#7a5e2e',
-    model: '/static/models/Gail_05.glb',
+    model: '/static/models/Gail_07_textureShading_01.glb',
     tts: {
       voice: 'onyx',
       instructions:
@@ -229,7 +229,7 @@ export const PERSONAS = {
     locations: ['광산', '갱도', '갱도 심부'],
     emotions: ['idle', 'talk', 'thinking'],
     color: '#8a6a3e',
-    model: null,
+    model: '/static/models/광부.glb',
     tts: {
       voice: 'echo',
       instructions: '성인 남성. 먼지를 마신 듯 거칠고 낮은 목소리. 짧고 조심스럽게, 주변을 살피며 말한다.',
