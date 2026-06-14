@@ -21,6 +21,8 @@ from dotenv import load_dotenv
 
 from db import get_conn
 from gm_cli import create_session, gm_reply, load_session, recent_history, generate_ending
+import llm
+from llm import generate_image
 import progression
 import endings
 import codex
@@ -55,7 +57,21 @@ ENDING_DIR = STATIC_DIR / "endings"
 ENDING_DIR.mkdir(exist_ok=True)
 GEN_BG_DIR = STATIC_DIR / "backgrounds" / "gen"   # AI가 즉석 생성한 배경 캐시
 GEN_BG_DIR.mkdir(parents=True, exist_ok=True)
-openai_client = OpenAI()
+GEN_DEPTH_DIR = GEN_BG_DIR / "depth"              # 그 배경들의 깊이맵(2.5D 패럴랙스용)
+GEN_DEPTH_DIR.mkdir(parents=True, exist_ok=True)
+DEPTH_URL = os.getenv("DEPTH_URL", "http://127.0.0.1:8189").rstrip("/")
+
+
+def _save_depth(img_bytes: bytes, key: str) -> None:
+    """깊이 서비스로 깊이맵을 받아 gen/depth/{key}.png 에 저장. 실패해도 무시(평면 폴백)."""
+    try:
+        import urllib.request
+        rq = urllib.request.Request(DEPTH_URL + "/depth", data=img_bytes,
+                                    headers={"Content-Type": "image/png"})
+        with urllib.request.urlopen(rq, timeout=30) as r:
+            (GEN_DEPTH_DIR / f"{key}.png").write_bytes(r.read())
+    except Exception:
+        pass
 AUDIO_DEBUG_DIR.mkdir(exist_ok=True)
 cosyvoice_client = None
 cosyvoice_lock = threading.Lock()
@@ -806,6 +822,7 @@ def gen_background(
         pos, neg = _location_prompt(location)
         img = generate_image(pos, size="1344x768", negative=neg)
         fpath.write_bytes(img)
+        _save_depth(img, key)   # 2.5D 패럴랙스용 깊이맵(베스트에포트, 깊이서비스 꺼져도 OK)
         return {"url": url, "generated": True}
     except Exception:
         return {"url": None, "generated": False}

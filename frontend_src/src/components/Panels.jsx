@@ -505,7 +505,7 @@ function PercentSlider({ label, value, onChange }) {
   )
 }
 
-export function SettingsPanel({ onClose }) {
+export function SettingsPanel({ onClose, user, onLogout }) {
   const [settings, setSettings] = useState(() => loadSettings())
 
   useEffect(() => subscribeSettings(setSettings), [])
@@ -529,6 +529,23 @@ export function SettingsPanel({ onClose }) {
         </select>
         <b>{QUALITY_PRESETS[settings.quality]?.label || '높음'}</b>
       </label>
+      <label className="set-row">
+        <span>화면 배치</span>
+        <button
+          type="button"
+          className={`layout-switch ${settings.layout}`}
+          onClick={() => setValue('layout', settings.layout === 'split' ? 'stacked' : 'split')}
+        >
+          <span className="ls-icon"><i /><i /></span>
+          <span className="ls-label">{settings.layout === 'split' ? '가로' : '세로'}</span>
+        </button>
+      </label>
+      {onLogout && (
+        <div className="set-account">
+          <span className="set-account-name">{user?.name || user?.username || '플레이어'} 님</span>
+          <button className="logout-pill" onClick={onLogout}>로그아웃</button>
+        </div>
+      )}
     </Overlay>
   )
 }

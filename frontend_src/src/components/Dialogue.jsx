@@ -2,9 +2,11 @@
 import { SPEAKERS, FLAVOR_CHOICE, CHOICES } from '../data.js'
 import D12 from './D12.jsx'
 import Character3D from './Character3D.jsx'
-import { apiChat, apiTTS, apiDebugEnding, apiStoryChoice } from '../api.js'
+import ParallaxBackground from './ParallaxBackground.jsx'
+import { apiChat, apiTTS, apiDebugEnding, apiStoryChoice, apiGenerateBackground } from '../api.js'
 import { PERSONAS, getPersona } from '../personas.js'
 import { applyBgmVolume, applyMasterVolume, applySpeechVolume } from '../audioSettings.js'
+import { loadSettings, subscribeSettings } from '../settings.js'
 
 const LOCATION_BGMS = [
   {
@@ -167,10 +169,30 @@ const CHARACTER_MODELS = [
 
 const LOCATION_BACKGROUNDS = [
   { aliases: ['진료소', '진료실', '의무실', 'clinic', 'hospital'], path: '/static/backgrounds/clinic-new.png' },
-  { aliases: ['여관', '주점', 'tavern', 'inn'], path: '/static/backgrounds/inn-new.png' },
+  { aliases: ['여관', '주점', '여우길', 'tavern', 'inn'], path: '/static/backgrounds/inn.png' },
   { aliases: ['정재소', '정제소', 'refinery'], path: '/static/backgrounds/refinery-new.png' },
-  { aliases: ['갱도', '갱도사무소', '광산', 'mine', 'mineshaft'], path: '/static/backgrounds/mine.png' },
+  { aliases: ['주둔소', '영석공사', '가일', 'garrison'], path: '/static/backgrounds/garrison.png' },
+  { aliases: ['봉우리', '정상', '둥지', '카르가스', 'peak'], path: '/static/backgrounds/peak.png' },
+  { aliases: ['오두막', '산기슭', '마르타', 'hut', 'cabin'], path: '/static/backgrounds/hut.png' },
+  { aliases: ['갱도', '갱도사무소', '광산입구', '갱도입구', '광산', 'mine', 'mineshaft'], path: '/static/backgrounds/mine.png' },
+  { aliases: ['광장', 'square'], path: '/static/backgrounds/square.png' },
 ]
+
+// 장소별 이펙트 프로필 — 자동 글로우 색 + 파티클(색·양·상승). AI 생성 이미지에도 그대로 적용.
+const FX_PROFILES = [
+  { kw: ['대장간', '풀무', 'forge'], glow: 1.4, glowTint: [1.0, 0.55, 0.25], pColor: 'rgba(255,165,70,0.95)', pCount: 160, pRise: 0.0016 },
+  { kw: ['교단', '성소', 'cult'], glow: 1.15, glowTint: [0.7, 0.8, 1.0], pColor: 'rgba(210,225,255,0.85)', pCount: 280, pRise: 0.0004 },
+  { kw: ['갱도', '심부', '광산', '폐광', '수직갱', '정제소', 'mine', 'refinery'], glow: 1.0, glowTint: [0.4, 0.7, 1.0], pColor: 'rgba(120,200,255,0.9)', pCount: 240, pRise: 0.0006 },
+  { kw: ['암시장', 'market'], glow: 1.2, glowTint: [1.0, 0.75, 0.4], pColor: 'rgba(255,200,120,0.9)', pCount: 220, pRise: 0.0007 },
+  { kw: ['봉우리', '카르가스', 'peak'], glow: 1.0, glowTint: [0.6, 0.75, 1.0], pColor: 'rgba(180,210,255,0.85)', pCount: 200, pRise: 0.0003 },
+  { kw: ['진료소', 'clinic', '여관', 'inn', '오두막', 'hut'], glow: 1.1, glowTint: [1.0, 0.8, 0.5], pColor: 'rgba(255,210,150,0.8)', pCount: 180, pRise: 0.0005 },
+]
+const DEFAULT_FX = { glow: 1.0, glowTint: [0.9, 0.9, 1.0], pColor: 'rgba(220,228,245,0.85)', pCount: 220, pRise: 0.0005 }
+const getFx = (loc) => {
+  const n = String(loc || '').replace(/\s+/g, '').toLowerCase()
+  if (!n) return DEFAULT_FX
+  return FX_PROFILES.find(p => p.kw.some(k => n.includes(k.replace(/\s+/g, '').toLowerCase()))) || DEFAULT_FX
+}
 
 const getLocationBackground = (location) => {
   const normalized = String(location || '').replace(/\s+/g, '').toLowerCase()
@@ -1117,7 +1139,7 @@ export default function Dialogue({
 
   const sendText = async (raw) => {
     const text = String(raw || '').trim()
-    if (!text || sending) return
+    if (!text || sending || bgLoading) return   // AI 배경 생성 중엔 대화 진행 차단
 
     stopSpeaking()
     push('player', text)
@@ -1132,9 +1154,16 @@ export default function Dialogue({
 
     setSending(true)
     try {
+      const prevLoc = session?.location
       const data = await apiChat(session.id, text)
       onSessionChange?.(data.session)
       if (data.story) onStoryChange?.(data.story)
+      // GM이 이번 대화로 위치를 옮겼으면(세션 location 변경) 인트로/씬의 stage·story 고정을 풀어 새 배경 반영
+      const newLoc = data.session?.location
+      if (newLoc && newLoc !== prevLoc) {
+        setStageLocation(null)
+        if (story?.location && story.location !== newLoc) onStoryChange?.(null)
+      }
       push('gm', data.answer, {
         speak: true,
         segments: normalizeStorySegments(data.segments, data.answer, 'gm'),
@@ -1258,7 +1287,29 @@ export default function Dialogue({
       character: CHARACTER_MODELS.find(c => c.speaker === entry.speaker),
     }))
     .filter(entry => entry.character)
-  const locationBackground = getLocationBackground(stageLocation || story?.location || session?.location)
+  const [appSettings, setAppSettings] = useState(() => loadSettings())   // 레이아웃은 설정 패널에서 토글
+  useEffect(() => subscribeSettings(setAppSettings), [])
+  const splitLayout = appSettings.layout === 'split'
+
+  // 배경: 핵심 장소=고정 이미지, 그 외=AI 즉석 생성(+gen 깊이맵으로 2.5D)
+  const [genBg, setGenBg] = useState({})
+  const [bgLoading, setBgLoading] = useState(false)
+  const bgTriedRef = useRef(new Set())
+  // 배경은 '실제 게임 위치'를 따른다. story.location(멈춰있는 인트로 씬)은 배경 결정에서 제외 —
+  // 안 그러면 자유 이동해도 인트로 씬 위치(진료소)가 계속 덮어 AI 배경 생성이 안 됨.
+  const curLoc = stageLocation || session?.location
+  const locationBackground = getLocationBackground(curLoc) || (curLoc ? genBg[curLoc] : null) || null
+  useEffect(() => {
+    if (!curLoc || !session?.id) return
+    if (getLocationBackground(curLoc)) return            // 고정 배경 있으면 생성 안 함
+    if (genBg[curLoc] || bgTriedRef.current.has(curLoc)) return
+    bgTriedRef.current.add(curLoc)
+    setBgLoading(true)
+    apiGenerateBackground(session.id, curLoc)
+      .then(d => { if (d.url) setGenBg(p => ({ ...p, [curLoc]: d.url })) })
+      .catch(() => {})
+      .finally(() => setBgLoading(false))
+  }, [curLoc, session?.id])
   const locationBgm = getLocationBgm([
     sceneContext.storyId,
     stageLocation || story?.location || session?.location,
@@ -1294,9 +1345,11 @@ export default function Dialogue({
 
   return (
     <div
-      className={`dialogue${locationBackground ? ' has-location-bg' : ''}`}
+      className={`dialogue${splitLayout ? ' layout-split' : ''}${locationBackground ? ' has-location-bg' : ''}`}
       style={locationBackground ? { '--location-bg': `url("${locationBackground}")` } : undefined}
     >
+      {locationBackground && <ParallaxBackground image={locationBackground} fx={getFx(curLoc)} />}
+      {bgLoading && <div className="bg-gen-loading">새로운 장소의 풍경을 그리는 중…</div>}
       <div className="bg-embers" />
 
       {judge && (
@@ -1424,6 +1477,9 @@ export default function Dialogue({
       </div>
 
       <div className="chat-section">
+        <div className="chat-topbar">
+          <span>{stageLocation || session?.location || '대화'}</span>
+        </div>
         <div className="chatlog" ref={logRef}>
           {log.map((m, i) => {
             const sp = getSpeakerPresentation(m.who)
@@ -1465,13 +1521,14 @@ export default function Dialogue({
           </div>
         )}
 
-        {choices.length > 0 && !sending && choicesCollapsed && (
-          <div className="choice-minibar">
-            <button type="button" className="choice-restore" onClick={() => setChoicesCollapsed(false)}>선택지 펼치기</button>
-          </div>
-        )}
+          {choices.length > 0 && !sending && choicesCollapsed && (
+            <div className="choice-minibar">
+              <button type="button" className="choice-restore" onClick={() => setChoicesCollapsed(false)}>선택지
+  펼치기</button>
+            </div>
+          )}
 
-        {choices.length > 0 && !sending && !choicesCollapsed && (
+          {choices.length > 0 && !sending && !choicesCollapsed && !bgLoading && (
           <div className="choice-block">
             <div className="choice-head">
               <div className="choice-flavor">{FLAVOR_CHOICE}</div>
@@ -1495,12 +1552,13 @@ export default function Dialogue({
         <div className="inputbar">
           <input
             value={input}
-            disabled={sending || !session?.id}
+            disabled={sending || bgLoading || !session?.id}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && send()}
-            placeholder={session?.id ? '메시지를 입력하세요' : '타이틀에서 게임을 시작해 주세요'}
+            placeholder={bgLoading ? 'AI가 새 장소를 그리는 중… 잠시만 기다려 주세요'
+              : (session?.id ? '메시지를 입력하세요' : '타이틀에서 게임을 시작해 주세요')}
           />
-          <button className="send" onClick={send} disabled={sending || !session?.id}>▶</button>
+          <button className="send" onClick={send} disabled={sending || bgLoading || !session?.id}>▶</button>
         </div>
       </div>
     </div>

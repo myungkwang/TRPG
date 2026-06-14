@@ -266,10 +266,6 @@ export default function App() {
             onTitle={() => { setScreen('title'); setOverlay(null) }}
           />
 
-          <div className="user-pill">
-            <span>{user?.name || user?.username || '플레이어'} 님</span>
-            <button onClick={doLogout}>로그아웃</button>
-          </div>
 
           {overlay === 'status'    && <StatusPanel    onClose={() => setOverlay(null)} session={session} equipment={equipment} onEquip={equipItem} />}
           {overlay === 'inventory' && <InventoryPanel onClose={() => setOverlay(null)} session={session} equipment={equipment} onEquip={equipItem} />}
@@ -279,7 +275,7 @@ export default function App() {
       )}
 
       {overlay === 'codex' && <CodexPanel onClose={() => setOverlay(null)} />}
-      {overlay === 'settings' && <SettingsPanel onClose={() => setOverlay(null)} />}
+      {overlay === 'settings' && <SettingsPanel onClose={() => setOverlay(null)} user={user} onLogout={doLogout} />}
 
       {ending && <Ending ending={ending} onClose={closeEnding} />}
 
