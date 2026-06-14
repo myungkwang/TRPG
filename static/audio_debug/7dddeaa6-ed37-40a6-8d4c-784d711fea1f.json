@@ -1,0 +1,65 @@
+{
+  "audio_file": "7dddeaa6-ed37-40a6-8d4c-784d711fea1f.wav",
+  "audio_float32_npy": "7dddeaa6-ed37-40a6-8d4c-784d711fea1f.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "채굴은 멈추고 봉우리의 안개가 조금씩 걷힙니다.",
+  "request_text_repr": "'채굴은 멈추고 봉우리의 안개가 조금씩 걷힙니다.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "채굴은 멈추고 봉우리의 안개가 조금씩 걷힙니다.",
+      "text_token_len": 23,
+      "text_tokens": [
+        [
+          130752,
+          144071,
+          33704,
+          48108,
+          230,
+          132526,
+          34395,
+          5140,
+          112,
+          231,
+          40281,
+          28002,
+          20401,
+          95170,
+          59761,
+          19969,
+          134422,
+          141906,
+          97172,
+          115,
+          144983,
+          21953,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    82560,
+    1
+  ],
+  "audio_min": -0.565093457698822,
+  "audio_max": 0.8764235973358154,
+  "audio_mean": 0.00030371741740964353
+}

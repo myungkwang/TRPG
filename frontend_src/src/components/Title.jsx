@@ -1,11 +1,55 @@
-import React from 'react'
+import React, { useEffect, useRef } from 'react'
+import { applyBgmVolume } from '../audioSettings.js'
 
-export default function Title({ hasSave, onNew, onContinue, onCodex, onSettings }) {
+const TITLE_BGM = '/static/audio/bgm/title.wav'
+
+const playWhenAllowed = (audio) => {
+  let cleanup = () => {}
+  const retry = () => {
+    audio.play()
+      .then(cleanup)
+      .catch(() => {})
+  }
+
+  audio.play().catch(() => {
+    window.addEventListener('pointerdown', retry, { once: true })
+    window.addEventListener('keydown', retry, { once: true })
+    window.addEventListener('touchstart', retry, { once: true })
+    cleanup = () => {
+      window.removeEventListener('pointerdown', retry)
+      window.removeEventListener('keydown', retry)
+      window.removeEventListener('touchstart', retry)
+    }
+  })
+
+  return () => cleanup()
+}
+
+export default function Title({ hasSave, onNew, onContinue, onCodex, onSettings, onLogout }) {
+  const audioRef = useRef(null)
+
+  useEffect(() => {
+    const audio = new Audio(TITLE_BGM)
+    audio.loop = true
+    const stopVolume = applyBgmVolume(audio, 0.34)
+    audioRef.current = audio
+    const stopRetry = playWhenAllowed(audio)
+
+    return () => {
+      stopVolume()
+      stopRetry()
+      audio.pause()
+      audio.currentTime = 0
+      audioRef.current = null
+    }
+  }, [])
+
   const items = [
     { key: 'new',      label: '게임 시작', onClick: onNew,                         disabled: false },
     { key: 'continue', label: '이어하기',  onClick: onContinue,                    disabled: !hasSave },
     { key: 'codex',    label: '도감',      onClick: onCodex,                       disabled: false },
     { key: 'settings', label: '설정',      onClick: onSettings,                    disabled: false },
+    { key: 'logout',   label: '로그아웃',  onClick: onLogout,                      disabled: false },
     { key: 'quit',     label: '종료',      onClick: () => window.close(),          disabled: false },
   ]
   return (

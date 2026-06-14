@@ -1,0 +1,57 @@
+{
+  "audio_file": "20994e90-432f-411e-b188-74927820b572.wav",
+  "audio_float32_npy": "20994e90-432f-411e-b188-74927820b572.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "하지만 기억은 아직 흐릿한 것 같군요.",
+  "request_text_repr": "'하지만 기억은 아직 흐릿한 것 같군요.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "하지만 기억은 아직 흐릿한 것 같군요.",
+      "text_token_len": 15,
+      "text_tokens": [
+        [
+          87425,
+          72553,
+          140914,
+          33704,
+          137289,
+          10764,
+          251,
+          238,
+          144231,
+          23573,
+          71108,
+          78374,
+          129534,
+          35711,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    51840,
+    1
+  ],
+  "audio_min": -0.6453352570533752,
+  "audio_max": 0.5932278633117676,
+  "audio_mean": 0.0006630551652051508
+}

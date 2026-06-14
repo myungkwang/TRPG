@@ -1,0 +1,63 @@
+{
+  "audio_file": "f2b3b99d-2ad8-4096-98a6-8b6534f769a3.wav",
+  "audio_float32_npy": "f2b3b99d-2ad8-4096-98a6-8b6534f769a3.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "그녀는 당신을 보자 반가운 듯 고개를 끄덕입니다.",
+  "request_text_repr": "'그녀는 당신을 보자 반가운 듯 고개를 끄덕입니다.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "그녀는 당신을 보자 반가운 듯 고개를 끄덕입니다.",
+      "text_token_len": 21,
+      "text_tokens": [
+        [
+          48606,
+          132751,
+          16560,
+          131502,
+          17877,
+          63332,
+          25715,
+          63757,
+          19969,
+          93672,
+          55838,
+          107,
+          126429,
+          59761,
+          18411,
+          5140,
+          223,
+          226,
+          138789,
+          78952,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    91200,
+    1
+  ],
+  "audio_min": -0.8502483367919922,
+  "audio_max": 0.8224489688873291,
+  "audio_mean": 5.0402341003064066e-05
+}

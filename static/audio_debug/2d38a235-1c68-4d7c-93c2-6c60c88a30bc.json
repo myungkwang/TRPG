@@ -1,0 +1,59 @@
+{
+  "audio_file": "2d38a235-1c68-4d7c-93c2-6c60c88a30bc.wav",
+  "audio_float32_npy": "2d38a235-1c68-4d7c-93c2-6c60c88a30bc.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_tavern_clerk",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "어서 오세요. 무엇 때문에 오셨는지 먼저 확인해도 될까요?",
+  "request_text_repr": "'어서 오세요. 무엇 때문에 오셨는지 먼저 확인해도 될까요?'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "어서 오세요. 무엇 때문에 오셨는지 먼저 확인해도 될까요?",
+      "text_token_len": 17,
+      "text_tokens": [
+        [
+          136108,
+          73077,
+          50302,
+          13,
+          132779,
+          129147,
+          73077,
+          127677,
+          16560,
+          21329,
+          137769,
+          73859,
+          33883,
+          47985,
+          130647,
+          138965,
+          30
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    99840,
+    1
+  ],
+  "audio_min": -0.4477522075176239,
+  "audio_max": 0.4377897083759308,
+  "audio_mean": 3.461701999185607e-05
+}

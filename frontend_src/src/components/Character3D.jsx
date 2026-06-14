@@ -10,13 +10,13 @@ const DEFAULT_MODEL_ROTATION = [0, 0, 0]
 const DEFAULT_MODEL_SCALE = 1
 const DEFAULT_MODEL_OFFSET = [0, 0, 0]
 
-// 移대찓?쇰뒗 紐⑤뜽 諛붿슫??諛뺤뒪瑜?湲곗??쇰줈 ?먮룞 ?꾨젅?대컢?⑸땲??frameObject 李멸퀬).
-// ?꾨옒 媛믪? 紐⑤뜽 濡쒕뱶 ??珥덇린媛믪씪 肉먯씠硫? 濡쒕뱶 ???먮룞?쇰줈 ??뼱?⑥쭛?덈떎.
-const CAMERA_POSITION = [0, 400, 900] // 珥덇린 移대찓???꾩튂 [x, y, z]
-const CAMERA_TARGET = [0, 400, 0] // 珥덇린 諛붾씪蹂대뒗 吏??[x, y, z]
-// ?꾩떊 ?꾩븘???щ갚 諛곗닔. 1.0?대㈃ ??留욊퀬, ?ㅼ슱?섎줉 罹먮┃?곌? ?묎쾶(?щ갚 ?ш쾶) 蹂댁엯?덈떎.
+// 카메라는 모델 바운딩 박스를 기준으로 자동 프레이밍된다(frameObject 참고).
+// 아래 값들은 모델 로드 전 초기값일 뿐이며, 로드 후 자동으로 덮어써진다.
+const CAMERA_POSITION = [0, 400, 900] // 초기 카메라 위치 [x, y, z]
+const CAMERA_TARGET = [0, 400, 0] // 초기 카메라가 바라보는 지점 [x, y, z]
+// 캐릭터를 화면에 맞추는 여백 배수. 작을수록 카메라가 가까워져 더 크게 보인다.
 const FRAME_MARGIN = 0.6
-// ?붾㈃?먯꽌 罹먮┃?곕? ???꾨옒濡???린??媛? ?묒닔硫??붾㈃?먯꽌 ?꾨옒濡??대젮媛묐땲??
+// 카메라 타깃을 위로 올려 캐릭터를 화면 아래쪽에 배치하는 값. 클수록 더 아래로 내려간다.
 const VERTICAL_OFFSET = 125
 const DEFAULT_ANIMATIONS = {
   idle: '/static/animations/weight_shift.glb',
@@ -297,6 +297,8 @@ export default function Character3D({
   cameraPosition = null,
   cameraTarget = null,
   cameraFov = 50,
+  framingOffsetY = 0,
+  framingScale = 1,
 }) {
   const hostRef = useRef(null)
   const [status, setStatus] = useState('Loading 3D model...')
@@ -653,7 +655,7 @@ export default function Character3D({
       renderer.setSize(width, height)
     }
 
-    // 紐⑤뜽 濡쒕뱶 ??frameObject媛 怨꾩궛??梨꾩썎?덈떎. 洹??꾧퉴吏?珥덇린媛??ъ슜.
+    // 모델 로드 후 frameObject가 계산해 채운다. 그 전까지는 초기값을 사용.
     let viewPosition = [...CAMERA_POSITION]
     let viewTarget = [...CAMERA_TARGET]
 
@@ -694,16 +696,24 @@ export default function Character3D({
       box.getSize(size)
       box.getCenter(center)
       // Fit by HEIGHT only. Width-fit divides by camera.aspect, which can be a bogus
-      // value if the canvas hasn't been laid out yet ??that blows the distance up and
+      // value if the canvas hasn't been laid out yet — that blows the distance up and
       // makes the model render tiny. Standing characters are height-dominant anyway.
       const fov = THREE.MathUtils.degToRad(camera.fov)
       const fitHeight = size.y / 2 / Math.tan(fov / 2)
-      const dist = (fitHeight * FRAME_MARGIN) / safeModelScale
+      const safeFramingScale = Math.max(0.1, framingScale || 1)
+      const dist = (fitHeight * FRAME_MARGIN) / safeModelScale / safeFramingScale
       const targetX = center.x - offsetX
-      const targetY = center.y - offsetY + VERTICAL_OFFSET
+      const targetY = center.y - offsetY + VERTICAL_OFFSET + framingOffsetY
       const targetZ = center.z - offsetZ
-      viewPosition = [targetX, targetY, dist + targetZ]
-      viewTarget = [targetX, targetY, targetZ]
+      if (cameraPosition && cameraTarget) {
+        // 팝업처럼 명시적 카메라를 준 경우: 자동 프레이밍으로 덮어쓰지 않고 그 값을 사용
+        // (모델 스케일/위치 정규화는 위에서 그대로 적용됨)
+        viewPosition = [...cameraPosition]
+        viewTarget = [...cameraTarget]
+      } else {
+        viewPosition = [targetX, targetY, dist + targetZ]
+        viewTarget = [targetX, targetY, targetZ]
+      }
 
       resetCamera()
     }
@@ -1130,6 +1140,10 @@ export default function Character3D({
     window.playLinPerformance = (text, emotion, duration) => {
       playMotionSequence(text, { emotion, duration, endAnimation: 'idle' })
     }
+    // Debug-only: force the procedural arm/gesture pass directly, bypassing animation
+    // clips, so the model inspector can reproduce the "arm bending" symptom on demand.
+    window.playLinProcedural = (text, emotion, duration) =>
+      startProceduralMotion(text || 'talk', { emotion, duration })
     window.startLinLipSync = startAudioLipSync
     window.startLinFallbackLipSync = startFallbackLipSync
     window.stopLinLipSync = stopAudioLipSync
@@ -1142,6 +1156,90 @@ export default function Character3D({
       setMorph(name, value)
       console.log('test morph:', name, value)
     }
+    // --- 임시 디버그: 팔 꺾임 원인 진단용 (확인 끝나면 제거) ---
+    window.__lin = {
+      // 모든 애니메이션 정지 + 메시를 원본 바인드 포즈로 되돌림 (외부 클립 영향 0)
+      restPose() {
+        clearMotionQueue()
+        mixer?.stopAllAction()
+        let n = 0
+        modelRoot?.traverse((o) => { if (o.isSkinnedMesh) { o.skeleton.pose(); n += 1 } })
+        console.log('[__lin] restPose 적용, skinnedMesh 개수:', n)
+      },
+      // 뼈대 선을 화면에 표시/숨김 토글
+      showSkeleton() {
+        if (this._skel) { scene.remove(this._skel); this._skel = null; console.log('[__lin] 골격 숨김'); return }
+        this._skel = new THREE.SkeletonHelper(modelRoot)
+        scene.add(this._skel)
+        console.log('[__lin] 골격 표시 ON')
+      },
+      // 모델 본 이름 vs idle 클립 트랙 이름 비교
+      names() {
+        const bones = []
+        modelRoot?.traverse((o) => { if (o.isBone) bones.push(o.name) })
+        const clip = clips.get('idle')
+        const tracks = clip ? clip.tracks.map((t) => t.name) : []
+        console.log('[__lin] 모델 본', bones.length, '개:', bones)
+        console.log('[__lin] idle 클립 트랙', tracks.length, '개:', tracks)
+        const boneSet = new Set(bones)
+        const missing = tracks
+          .map((t) => t.split('.')[0])
+          .filter((b) => !boneSet.has(b))
+        console.log('[__lin] 클립에는 있는데 모델에는 없는 본:', [...new Set(missing)])
+        return { bones, tracks }
+      },
+      // 팔 뼈의 "기준(rest) 자세" 각도(도)를 뽑음. 좋은 모델/나쁜 모델 비교용.
+      armRest() {
+        this.restPose()
+        const keys = ['leftShoulder', 'rightShoulder', 'leftUpperArm', 'rightUpperArm', 'leftForeArm', 'rightForeArm']
+        const deg = (r) => +(r * 180 / Math.PI).toFixed(1)
+        const out = {}
+        keys.forEach((k) => {
+          const b = motionBones[k]
+          out[k] = b ? { 본: b.name, x: deg(b.rotation.x), y: deg(b.rotation.y), z: deg(b.rotation.z) } : '없음'
+        })
+        console.table(out)
+        return out
+      },
+      // --- 실시간 위치/크기 맞추기: 중앙에 오게 한 뒤 출력된 값을 config에 박으면 됨 ---
+      ny(d = 20) { // 세로 이동 (+위 / -아래)
+        if (!model) return
+        model.position.y += d
+        if (model.userData.basePosition) model.userData.basePosition.y += d
+        this._dy = (this._dy || 0) + d
+        console.log('[__lin] modelOffset[1] =', (modelOffset?.[1] || 0) + this._dy)
+      },
+      nx(d = 20) { // 가로 이동 (+오른쪽 / -왼쪽)
+        if (!model) return
+        model.position.x += d
+        if (model.userData.basePosition) model.userData.basePosition.x += d
+        this._dx = (this._dx || 0) + d
+        console.log('[__lin] modelOffset[0] =', (modelOffset?.[0] || 0) + this._dx)
+      },
+      zoom(f = 1.1) { // 크기 (>1 크게 / <1 작게)
+        if (!camera || !controls) return
+        camera.position.lerpVectors(controls.target, camera.position, 1 / f)
+        controls.update()
+        this._zf = (this._zf || 1) * f
+        console.log('[__lin] framingScale =', ((framingScale || 1) * this._zf).toFixed(3))
+      },
+      where() {
+        console.log('[__lin] modelOffset prop=', modelOffset, 'framingScale=', framingScale, 'model.pos=', model && model.position.toArray().map((v) => +v.toFixed(1)))
+      },
+      // 회전(세움) 조정: 도(°) 단위. 맞춘 뒤 출력된 modelRotation 라디안 값을 config에 박으면 됨.
+      rot(axis, deg) {
+        if (!model) return
+        const rad = deg * Math.PI / 180
+        model.rotation[axis] += rad
+        if (model.userData.baseRotation) model.userData.baseRotation[axis] += rad
+        const r = model.rotation
+        console.log('[__lin] modelRotation =', [+r.x.toFixed(3), +r.y.toFixed(3), +r.z.toFixed(3)], '(라디안)')
+      },
+      rx(d = 15) { this.rot('x', d) }, // 앞뒤로 세우기/눕히기
+      ry(d = 15) { this.rot('y', d) }, // 좌우 방향(바라보는 쪽)
+      rz(d = 15) { this.rot('z', d) }, // 좌우로 기울이기
+    }
+    // --- 디버그 끝 ---
 
     return () => {
       disposed = true
@@ -1151,6 +1249,7 @@ export default function Character3D({
       if (window.playLinAnimation === playDirectAnimation) delete window.playLinAnimation
       if (window.playLinEmotion) delete window.playLinEmotion
       if (window.playLinPerformance) delete window.playLinPerformance
+      if (window.playLinProcedural) delete window.playLinProcedural
       if (window.startLinLipSync === startAudioLipSync) delete window.startLinLipSync
       if (window.startLinFallbackLipSync === startFallbackLipSync) delete window.startLinFallbackLipSync
       if (window.stopLinLipSync === stopAudioLipSync) delete window.stopLinLipSync
@@ -1158,12 +1257,36 @@ export default function Character3D({
       if (window.__testMorph) delete window.__testMorph
       stopAudioLipSync()
       controls?.dispose()
+      // 모델의 지오메트리/머티리얼/텍스처까지 해제 (GPU 메모리·텍스처 누수 방지)
+      modelRoot?.traverse((obj) => {
+        if (obj.geometry) obj.geometry.dispose()
+        const mats = Array.isArray(obj.material) ? obj.material : (obj.material ? [obj.material] : [])
+        mats.forEach((mat) => {
+          for (const value of Object.values(mat)) {
+            if (value && value.isTexture) value.dispose()
+          }
+          mat.dispose()
+        })
+      })
       envTexture?.dispose()
       pmrem?.dispose()
       renderer?.dispose()
+      // WebGL 컨텍스트 즉시 반환 — 안 하면 모델 갈아끼울 때마다 컨텍스트가 쌓여
+      // 브라우저 한도를 넘기면 캐릭터가 흰색/검정으로 렌더된다.
+      renderer?.forceContextLoss?.()
       if (renderer?.domElement?.parentNode === host) host.removeChild(renderer.domElement)
     }
-  }, [modelPath, animations, modelRotation, modelScale, modelOffset, preferEmbeddedAnimations, motionIntensity])
+  }, [
+    modelPath,
+    animations,
+    modelRotation,
+    modelScale,
+    modelOffset,
+    preferEmbeddedAnimations,
+    motionIntensity,
+    framingOffsetY,
+    framingScale,
+  ])
 
   return (
     <div className="character3d">
@@ -1171,5 +1294,4 @@ export default function Character3D({
     </div>
   )
 }
-
 

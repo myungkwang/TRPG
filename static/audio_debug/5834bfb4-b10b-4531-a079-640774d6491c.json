@@ -1,0 +1,67 @@
+{
+  "audio_file": "5834bfb4-b10b-4531-a079-640774d6491c.wav",
+  "audio_float32_npy": "5834bfb4-b10b-4531-a079-640774d6491c.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "재끝 마을 광장에 도착하자, 주민들이 당신을 반갑게 맞이합니다.",
+  "request_text_repr": "'재끝 마을 광장에 도착하자, 주민들이 당신을 반갑게 맞이합니다.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "재끝 마을 광장에 도착하자, 주민들이 당신을 반갑게 맞이합니다.",
+      "text_token_len": 25,
+      "text_tokens": [
+        [
+          57132,
+          134539,
+          95577,
+          17877,
+          8620,
+          112,
+          239,
+          40853,
+          19391,
+          129392,
+          135375,
+          140026,
+          11,
+          55673,
+          125496,
+          126253,
+          131502,
+          17877,
+          63757,
+          138685,
+          57801,
+          131417,
+          12802,
+          60838,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    117120,
+    1
+  ],
+  "audio_min": -0.7530043125152588,
+  "audio_max": 0.8932186961174011,
+  "audio_mean": 0.00014526427548844367
+}

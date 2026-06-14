@@ -136,6 +136,31 @@ export async function apiStoryCurrent(sessionId) {
   })
 }
 
+// 계정 단위로 누적된 도감(단서·엔딩). 회차가 바뀌어도 유지된다.
+export async function apiGetCodex() {
+  return fetchJson('/api/codex', {
+    headers: { ...authHeaders() },
+  })
+}
+
+// 주요 장소가 아닌 곳 이동 시 배경 즉석 생성 (라이브 생성기 꺼져있으면 url=null)
+export async function apiGenerateBackground(sessionId, location) {
+  return fetchJson('/api/background', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ session_id: sessionId, location }),
+  })
+}
+
+// [테스트 전용] 원하는 엔딩으로 즉시 점프 (노멀/트루/히든/베드)
+export async function apiDebugEnding(sessionId, ending) {
+  return fetchJson('/api/debug/ending', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ session_id: sessionId, ending }),
+  })
+}
+
 export async function apiStoryChoice(sessionId, choiceId, roll) {
   return fetchJson('/api/story/choice', {
     method: 'POST',
@@ -173,19 +198,5 @@ export async function apiLockEnding(sessionId) {
 export async function apiGetEnding(sessionId) {
   return fetchJson(`/api/ending/${sessionId}`, {
     headers: { ...authHeaders() },
-  })
-}
-
-export async function apiGetCodex() {
-  return fetchJson('/api/codex', {
-    headers: { ...authHeaders() },
-  })
-}
-
-export async function apiDebugEnding(sessionId, ending) {
-  return fetchJson('/api/debug/ending', {
-    method: 'POST',
-    headers: { ...JSON_HEADERS, ...authHeaders() },
-    body: JSON.stringify({ session_id: sessionId, ending }),
   })
 }

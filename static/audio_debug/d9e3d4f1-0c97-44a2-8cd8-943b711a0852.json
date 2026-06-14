@@ -1,0 +1,55 @@
+{
+  "audio_file": "d9e3d4f1-0c97-44a2-8cd8-943b711a0852.wav",
+  "audio_float32_npy": "d9e3d4f1-0c97-44a2-8cd8-943b711a0852.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_toby",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "\"형이 무사히 돌아오기를 바랐어요!",
+  "request_text_repr": "'\"형이 무사히 돌아오기를 바랐어요!'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "\"형이 무사히 돌아오기를 바랐어요!",
+      "text_token_len": 13,
+      "text_tokens": [
+        [
+          1,
+          128909,
+          12802,
+          125149,
+          55054,
+          125511,
+          137844,
+          57268,
+          131777,
+          81718,
+          144110,
+          131355,
+          0
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    79680,
+    1
+  ],
+  "audio_min": -0.5730690360069275,
+  "audio_max": 0.6282166838645935,
+  "audio_mean": -5.286314262775704e-06
+}
