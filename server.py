@@ -414,6 +414,15 @@ def _json_safe(value: Any) -> Any:
 
 def public_session(session_id: str) -> dict[str, Any]:
     session = load_session(session_id)
+    existing_ending = _json_safe(session.get("ending"))
+    current_ending = endings.resolve_ending(session)
+    ending_priority = {"END_BAD": 0, "END_NORMAL": 1, "END_TRUE": 2, "END_HIDDEN": 3}
+    ending_locked = False
+    if isinstance(existing_ending, dict):
+        ending_locked = (
+            ending_priority.get(existing_ending.get("id"), -1)
+            >= ending_priority.get(current_ending.get("id"), -1)
+        )
     return {
         "id": str(session["id"]),
         "player_name": session["player_name"],
@@ -434,6 +443,8 @@ def public_session(session_id: str) -> dict[str, Any]:
         "relations": _json_safe(session["relations"]),
         "stage": progression.current_stage(progression.as_dict(session.get("flags") or {})),
         "progress": progression.progress_pct(progression.as_dict(session.get("flags") or {})),
+        "settle_threshold": 100,
+        "ending_locked": ending_locked,
     }
 def assert_session_owner(session_id: str, user_id: str) -> None:
     with get_conn() as conn:
@@ -919,6 +930,22 @@ def lock_ending(
 ) -> dict[str, Any]:
     """정산 시점: 엔딩을 확정하고 DB에 저장한다."""
     assert_session_owner(req.session_id, user_id)
+
+    session = load_session(req.session_id)
+    flags = progression.as_dict(session.get("flags") or {})
+    existing = _json_safe(session.get("ending"))
+    if isinstance(existing, dict):
+        current = endings.resolve_ending(session)
+        priority = {"END_BAD": 0, "END_NORMAL": 1, "END_TRUE": 2, "END_HIDDEN": 3}
+        existing_rank = priority.get(existing.get("id"), -1)
+        current_rank = priority.get(current.get("id"), -1)
+        if existing_rank >= current_rank:
+            return existing
+
+    current = endings.resolve_ending(session)
+    if current.get("kind") == "bad" and not flags.get("EVT_EPILOGUE"):
+        raise HTTPException(status_code=409, detail="ending is not ready")
+
     try:
         result = generate_ending(req.session_id)
     except Exception as exc:

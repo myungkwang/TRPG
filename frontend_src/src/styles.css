@@ -325,8 +325,16 @@ button{font-family:var(--font-body);cursor:pointer}
 
 /* 선택지 블록 (채팅 섹션 안) */
 .choice-block{padding:8px 26px 6px;border-top:1px solid #3a2c1d;animation:pop .25s both}
+.choice-head{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px}
 .choice-flavor{font-style:italic;color:#b6a98a;opacity:.7;text-align:center;
-  font-family:var(--font-disp);margin:4px 0 12px;font-size:16px}
+  font-family:var(--font-disp);margin:4px 0 12px;font-size:16px;grid-column:2}
+.choice-minimize{grid-column:3;justify-self:end;align-self:start;
+  padding:6px 11px;border-radius:999px;border:1px solid #6a5326;color:#c9b58f;
+  background:#120c09cc;font-size:12px}
+.choice-minimize:hover,.choice-restore:hover{border-color:var(--gold-soft);color:#fff;box-shadow:0 0 12px #c9a24b33}
+.choice-minibar{padding:8px 26px;border-top:1px solid #3a2c1d;display:flex;justify-content:center}
+.choice-restore{padding:8px 18px;border-radius:999px;border:1px solid var(--gold);
+  background:#1d140fcc;color:var(--gold-soft);font-family:var(--font-disp);font-size:13px}
 .choice-row{display:flex;align-items:center;gap:12px;width:100%;text-align:left;color:var(--text);
   font-size:15px;padding:11px 14px;margin:7px 0;border-radius:10px;border:1px solid var(--gold);
   background:#1d140fcc;transition:.15s}

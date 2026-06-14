@@ -161,7 +161,7 @@ export default function CharacterCreation({ session, onDone, onCancel }) {
                     value={draft}
                     onChange={e => setDraft(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') answerCurrent(draft) }}
-                    placeholder={current.id === 'name' ? '예: 이호숙' : '예: 낡은 회중시계'}
+                    placeholder={current.id === 'name' ? '예: 아이고' : '예: 낡은 회중시계'}
                     autoFocus
                   />
                   <button onClick={() => answerCurrent(draft)}>답하기</button>

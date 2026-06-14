@@ -28,18 +28,17 @@ static/assets/
 *.zip
 *.docx
 
-# 3D model and animation files must always be tracked
-!*.glb
-!*.fbx
-!*.vrm
+# 3D model and animation assets / large binaries
+*.glb
+*.fbx
+*.vrm
 static/models/
-static/models/**
 static/animations/
-static/animations/**
-trpg1/public/models/
-trpg1/public/models/**
-trpg1/public/animations/
-trpg1/public/animations/**
+frontend_src/public/models/
+frontend_src/public/animations/
+steamscale-proto/public/models/
+steamscale-proto/public/animations/
+not_on_github_*/
 
 # Local databases and generated data
 *.db
