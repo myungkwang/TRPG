@@ -170,7 +170,6 @@ const CHARACTER_MODELS = [
     personaId: 'miner',
     name: PERSONAS.miner.name,
     modelPath: '/static/models/광부.glb',
-    modelRotation: [-Math.PI / 2, Math.PI, Math.PI],
     modelScale: 0.22,
     modelOffset: [0, 70, 0],
     motionIntensity: 0.55,
@@ -184,6 +183,17 @@ const CHARACTER_MODELS = [
     modelOffset: [0, 40, 0],
     animations: NPC_ANIMS,
     motionIntensity: 0.55,
+  },
+  // --- 임시: 입모양(ShapeKey) 테스트용. 모델검사에서 확인 후 제거할 것 ---
+  {
+    speaker: 'shapekey_test',
+    personaId: 'gm',
+    name: '입모양 테스트',
+    modelPath: '/static/models/ShapeKey_10_anim_05.glb',
+    modelScale: 0.75,
+    modelOffset: [0, -130, 0],
+    preferEmbeddedAnimations: true,
+    motionIntensity: 0,
   },
 ]
 

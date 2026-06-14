@@ -1,0 +1,54 @@
+{
+  "audio_file": "feecc8e9-a5da-4841-8b0d-83fbb8e7c1fa.wav",
+  "audio_float32_npy": "feecc8e9-a5da-4841-8b0d-83fbb8e7c1fa.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "광산 쪽 상황을 직접 살핀다",
+  "request_text_repr": "'광산 쪽 상황을 직접 살핀다'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "광산 쪽 상황을 직접 살핀다",
+      "text_token_len": 12,
+      "text_tokens": [
+        [
+          126861,
+          85057,
+          3315,
+          103,
+          121,
+          58034,
+          130803,
+          17877,
+          137352,
+          127166,
+          144355,
+          13146
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    40320,
+    1
+  ],
+  "audio_min": -0.5034793019294739,
+  "audio_max": 0.5044395327568054,
+  "audio_mean": 0.00033746962435543537
+}

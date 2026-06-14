@@ -1,0 +1,66 @@
+{
+  "audio_file": "30e51a07-8604-496a-a55f-f960ab071574.wav",
+  "audio_float32_npy": "30e51a07-8604-496a-a55f-f960ab071574.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "입구에서 문을 두드리면, 마르타가 조용히 모습을 드러냅니다.",
+  "request_text_repr": "'입구에서 문을 두드리면, 마르타가 조용히 모습을 드러냅니다.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "입구에서 문을 두드리면, 마르타가 조용히 모습을 드러냅니다.",
+      "text_token_len": 24,
+      "text_tokens": [
+        [
+          43866,
+          88259,
+          56475,
+          53435,
+          17877,
+          129419,
+          133872,
+          32290,
+          11,
+          95577,
+          125548,
+          125166,
+          19969,
+          65510,
+          26699,
+          125511,
+          136665,
+          17877,
+          55838,
+          250,
+          60294,
+          144662,
+          21953,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    115200,
+    1
+  ],
+  "audio_min": -0.61630779504776,
+  "audio_max": 0.7354809641838074,
+  "audio_mean": 0.0003782483981922269
+}

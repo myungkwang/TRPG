@@ -1,0 +1,52 @@
+{
+  "audio_file": "d2bbb82e-e23a-479a-8a23-71588b3e2666.wav",
+  "audio_float32_npy": "d2bbb82e-e23a-479a-8a23-71588b3e2666.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_marta",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "무슨 일로 찾아오셨나요?",
+  "request_text_repr": "'무슨 일로 찾아오셨나요?'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "무슨 일로 찾아오셨나요?",
+      "text_token_len": 10,
+      "text_tokens": [
+        [
+          125054,
+          128187,
+          83556,
+          17380,
+          138038,
+          57268,
+          127677,
+          60315,
+          35711,
+          30
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    34560,
+    1
+  ],
+  "audio_min": -0.41346701979637146,
+  "audio_max": 0.3894084692001343,
+  "audio_mean": 0.0006472854875028133
+}

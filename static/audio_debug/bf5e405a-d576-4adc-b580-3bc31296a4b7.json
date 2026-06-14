@@ -1,0 +1,62 @@
+{
+  "audio_file": "bf5e405a-d576-4adc-b580-3bc31296a4b7.wav",
+  "audio_float32_npy": "bf5e405a-d576-4adc-b580-3bc31296a4b7.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_miner",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "밤이면 갱도 안쪽에서 기계도 아닌 것이 숨을 쉽니다.",
+  "request_text_repr": "'밤이면 갱도 안쪽에서 기계도 아닌 것이 숨을 쉽니다.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "밤이면 갱도 안쪽에서 기계도 아닌 것이 숨을 쉽니다.",
+      "text_token_len": 20,
+      "text_tokens": [
+        [
+          144076,
+          12802,
+          32290,
+          16778,
+          109,
+          47985,
+          95170,
+          132064,
+          56475,
+          54116,
+          124781,
+          47985,
+          134808,
+          128584,
+          69192,
+          101,
+          17877,
+          142068,
+          21953,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    92160,
+    1
+  ],
+  "audio_min": -0.6303984522819519,
+  "audio_max": 0.42193129658699036,
+  "audio_mean": 0.0008446603897027671
+}

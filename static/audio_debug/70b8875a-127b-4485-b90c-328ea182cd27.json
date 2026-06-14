@@ -1,0 +1,58 @@
+{
+  "audio_file": "70b8875a-127b-4485-b90c-328ea182cd27.wav",
+  "audio_float32_npy": "70b8875a-127b-4485-b90c-328ea182cd27.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "명부의 숫자와 밤의 운송 시간을 대조한다",
+  "request_text_repr": "'명부의 숫자와 밤의 운송 시간을 대조한다'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "명부의 숫자와 밤의 운송 시간을 대조한다",
+      "text_token_len": 16,
+      "text_tokens": [
+        [
+          79632,
+          63089,
+          20401,
+          69192,
+          92187,
+          80573,
+          22042,
+          97,
+          20401,
+          132028,
+          127105,
+          130217,
+          17877,
+          60960,
+          92817,
+          51876
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    61440,
+    1
+  ],
+  "audio_min": -0.8333137631416321,
+  "audio_max": 0.8381659984588623,
+  "audio_mean": 0.00017992763605434448
+}

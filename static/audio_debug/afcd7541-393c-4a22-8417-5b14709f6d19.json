@@ -1,0 +1,66 @@
+{
+  "audio_file": "afcd7541-393c-4a22-8417-5b14709f6d19.wav",
+  "audio_float32_npy": "afcd7541-393c-4a22-8417-5b14709f6d19.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "당신은 진료소를 나서서 재끝 마을의 주둔소로 향합니다.",
+  "request_text_repr": "'당신은 진료소를 나서서 재끝 마을의 주둔소로 향합니다.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "당신은 진료소를 나서서 재끝 마을의 주둔소로 향합니다.",
+      "text_token_len": 24,
+      "text_tokens": [
+        [
+          64795,
+          82528,
+          33704,
+          126616,
+          63256,
+          43590,
+          18411,
+          73518,
+          26698,
+          26698,
+          129242,
+          134539,
+          95577,
+          17877,
+          20401,
+          55673,
+          144146,
+          43590,
+          17380,
+          10764,
+          244,
+          98,
+          60838,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    88320,
+    1
+  ],
+  "audio_min": -0.43229326605796814,
+  "audio_max": 0.6072844862937927,
+  "audio_mean": 7.545270636910573e-05
+}

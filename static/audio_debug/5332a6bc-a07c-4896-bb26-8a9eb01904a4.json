@@ -1,0 +1,63 @@
+{
+  "audio_file": "5332a6bc-a07c-4896-bb26-8a9eb01904a4.wav",
+  "audio_float32_npy": "5332a6bc-a07c-4896-bb26-8a9eb01904a4.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "갱도 쪽 광부들에게 무표식 짐칸을 묻는다",
+  "request_text_repr": "'갱도 쪽 광부들에게 무표식 짐칸을 묻는다'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "갱도 쪽 광부들에게 무표식 짐칸을 묻는다",
+      "text_token_len": 21,
+      "text_tokens": [
+        [
+          144446,
+          47985,
+          3315,
+          103,
+          121,
+          8620,
+          112,
+          239,
+          63089,
+          132812,
+          125149,
+          126414,
+          76337,
+          47911,
+          238,
+          144394,
+          17877,
+          133552,
+          119,
+          16560,
+          13146
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    68160,
+    1
+  ],
+  "audio_min": -0.38187482953071594,
+  "audio_max": 0.5574668049812317,
+  "audio_mean": 0.00017397831834387034
+}
