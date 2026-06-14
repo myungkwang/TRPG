@@ -1,0 +1,60 @@
+{
+  "audio_file": "efd370ac-7d74-4eaa-bdd4-3e222b978d5b.wav",
+  "audio_float32_npy": "efd370ac-7d74-4eaa-bdd4-3e222b978d5b.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_gail",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "실종된 광부 사건은 여전히 조사를 진행 중입니다.",
+  "request_text_repr": "'실종된 광부 사건은 여전히 조사를 진행 중입니다.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "실종된 광부 사건은 여전히 조사를 진행 중입니다.",
+      "text_token_len": 18,
+      "text_tokens": [
+        [
+          125086,
+          126337,
+          52300,
+          8620,
+          112,
+          239,
+          63089,
+          138629,
+          33704,
+          83518,
+          65865,
+          125511,
+          65510,
+          134445,
+          132876,
+          70943,
+          78952,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    80640,
+    1
+  ],
+  "audio_min": -0.1890348643064499,
+  "audio_max": 0.2153157889842987,
+  "audio_mean": 5.622573007713072e-05
+}

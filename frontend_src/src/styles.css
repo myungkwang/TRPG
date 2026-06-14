@@ -294,7 +294,7 @@ button{font-family:var(--font-body);cursor:pointer}
 /* 모델 검사 뷰어 — 팔 꺾임 점검용 (NPC 모델 1종씩 표시 + 제스처 트리거) */
 .inspect-stage{left:50%;right:auto;transform:translateX(-50%);width:clamp(300px,32vw,520px);z-index:5}
 .inspect-stage .character3d{width:100%}
-.inspect-panel{position:fixed;right:18px;left:auto;top:64px;bottom:auto;transform:none;
+.inspect-panel{position:fixed;left:18px;right:auto;top:64px;bottom:auto;transform:none;
   display:flex;flex-direction:column;gap:8px;align-items:center;z-index:140;
   padding:10px 14px 12px;border:1px solid var(--gold);border-radius:14px;
   background:#140d09f2;box-shadow:0 6px 22px #000a;width:230px;max-width:46vw}

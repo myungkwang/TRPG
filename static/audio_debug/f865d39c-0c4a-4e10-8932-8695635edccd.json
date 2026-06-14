@@ -1,0 +1,65 @@
+{
+  "audio_file": "f865d39c-0c4a-4e10-8932-8695635edccd.wav",
+  "audio_float32_npy": "f865d39c-0c4a-4e10-8932-8695635edccd.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "당신은 마르타의 집, 산기슭의 오두막으로 향합니다.",
+  "request_text_repr": "'당신은 마르타의 집, 산기슭의 오두막으로 향합니다.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "당신은 마르타의 집, 산기슭의 오두막으로 향합니다.",
+      "text_token_len": 23,
+      "text_tokens": [
+        [
+          64795,
+          82528,
+          33704,
+          95577,
+          125548,
+          125166,
+          20401,
+          130263,
+          11,
+          127165,
+          108,
+          20487,
+          146006,
+          20401,
+          73077,
+          126923,
+          127559,
+          42039,
+          10764,
+          244,
+          98,
+          60838,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    101760,
+    1
+  ],
+  "audio_min": -0.31923502683639526,
+  "audio_max": 0.4019465744495392,
+  "audio_mean": 0.0001489084243075922
+}
