@@ -27,9 +27,12 @@ function CharPage({ c }) {
   )
   const { min, max } = REP_RANGE
   const pct = ((c.affinity - min) / (max - min)) * 100
+  const fallback = c.name.replace(/[^가-힣A-Za-z]/g, '').slice(0, 2) || '?'
   return (
     <div className="cx2-page cx2-char">
-      <div className="cx2-portrait">{c.name.replace(/[^가-힣A-Za-z]/g, '').slice(0, 2) || '?'}</div>
+      <div className="cx2-portrait">
+        {c.portrait ? <img src={c.portrait} alt={`${c.name} 초상`} /> : fallback}
+      </div>
       <div className="cx2-cname">{c.name}</div>
       <div className="cx2-crole">{c.role}</div>
       <p className="cx2-cdesc">{c.desc}</p>

@@ -2,9 +2,11 @@
 import { SPEAKERS, FLAVOR_CHOICE, CHOICES } from '../data.js'
 import D12 from './D12.jsx'
 import Character3D from './Character3D.jsx'
-import { apiChat, apiTTS, apiDebugEnding, apiStoryChoice } from '../api.js'
+import ParallaxBackground from './ParallaxBackground.jsx'
+import { apiChat, apiTTS, apiDebugEnding, apiStoryChoice, apiGenerateBackground } from '../api.js'
 import { PERSONAS, getPersona } from '../personas.js'
 import { applyBgmVolume, applyMasterVolume, applySpeechVolume } from '../audioSettings.js'
+import { loadSettings, subscribeSettings } from '../settings.js'
 
 const LOCATION_BGMS = [
   {
@@ -69,6 +71,27 @@ const STORY_ENSEMBLES = {
   ],
 }
 
+// 41본 NPC 골격(가일·마르타·토비·점원 공용)에 맞게 Mixamo에서 다시 구운 애니.
+// 파일명은 공유 애니와 동일하게 두고, 폴더만 /npc/ 로 분리한다.
+// (가일에 구운 .glb 들을 static/animations/npc/ 에 넣으면 4명 모두 적용됨)
+const NPC_ANIMS = {
+  idle: '/static/animations/npc/weight_shift.glb',
+  talk: '/static/animations/npc/acknowledging.glb',
+  happy: '/static/animations/npc/acknowledging.glb',
+  angry: '/static/animations/npc/acknowledging.glb',
+  thinking: '/static/animations/npc/acknowledging.glb',
+  deny: '/static/animations/npc/acknowledging.glb',
+  sigh: '/static/animations/npc/acknowledging.glb',
+  cocky: '/static/animations/npc/acknowledging.glb',
+  yes: '/static/animations/npc/acknowledging.glb',
+  strong_yes: '/static/animations/npc/acknowledging.glb',
+  long_yes: '/static/animations/npc/acknowledging.glb',
+  sarcastic: '/static/animations/npc/acknowledging.glb',
+  look_away: '/static/animations/npc/acknowledging.glb',
+  dismiss: '/static/animations/npc/acknowledging.glb',
+  annoyed: '/static/animations/npc/acknowledging.glb',
+}
+
 const TAVERN_LIN_SCENES = new Set([
   'tavern_rin',
   'tavern_miner_followup',
@@ -105,9 +128,10 @@ const CHARACTER_MODELS = [
     personaId: 'gail',
     name: PERSONAS.gail.name,
     modelPath: '/static/models/Gail_07_textureShading_01.glb',
-    modelScale: 0.75,
-    modelOffset: [0, 40, 0],
-    animations: {},
+    modelScale: 0.90,
+    modelOffset: [0, 0, 0],
+    framingScale: 0.82,
+    animations: NPC_ANIMS,
     disableProceduralMotion: true,
   },
   {
@@ -117,7 +141,7 @@ const CHARACTER_MODELS = [
     modelPath: '/static/models/Marta_01.glb',
     modelScale: 0.75,
     modelOffset: [0, 40, 0],
-    animations: {},
+    animations: NPC_ANIMS,
     disableProceduralMotion: true,
   },
   {
@@ -127,7 +151,7 @@ const CHARACTER_MODELS = [
     modelPath: '/static/models/Tobi_01.glb',
     modelScale: 0.75,
     modelOffset: [0, 40, 0],
-    animations: {},
+    animations: NPC_ANIMS,
     disableProceduralMotion: true,
   },
   {
@@ -149,14 +173,13 @@ const CHARACTER_MODELS = [
     modelOffset: [0, 80, 0],
   },
   {
-    speaker: 'miner',
-    personaId: 'miner',
-    name: PERSONAS.miner.name,
-    modelPath: '/static/models/광부.glb',
-    modelRotation: [-Math.PI / 2, Math.PI, Math.PI],
-    modelScale: 0.22,
-    modelOffset: [0, 70, 0],
-    motionIntensity: 0.55,
+  speaker: 'miner',
+  personaId: 'miner',
+  name: PERSONAS.miner.name,
+  modelPath: '/static/models/광부.glb',
+  modelScale: 0.22,          // ← modelRotation 줄 제거됨
+  modelOffset: [0, 70, 0],
+  motionIntensity: 0.55,
   },
   {
     speaker: 'tavern_clerk',
@@ -165,18 +188,52 @@ const CHARACTER_MODELS = [
     modelPath: '/static/models/Waitress_01.glb',
     modelScale: 0.80,
     modelOffset: [0, 40, 0],
-    animations: {},
+    animations: NPC_ANIMS,
     disableProceduralMotion: true,
     motionIntensity: 0.55,
   },
 ]
 
+// 팔 꺾임 검사용: 각 버튼이 특정 제스처 스타일(buildMotionProfile/detectGestureStyle)을
+// 유발하는 샘플 대사. 절차적 모션(window.playLinProcedural)으로 재생해 팔 본 회전을 관찰.
+const INSPECT_GESTURES = [
+  { label: 'idle', emotion: 'idle' },
+  { label: '말하기', text: '그러니까 말하자면, 이렇게 된 겁니다.', emotion: 'talk' },
+  { label: '가리키기', text: '저기 보십시오. 저쪽을 확인해야 합니다.', emotion: 'talk' },
+  { label: '명령/분노', text: '당장 멈춰! 위험하다, 물러서!', emotion: 'angry' },
+  { label: '환영', text: '어서 오십시오! 정말 반갑군요.', emotion: 'happy' },
+  { label: '질문', text: '그게 정말입니까? 어떻게 된 거죠?', emotion: 'thinking' },
+  { label: '부정', text: '아니요, 그건 절대 안 됩니다.', emotion: 'deny' },
+  { label: '놀람', text: '뭐? 설마, 믿을 수 없어!', emotion: 'angry' },
+  { label: '생각', text: '잠깐, 그 단서를 다시 생각해 보죠.', emotion: 'thinking' },
+]
+
 const LOCATION_BACKGROUNDS = [
   { aliases: ['진료소', '진료실', '의무실', 'clinic', 'hospital'], path: '/static/backgrounds/clinic-new.png' },
-  { aliases: ['여관', '주점', 'tavern', 'inn'], path: '/static/backgrounds/inn-new.png' },
+  { aliases: ['여관', '주점', '여우길', 'tavern', 'inn'], path: '/static/backgrounds/inn.png' },
   { aliases: ['정재소', '정제소', 'refinery'], path: '/static/backgrounds/refinery-new.png' },
-  { aliases: ['갱도', '갱도사무소', '광산', 'mine', 'mineshaft'], path: '/static/backgrounds/mine.png' },
+  { aliases: ['주둔소', '영석공사', '가일', 'garrison'], path: '/static/backgrounds/garrison.png' },
+  { aliases: ['봉우리', '정상', '둥지', '카르가스', 'peak'], path: '/static/backgrounds/peak.png' },
+  { aliases: ['오두막', '산기슭', '마르타', 'hut', 'cabin'], path: '/static/backgrounds/hut.png' },
+  { aliases: ['갱도', '갱도사무소', '광산입구', '갱도입구', '광산', 'mine', 'mineshaft'], path: '/static/backgrounds/mine.png' },
+  { aliases: ['광장', 'square'], path: '/static/backgrounds/square.png' },
 ]
+
+// 장소별 이펙트 프로필 — 자동 글로우 색 + 파티클(색·양·상승). AI 생성 이미지에도 그대로 적용.
+const FX_PROFILES = [
+  { kw: ['대장간', '풀무', 'forge'], glow: 1.4, glowTint: [1.0, 0.55, 0.25], pColor: 'rgba(255,165,70,0.95)', pCount: 160, pRise: 0.0016 },
+  { kw: ['교단', '성소', 'cult'], glow: 1.15, glowTint: [0.7, 0.8, 1.0], pColor: 'rgba(210,225,255,0.85)', pCount: 280, pRise: 0.0004 },
+  { kw: ['갱도', '심부', '광산', '폐광', '수직갱', '정제소', 'mine', 'refinery'], glow: 1.0, glowTint: [0.4, 0.7, 1.0], pColor: 'rgba(120,200,255,0.9)', pCount: 240, pRise: 0.0006 },
+  { kw: ['암시장', 'market'], glow: 1.2, glowTint: [1.0, 0.75, 0.4], pColor: 'rgba(255,200,120,0.9)', pCount: 220, pRise: 0.0007 },
+  { kw: ['봉우리', '카르가스', 'peak'], glow: 1.0, glowTint: [0.6, 0.75, 1.0], pColor: 'rgba(180,210,255,0.85)', pCount: 200, pRise: 0.0003 },
+  { kw: ['진료소', 'clinic', '여관', 'inn', '오두막', 'hut'], glow: 1.1, glowTint: [1.0, 0.8, 0.5], pColor: 'rgba(255,210,150,0.8)', pCount: 180, pRise: 0.0005 },
+]
+const DEFAULT_FX = { glow: 1.0, glowTint: [0.9, 0.9, 1.0], pColor: 'rgba(220,228,245,0.85)', pCount: 220, pRise: 0.0005 }
+const getFx = (loc) => {
+  const n = String(loc || '').replace(/\s+/g, '').toLowerCase()
+  if (!n) return DEFAULT_FX
+  return FX_PROFILES.find(p => p.kw.some(k => n.includes(k.replace(/\s+/g, '').toLowerCase()))) || DEFAULT_FX
+}
 
 const getLocationBackground = (location) => {
   const normalized = String(location || '').replace(/\s+/g, '').toLowerCase()
@@ -744,6 +801,31 @@ export default function Dialogue({
   const [npcTestRunning, setNpcTestRunning] = useState(false)
   const [shortTtsTestRunning, setShortTtsTestRunning] = useState(false)
   const [gmSpeaking, setGmSpeaking] = useState(false)
+  const [inspectMode, setInspectMode] = useState(false)
+  const [inspectIndex, setInspectIndex] = useState(0)
+  // 모델검사 패널 위치(px). null이면 CSS 기본(우측 도킹). 드래그로 이동 가능.
+  const [inspectPanelPos, setInspectPanelPos] = useState(null)
+  const inspectDragRef = useRef(null)
+  const startInspectDrag = (e) => {
+    const panel = e.currentTarget.closest('.inspect-panel')
+    if (!panel) return
+    const rect = panel.getBoundingClientRect()
+    inspectDragRef.current = { dx: e.clientX - rect.left, dy: e.clientY - rect.top }
+    const onMove = (ev) => {
+      const d = inspectDragRef.current
+      if (!d) return
+      const x = Math.max(0, Math.min(window.innerWidth - 60, ev.clientX - d.dx))
+      const y = Math.max(0, Math.min(window.innerHeight - 40, ev.clientY - d.dy))
+      setInspectPanelPos({ x, y })
+    }
+    const onUp = () => {
+      inspectDragRef.current = null
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+  }
   const [tavernCastMode, setTavernCastMode] = useState('clerk')
   const tavernCastModeRef = useRef('clerk')
   const logRef = useRef(null)
@@ -1008,6 +1090,35 @@ export default function Dialogue({
     return () => { _onGmSpeakChange = null }
   }, [])
 
+  // --- 팔 꺾임 검사용 모델 뷰어 ---
+  const stepInspect = (dir) => setInspectIndex(i =>
+    (i + dir + CHARACTER_MODELS.length) % CHARACTER_MODELS.length)
+
+  const triggerInspectGesture = (gesture) => {
+    if (!gesture.text) {
+      window.playLinAnimation?.('idle', { loop: true })
+      return
+    }
+    window.playLinProcedural?.(gesture.text, gesture.emotion, 4)
+  }
+
+  useEffect(() => {
+    if (!inspectMode) return undefined
+    const onKey = (e) => {
+      const tag = e.target?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return
+      if (e.key === 'ArrowLeft' || e.key === '[') { e.preventDefault(); stepInspect(-1) }
+      else if (e.key === 'ArrowRight' || e.key === ']') { e.preventDefault(); stepInspect(1) }
+      else if (e.key === 'Escape') setInspectMode(false)
+      else if (e.key === ' ' || e.key.toLowerCase() === 'g') {
+        e.preventDefault()
+        triggerInspectGesture(INSPECT_GESTURES[1])
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [inspectMode])
+
   const triggerJudge = (dc = 11, stat = '지각', opts = {}) => {
     judgeRef.current = {
       dc, stat, after: opts.after,
@@ -1123,7 +1234,7 @@ export default function Dialogue({
 
   const sendText = async (raw) => {
     const text = String(raw || '').trim()
-    if (!text || sending) return
+    if (!text || sending || bgLoading) return   // AI 배경 생성 중엔 대화 진행 차단
 
     stopSpeaking()
     push('player', text)
@@ -1138,9 +1249,16 @@ export default function Dialogue({
 
     setSending(true)
     try {
+      const prevLoc = session?.location
       const data = await apiChat(session.id, text)
       onSessionChange?.(data.session)
       if (data.story) onStoryChange?.(data.story)
+      // GM이 이번 대화로 위치를 옮겼으면(세션 location 변경) 인트로/씬의 stage·story 고정을 풀어 새 배경 반영
+      const newLoc = data.session?.location
+      if (newLoc && newLoc !== prevLoc) {
+        setStageLocation(null)
+        if (story?.location && story.location !== newLoc) onStoryChange?.(null)
+      }
       push('gm', data.answer, {
         speak: true,
         segments: normalizeStorySegments(data.segments, data.answer, 'gm'),
@@ -1248,6 +1366,7 @@ export default function Dialogue({
   }
 
   const activeCharacter = CHARACTER_MODELS.find(c => c.speaker === activeSpeaker) || CHARACTER_MODELS[0]
+  const inspectCharacter = CHARACTER_MODELS[inspectIndex] || CHARACTER_MODELS[0]
   const npcTestCharacters = NPC_TEST_SPEAKERS
     .map(speaker => CHARACTER_MODELS.find(c => c.speaker === speaker))
     .filter(Boolean)
@@ -1264,7 +1383,30 @@ export default function Dialogue({
       character: CHARACTER_MODELS.find(c => c.speaker === entry.speaker),
     }))
     .filter(entry => entry.character)
-  const locationBackground = getLocationBackground(stageLocation || story?.location || session?.location)
+  const [appSettings, setAppSettings] = useState(() => loadSettings())   // 레이아웃은 설정 패널에서 토글
+  useEffect(() => subscribeSettings(setAppSettings), [])
+  const layoutMode = appSettings.layout === 'split' ? 'split' : 'stacked'
+  const splitLayout = layoutMode === 'split'
+
+  // 배경: 핵심 장소=고정 이미지, 그 외=AI 즉석 생성(+gen 깊이맵으로 2.5D)
+  const [genBg, setGenBg] = useState({})
+  const [bgLoading, setBgLoading] = useState(false)
+  const bgTriedRef = useRef(new Set())
+  // 배경은 '실제 게임 위치'를 따른다. story.location(멈춰있는 인트로 씬)은 배경 결정에서 제외 —
+  // 안 그러면 자유 이동해도 인트로 씬 위치(진료소)가 계속 덮어 AI 배경 생성이 안 됨.
+  const curLoc = stageLocation || session?.location
+  const locationBackground = getLocationBackground(curLoc) || (curLoc ? genBg[curLoc] : null) || null
+  useEffect(() => {
+    if (!curLoc || !session?.id) return
+    if (getLocationBackground(curLoc)) return            // 고정 배경 있으면 생성 안 함
+    if (genBg[curLoc] || bgTriedRef.current.has(curLoc)) return
+    bgTriedRef.current.add(curLoc)
+    setBgLoading(true)
+    apiGenerateBackground(session.id, curLoc)
+      .then(d => { if (d.url) setGenBg(p => ({ ...p, [curLoc]: d.url })) })
+      .catch(() => {})
+      .finally(() => setBgLoading(false))
+  }, [curLoc, session?.id])
   const locationBgm = getLocationBgm([
     sceneContext.storyId,
     stageLocation || story?.location || session?.location,
@@ -1300,9 +1442,11 @@ export default function Dialogue({
 
   return (
     <div
-      className={`dialogue${locationBackground ? ' has-location-bg' : ''}`}
+      className={`dialogue layout-${layoutMode}${splitLayout ? ' layout-split' : ''}${locationBackground ? ' has-location-bg' : ''}`}
       style={locationBackground ? { '--location-bg': `url("${locationBackground}")` } : undefined}
     >
+      {locationBackground && <ParallaxBackground image={locationBackground} fx={getFx(curLoc)} />}
+      {bgLoading && <div className="bg-gen-loading">새로운 장소의 풍경을 그리는 중…</div>}
       <div className="bg-embers" />
 
       {judge && (
@@ -1343,8 +1487,50 @@ export default function Dialogue({
               {endingJumping ? '…' : `▶${k}`}
             </button>
           ))}
+          <button onClick={() => setInspectMode(v => !v)}
+            title="NPC 모델을 하나씩 불러와 팔 꺾임을 점검 ([ ] 이동, G 제스처, Esc 종료)">
+            {inspectMode ? '검사종료' : '모델검사'}
+          </button>
         </div>
-        {testStageRunning ? (
+        {inspectMode ? (
+          <div className="char-center inspect-stage" data-speaker={inspectCharacter.speaker}>
+            <Character3D
+              key={`inspect-${inspectCharacter.speaker}`}
+              modelPath={inspectCharacter.modelPath}
+              modelRotation={inspectCharacter.modelRotation}
+              modelScale={inspectCharacter.modelScale}
+              modelOffset={inspectCharacter.modelOffset}
+              framingOffsetY={inspectCharacter.framingOffsetY}
+              framingScale={inspectCharacter.framingScale}
+              preferEmbeddedAnimations={inspectCharacter.preferEmbeddedAnimations}
+              animations={inspectCharacter.animations}
+              motionIntensity={inspectCharacter.motionIntensity}
+            />
+            <div
+              className="inspect-panel"
+              style={inspectPanelPos
+                ? { left: inspectPanelPos.x, top: inspectPanelPos.y, right: 'auto', transform: 'none' }
+                : undefined}
+            >
+              <div className="inspect-title inspect-drag-handle" onPointerDown={startInspectDrag} title="드래그해서 이동">
+                ⠿ 모델 검사 {inspectIndex + 1}/{CHARACTER_MODELS.length} · {inspectCharacter.name}
+              </div>
+              <div className="inspect-path">{inspectCharacter.modelPath}</div>
+              <div className="inspect-nav">
+                <button onClick={() => stepInspect(-1)}>◀ 이전 [</button>
+                <button onClick={() => stepInspect(1)}>다음 ] ▶</button>
+                <button onClick={() => setInspectMode(false)}>닫기 Esc</button>
+              </div>
+              <div className="inspect-gestures">
+                {INSPECT_GESTURES.map(gesture => (
+                  <button key={gesture.label} onClick={() => triggerInspectGesture(gesture)}>
+                    {gesture.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : testStageRunning ? (
           <div className="char-ensemble">
             {stagedNpcTestCharacters.map((character) => {
               const active = character.speaker === activeSpeaker
@@ -1401,7 +1587,7 @@ export default function Dialogue({
             })}
           </div>
         ) : activeSpeaker !== 'gm' && (
-          <div className="char-center">
+          <div className="char-center" data-speaker={activeCharacter.speaker}>
             <Character3D
               key={activeCharacter.speaker}
               modelPath={activeCharacter.modelPath}
@@ -1437,6 +1623,9 @@ export default function Dialogue({
       </div>
 
       <div className="chat-section">
+        <div className="chat-topbar">
+          <span>{stageLocation || session?.location || '대화'}</span>
+        </div>
         <div className="chatlog" ref={logRef}>
           {log.map((m, i) => {
             const sp = getSpeakerPresentation(m.who)
@@ -1478,13 +1667,14 @@ export default function Dialogue({
           </div>
         )}
 
-        {choices.length > 0 && !sending && choicesCollapsed && (
-          <div className="choice-minibar">
-            <button type="button" className="choice-restore" onClick={() => setChoicesCollapsed(false)}>선택지 펼치기</button>
-          </div>
-        )}
+          {choices.length > 0 && !sending && choicesCollapsed && (
+            <div className="choice-minibar">
+              <button type="button" className="choice-restore" onClick={() => setChoicesCollapsed(false)}>선택지
+  펼치기</button>
+            </div>
+          )}
 
-        {choices.length > 0 && !sending && !choicesCollapsed && (
+          {choices.length > 0 && !sending && !choicesCollapsed && !bgLoading && (
           <div className="choice-block">
             <div className="choice-head">
               <div className="choice-flavor">{FLAVOR_CHOICE}</div>
@@ -1508,12 +1698,13 @@ export default function Dialogue({
         <div className="inputbar">
           <input
             value={input}
-            disabled={sending || !session?.id}
+            disabled={sending || bgLoading || !session?.id}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && send()}
-            placeholder={session?.id ? '메시지를 입력하세요' : '타이틀에서 게임을 시작해 주세요'}
+            placeholder={bgLoading ? 'AI가 새 장소를 그리는 중… 잠시만 기다려 주세요'
+              : (session?.id ? '메시지를 입력하세요' : '타이틀에서 게임을 시작해 주세요')}
           />
-          <button className="send" onClick={send} disabled={sending || !session?.id}>▶</button>
+          <button className="send" onClick={send} disabled={sending || bgLoading || !session?.id}>▶</button>
         </div>
       </div>
     </div>

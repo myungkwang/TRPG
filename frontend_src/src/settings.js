@@ -6,6 +6,7 @@ export const DEFAULT_SETTINGS = {
   bgmVolume: 0.7,
   sfxVolume: 0.8,
   quality: 'high',
+  layout: 'stacked',   // 'split'(가로: 좌 씬/우 대화) | 'stacked'(세로: 원래 상하)
 }
 
 export const QUALITY_PRESETS = {
@@ -21,11 +22,19 @@ function clamp01(value) {
 }
 
 function normalizeSettings(raw) {
+  const rawLayout = raw?.layout || raw?.screenLayout || raw?.orientation
+  const layout = ['split', 'landscape', 'horizontal', 'wide'].includes(rawLayout)
+    ? 'split'
+    : ['stacked', 'portrait', 'vertical', 'tall'].includes(rawLayout)
+      ? 'stacked'
+      : DEFAULT_SETTINGS.layout
+
   return {
     masterVolume: clamp01(raw?.masterVolume ?? DEFAULT_SETTINGS.masterVolume),
     bgmVolume: clamp01(raw?.bgmVolume ?? DEFAULT_SETTINGS.bgmVolume),
     sfxVolume: clamp01(raw?.sfxVolume ?? DEFAULT_SETTINGS.sfxVolume),
     quality: QUALITY_PRESETS[raw?.quality] ? raw.quality : DEFAULT_SETTINGS.quality,
+    layout,
   }
 }
 

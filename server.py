@@ -19,9 +19,12 @@ from fastapi.staticfiles import StaticFiles
 from openai import OpenAI
 from pydantic import BaseModel
 from dotenv import load_dotenv
+from openai import OpenAI
 
 from db import get_conn
 from gm_cli import create_session, gm_reply, load_session, recent_history, generate_ending
+import llm
+from llm import generate_image
 import progression
 import endings
 import codex
@@ -56,7 +59,21 @@ ENDING_DIR = STATIC_DIR / "endings"
 ENDING_DIR.mkdir(exist_ok=True)
 GEN_BG_DIR = STATIC_DIR / "backgrounds" / "gen"   # AI가 즉석 생성한 배경 캐시
 GEN_BG_DIR.mkdir(parents=True, exist_ok=True)
-openai_client = OpenAI()
+GEN_DEPTH_DIR = GEN_BG_DIR / "depth"              # 그 배경들의 깊이맵(2.5D 패럴랙스용)
+GEN_DEPTH_DIR.mkdir(parents=True, exist_ok=True)
+DEPTH_URL = os.getenv("DEPTH_URL", "http://127.0.0.1:8189").rstrip("/")
+
+
+def _save_depth(img_bytes: bytes, key: str) -> None:
+    """깊이 서비스로 깊이맵을 받아 gen/depth/{key}.png 에 저장. 실패해도 무시(평면 폴백)."""
+    try:
+        import urllib.request
+        rq = urllib.request.Request(DEPTH_URL + "/depth", data=img_bytes,
+                                    headers={"Content-Type": "image/png"})
+        with urllib.request.urlopen(rq, timeout=30) as r:
+            (GEN_DEPTH_DIR / f"{key}.png").write_bytes(r.read())
+    except Exception:
+        pass
 AUDIO_DEBUG_DIR.mkdir(exist_ok=True)
 cosyvoice_client = None
 cosyvoice_lock = threading.Lock()
@@ -656,8 +673,14 @@ def character_confirm(
     next_scene = (
         "GM: 의사가 진료 기록을 덮자, 창밖의 증기관이 낮게 울립니다. "
         "낡은 진료소 문 너머로 재끝 마을의 축축한 안개와 광산 종소리가 밀려듭니다.\n"
-        "의사: \"무리하지 마십시오. 기억이 돌아오지 않더라도, 마을 사람들과 이야기하다 보면 "
-        "단서가 남아 있을 겁니다. 먼저 여관의 린을 찾아가 보시겠습니까, 아니면 광산 쪽 상황을 살펴보시겠습니까?\""
+        "의사: \"무리하지 마십시오. 재끝 마을은 지금 겉보기보다 훨씬 불안합니다. 영정 채굴량은 "
+        "늘었는데 광부들은 돌아오지 않고, 공식 보고서에는 사라진 이름들이 빠져 있습니다.\"\n"
+        "의사: \"밤마다 광산 쪽 종이 울리면 안개가 봉우리에서 내려오고, 부상자들은 모두 같은 말을 "
+        "합니다. 갱도 안쪽에서 기계가 아닌 것이 숨을 쉰다고요.\"\n"
+        "의사: \"여관의 린은 마을 소문과 거래 장부를 쥐고 있고, 광산의 감독 가일은 실종자 기록을 "
+        "숨기고 있습니다. 기억이 돌아오지 않더라도, 그 둘을 따라가면 당신이 왜 이곳에 쓰러져 있었는지 "
+        "단서가 남아 있을 겁니다.\"\n"
+        "의사: \"먼저 여관의 린을 찾아가 보시겠습니까, 아니면 광산 쪽 상황을 살펴보시겠습니까?\""
     )
     with get_conn() as conn:
         conn.execute(
@@ -807,6 +830,7 @@ def gen_background(
         pos, neg = _location_prompt(location)
         img = generate_image(pos, size="1344x768", negative=neg)
         fpath.write_bytes(img)
+        _save_depth(img, key)   # 2.5D 패럴랙스용 깊이맵(베스트에포트, 깊이서비스 꺼져도 OK)
         return {"url": url, "generated": True}
     except Exception:
         return {"url": None, "generated": False}
