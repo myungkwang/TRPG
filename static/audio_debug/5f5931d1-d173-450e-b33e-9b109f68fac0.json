@@ -1,0 +1,54 @@
+{
+  "audio_file": "5f5931d1-d173-450e-b33e-9b109f68fac0.wav",
+  "audio_float32_npy": "5f5931d1-d173-450e-b33e-9b109f68fac0.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_rin",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "이 손님은 내가 직접 상대할게.",
+  "request_text_repr": "'이 손님은 내가 직접 상대할게.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "이 손님은 내가 직접 상대할게.",
+      "text_token_len": 12,
+      "text_tokens": [
+        [
+          12802,
+          77596,
+          238,
+          124683,
+          33704,
+          131277,
+          137352,
+          58034,
+          66845,
+          47836,
+          57801,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    42240,
+    1
+  ],
+  "audio_min": -0.8995370268821716,
+  "audio_max": 0.8086530566215515,
+  "audio_mean": 0.0002168311330024153
+}

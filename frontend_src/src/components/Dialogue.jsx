@@ -69,16 +69,37 @@ const STORY_ENSEMBLES = {
   ],
 }
 
+// 41본 NPC 골격(가일·마르타·토비·점원 공용)에 맞게 Mixamo에서 다시 구운 애니.
+// 파일명은 공유 애니와 동일하게 두고, 폴더만 /npc/ 로 분리한다.
+// (가일에 구운 .glb 들을 static/animations/npc/ 에 넣으면 4명 모두 적용됨)
+const NPC_ANIMS = {
+  idle: '/static/animations/npc/acknowledging.glb',
+  talk: '/static/animations/npc/acknowledging.glb',
+  happy: '/static/animations/npc/happy_hand_gesture.glb',
+  angry: '/static/animations/npc/angry_gesture.glb',
+  thinking: '/static/animations/npc/thoughtful_head_shake.glb',
+  deny: '/static/animations/npc/shaking_head_no.glb',
+  sigh: '/static/animations/npc/relieved_sigh.glb',
+  cocky: '/static/animations/npc/being_cocky.glb',
+  yes: '/static/animations/npc/head_nod_yes.glb',
+  strong_yes: '/static/animations/npc/hard_head_nod.glb',
+  long_yes: '/static/animations/npc/lengthy_head_nod.glb',
+  sarcastic: '/static/animations/npc/sarcastic_head_nod.glb',
+  look_away: '/static/animations/npc/look_away_gesture.glb',
+  dismiss: '/static/animations/npc/dismissing_gesture.glb',
+  annoyed: '/static/animations/npc/annoyed_head_shake.glb',
+}
+
 const CHARACTER_MODELS = [
   {
     speaker: 'gm',
     personaId: 'gm',
     name: SPEAKERS.gm?.name || 'GM',
     modelPath: '/static/models/GM_v3_Standing W_Briefcase Idle_01.glb',
-    modelRotation: [-Math.PI / 2, Math.PI, Math.PI],
-    modelScale: 0.20,
-    modelOffset: [0, 140, 0],
-    motionIntensity: 4,
+    modelScale: 0.75,
+    modelOffset: [0, -130, 0],
+    animations: { idle: '/static/animations/npc/gm_acknowledging.glb' },
+    motionIntensity: 0.6,
   },
   {
     speaker: 'lin',
@@ -95,27 +116,27 @@ const CHARACTER_MODELS = [
     personaId: 'gail',
     name: PERSONAS.gail.name,
     modelPath: '/static/models/Gail_07_textureShading_01.glb',
-    modelRotation: [-Math.PI / 2, Math.PI, Math.PI],
-    modelScale: 0.25,
-    modelOffset: [0, 70, 0],
+    modelScale: 0.75,
+    modelOffset: [0, 40, 0],
+    animations: NPC_ANIMS,
   },
   {
     speaker: 'marta',
     personaId: 'marta',
     name: PERSONAS.marta.name,
     modelPath: '/static/models/Marta_01.glb',
-    modelRotation: [-Math.PI / 2, Math.PI, Math.PI],
     modelScale: 0.75,
     modelOffset: [0, 40, 0],
+    animations: NPC_ANIMS,
   },
   {
     speaker: 'tobi',
     personaId: 'tobi',
     name: PERSONAS.tobi.name,
     modelPath: '/static/models/Tobi_01.glb',
-    modelRotation: [-Math.PI / 2, Math.PI, Math.PI],
-    modelScale: 0.15,
-    modelOffset: [0, 60, 0],
+    modelScale: 0.75,
+    modelOffset: [0, 40, 0],
+    animations: NPC_ANIMS,
   },
   {
     speaker: 'doctor',
@@ -141,9 +162,8 @@ const CHARACTER_MODELS = [
     name: PERSONAS.tavern_clerk.name,
     modelPath: '/static/models/Waitress_01.glb',
     modelScale: 0.80,
-    modelOffset: [0, -170, 0],
-    framingOffsetY: 70,
-    preferEmbeddedAnimations: true,
+    modelOffset: [0, 40, 0],
+    animations: NPC_ANIMS,
     motionIntensity: 0.55,
   },
 ]
@@ -1376,6 +1396,7 @@ export default function Dialogue({
               framingOffsetY={inspectCharacter.framingOffsetY}
               framingScale={inspectCharacter.framingScale}
               preferEmbeddedAnimations={inspectCharacter.preferEmbeddedAnimations}
+              animations={inspectCharacter.animations}
               motionIntensity={inspectCharacter.motionIntensity}
             />
             <div
@@ -1421,6 +1442,7 @@ export default function Dialogue({
                     framingOffsetY={character.framingOffsetY}
                     framingScale={character.framingScale}
                     preferEmbeddedAnimations={character.preferEmbeddedAnimations}
+                    animations={character.animations}
                     motionIntensity={active ? character.motionIntensity : 0.12}
                     registerGlobalControls={active}
                   />
@@ -1447,6 +1469,7 @@ export default function Dialogue({
                     framingOffsetY={character.framingOffsetY}
                     framingScale={character.framingScale}
                     preferEmbeddedAnimations={character.preferEmbeddedAnimations}
+                    animations={character.animations}
                     motionIntensity={active ? character.motionIntensity : 0.12}
                     registerGlobalControls={active}
                   />
@@ -1465,6 +1488,7 @@ export default function Dialogue({
               framingOffsetY={activeCharacter.framingOffsetY}
               framingScale={activeCharacter.framingScale}
               preferEmbeddedAnimations={activeCharacter.preferEmbeddedAnimations}
+              animations={activeCharacter.animations}
               motionIntensity={activeCharacter.motionIntensity}
             />
           </div>
@@ -1478,9 +1502,10 @@ export default function Dialogue({
               modelRotation={CHARACTER_MODELS[0].modelRotation}
               modelScale={CHARACTER_MODELS[0].modelScale}
               modelOffset={CHARACTER_MODELS[0].modelOffset}
+              animations={CHARACTER_MODELS[0].animations}
               motionIntensity={CHARACTER_MODELS[0].motionIntensity}
-              cameraPosition={[0, 830, 150]}
-              cameraTarget={[0, 820, 0]}
+              cameraPosition={[0, 160, 420]}
+              cameraTarget={[0, 160, 0]}
               cameraFov={25}
             />
           </div>

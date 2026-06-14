@@ -1,0 +1,64 @@
+{
+  "audio_file": "fa996936-a9f4-4df4-900b-cb7cd1766c80.wav",
+  "audio_float32_npy": "fa996936-a9f4-4df4-900b-cb7cd1766c80.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "갇힌 광부들의 위치를 표시하고 봉우리로 향한다",
+  "request_text_repr": "'갇힌 광부들의 위치를 표시하고 봉우리로 향한다'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "갇힌 광부들의 위치를 표시하고 봉우리로 향한다",
+      "text_token_len": 22,
+      "text_tokens": [
+        [
+          144809,
+          144190,
+          8620,
+          112,
+          239,
+          63089,
+          129360,
+          98987,
+          18411,
+          139052,
+          29326,
+          126204,
+          5140,
+          112,
+          231,
+          40281,
+          28002,
+          17380,
+          10764,
+          244,
+          98,
+          51876
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    110400,
+    1
+  ],
+  "audio_min": -0.44936951994895935,
+  "audio_max": 0.4517160654067993,
+  "audio_mean": 9.957939619198442e-05
+}
