@@ -1,0 +1,50 @@
+{
+  "audio_file": "65fe0591-93af-490c-9d20-c3ff1637ab85.wav",
+  "audio_float32_npy": "65fe0591-93af-490c-9d20-c3ff1637ab85.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_rin",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "\"돌아오셨군요.",
+  "request_text_repr": "'\"돌아오셨군요.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "\"돌아오셨군요.",
+      "text_token_len": 8,
+      "text_tokens": [
+        [
+          1,
+          133485,
+          52959,
+          57268,
+          127677,
+          129534,
+          35711,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    30720,
+    1
+  ],
+  "audio_min": -0.2243671864271164,
+  "audio_max": 0.24816958606243134,
+  "audio_mean": 0.00033069815253838897
+}

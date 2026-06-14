@@ -1,0 +1,65 @@
+{
+  "audio_file": "f6e7d0e7-1c80-48fa-8348-1122be7ab36c.wav",
+  "audio_float32_npy": "f6e7d0e7-1c80-48fa-8348-1122be7ab36c.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "마을 생존을 조건으로 카르가스와 휴전을 협상한다",
+  "request_text_repr": "'마을 생존을 조건으로 카르가스와 휴전을 협상한다'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "마을 생존을 조건으로 카르가스와 휴전을 협상한다",
+      "text_token_len": 23,
+      "text_tokens": [
+        [
+          125544,
+          17877,
+          47818,
+          130999,
+          17877,
+          65510,
+          124873,
+          42039,
+          90711,
+          112,
+          125548,
+          19969,
+          24897,
+          80573,
+          10764,
+          250,
+          112,
+          65865,
+          17877,
+          47455,
+          239,
+          55902,
+          51876
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    85440,
+    1
+  ],
+  "audio_min": -0.6958637833595276,
+  "audio_max": 0.8019661903381348,
+  "audio_mean": 9.385746670886874e-05
+}

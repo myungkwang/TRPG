@@ -1,0 +1,54 @@
+{
+  "audio_file": "c91ce8c0-fcbb-4aa7-89da-aaef20b22f91.wav",
+  "audio_float32_npy": "c91ce8c0-fcbb-4aa7-89da-aaef20b22f91.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_toby",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "제가 형이 남긴 단서가 있어요.",
+  "request_text_repr": "'제가 형이 남긴 단서가 있어요.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "제가 형이 남긴 단서가 있어요.",
+      "text_token_len": 12,
+      "text_tokens": [
+        [
+          37087,
+          19969,
+          141965,
+          12802,
+          129624,
+          133507,
+          129400,
+          26698,
+          19969,
+          127353,
+          35711,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    45120,
+    1
+  ],
+  "audio_min": -0.39772072434425354,
+  "audio_max": 0.37490200996398926,
+  "audio_mean": 5.5392571084667e-05
+}

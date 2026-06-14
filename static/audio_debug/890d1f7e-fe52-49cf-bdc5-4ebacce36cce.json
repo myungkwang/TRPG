@@ -1,0 +1,50 @@
+{
+  "audio_file": "890d1f7e-fe52-49cf-bdc5-4ebacce36cce.wav",
+  "audio_float32_npy": "890d1f7e-fe52-49cf-bdc5-4ebacce36cce.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_toby",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "저도 같이 갈래요.",
+  "request_text_repr": "'저도 같이 갈래요.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "저도 같이 갈래요.",
+      "text_token_len": 8,
+      "text_tokens": [
+        [
+          126781,
+          47985,
+          131050,
+          16778,
+          230,
+          53442,
+          35711,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    24960,
+    1
+  ],
+  "audio_min": -0.3516848385334015,
+  "audio_max": 0.5110911726951599,
+  "audio_mean": 2.2499529222841375e-05
+}

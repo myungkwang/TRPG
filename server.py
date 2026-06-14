@@ -18,6 +18,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from dotenv import load_dotenv
+from openai import OpenAI
 
 from db import get_conn
 from gm_cli import create_session, gm_reply, load_session, recent_history, generate_ending

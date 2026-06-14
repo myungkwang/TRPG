@@ -1,0 +1,75 @@
+{
+  "audio_file": "aa0d4e78-6a09-46d8-a4cf-4a52a8a550da.wav",
+  "audio_float32_npy": "aa0d4e78-6a09-46d8-a4cf-4a52a8a550da.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "안개가 자욱한 길을 따라가면, 작은 건물들이 나열된 광산 쪽으로 나아갑니다.",
+  "request_text_repr": "'안개가 자욱한 길을 따라가면, 작은 건물들이 나열된 광산 쪽으로 나아갑니다.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "안개가 자욱한 길을 따라가면, 작은 건물들이 나열된 광산 쪽으로 나아갑니다.",
+      "text_token_len": 33,
+      "text_tokens": [
+        [
+          126246,
+          59761,
+          19969,
+          64577,
+          128109,
+          23573,
+          40771,
+          116,
+          17877,
+          126629,
+          19969,
+          32290,
+          11,
+          143416,
+          130270,
+          126251,
+          126253,
+          73518,
+          53955,
+          52300,
+          8620,
+          112,
+          239,
+          85057,
+          3315,
+          103,
+          121,
+          42039,
+          73518,
+          52959,
+          138685,
+          21953,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    108480,
+    1
+  ],
+  "audio_min": -0.5994293093681335,
+  "audio_max": 0.7418050765991211,
+  "audio_mean": 0.0001988371805055067
+}

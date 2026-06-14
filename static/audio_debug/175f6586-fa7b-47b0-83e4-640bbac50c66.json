@@ -1,0 +1,64 @@
+{
+  "audio_file": "175f6586-fa7b-47b0-83e4-640bbac50c66.wav",
+  "audio_float32_npy": "175f6586-fa7b-47b0-83e4-640bbac50c66.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "갱도 쪽 광부들에게 밤마다 벌어지는 일을 묻는다",
+  "request_text_repr": "'갱도 쪽 광부들에게 밤마다 벌어지는 일을 묻는다'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "갱도 쪽 광부들에게 밤마다 벌어지는 일을 묻는다",
+      "text_token_len": 22,
+      "text_tokens": [
+        [
+          144446,
+          47985,
+          3315,
+          103,
+          121,
+          8620,
+          112,
+          239,
+          63089,
+          132812,
+          22042,
+          97,
+          139328,
+          47665,
+          234,
+          31079,
+          130974,
+          138507,
+          133552,
+          119,
+          16560,
+          13146
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    96000,
+    1
+  ],
+  "audio_min": -0.383129745721817,
+  "audio_max": 0.4329083263874054,
+  "audio_mean": 5.456168582895771e-05
+}

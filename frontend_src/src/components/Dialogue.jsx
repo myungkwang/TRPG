@@ -71,6 +71,27 @@ const STORY_ENSEMBLES = {
   ],
 }
 
+// 41본 NPC 골격(가일·마르타·토비·점원 공용)에 맞게 Mixamo에서 다시 구운 애니.
+// 파일명은 공유 애니와 동일하게 두고, 폴더만 /npc/ 로 분리한다.
+// (가일에 구운 .glb 들을 static/animations/npc/ 에 넣으면 4명 모두 적용됨)
+const NPC_ANIMS = {
+  idle: '/static/animations/npc/acknowledging.glb',
+  talk: '/static/animations/npc/acknowledging.glb',
+  happy: '/static/animations/npc/happy_hand_gesture.glb',
+  angry: '/static/animations/npc/angry_gesture.glb',
+  thinking: '/static/animations/npc/thoughtful_head_shake.glb',
+  deny: '/static/animations/npc/shaking_head_no.glb',
+  sigh: '/static/animations/npc/relieved_sigh.glb',
+  cocky: '/static/animations/npc/being_cocky.glb',
+  yes: '/static/animations/npc/head_nod_yes.glb',
+  strong_yes: '/static/animations/npc/hard_head_nod.glb',
+  long_yes: '/static/animations/npc/lengthy_head_nod.glb',
+  sarcastic: '/static/animations/npc/sarcastic_head_nod.glb',
+  look_away: '/static/animations/npc/look_away_gesture.glb',
+  dismiss: '/static/animations/npc/dismissing_gesture.glb',
+  annoyed: '/static/animations/npc/annoyed_head_shake.glb',
+}
+
 const TAVERN_LIN_SCENES = new Set([
   'tavern_rin',
   'tavern_miner_followup',
@@ -84,10 +105,10 @@ const CHARACTER_MODELS = [
     personaId: 'gm',
     name: SPEAKERS.gm?.name || 'GM',
     modelPath: '/static/models/GM_v3_Standing W_Briefcase Idle_01.glb',
-    modelRotation: [-Math.PI / 2, Math.PI, Math.PI],
-    modelScale: 0.20,
-    modelOffset: [0, 100, 0],
-    motionIntensity: 4,
+    modelScale: 0.75,
+    modelOffset: [0, -130, 0],
+    animations: { idle: '/static/animations/npc/gm_acknowledging.glb' },
+    motionIntensity: 0.6,
   },
   {
     speaker: 'lin',
@@ -104,27 +125,27 @@ const CHARACTER_MODELS = [
     personaId: 'gail',
     name: PERSONAS.gail.name,
     modelPath: '/static/models/Gail_07_textureShading_01.glb',
-    modelRotation: [-Math.PI / 2, Math.PI, Math.PI],
-    modelScale: 0.25,
-    modelOffset: [0, 70, 0],
+    modelScale: 0.75,
+    modelOffset: [0, 40, 0],
+    animations: NPC_ANIMS,
   },
   {
     speaker: 'marta',
     personaId: 'marta',
     name: PERSONAS.marta.name,
     modelPath: '/static/models/Marta_01.glb',
-    modelRotation: [-Math.PI / 2, Math.PI, Math.PI],
-    modelScale: 0.20,
-    modelOffset: [0, 20, 0],
+    modelScale: 0.75,
+    modelOffset: [0, 40, 0],
+    animations: NPC_ANIMS,
   },
   {
     speaker: 'tobi',
     personaId: 'tobi',
     name: PERSONAS.tobi.name,
     modelPath: '/static/models/Tobi_01.glb',
-    modelRotation: [-Math.PI / 2, Math.PI, Math.PI],
-    modelScale: 0.15,
-    modelOffset: [0, 60, 0],
+    modelScale: 0.75,
+    modelOffset: [0, 40, 0],
+    animations: NPC_ANIMS,
   },
   {
     speaker: 'doctor',
@@ -160,11 +181,24 @@ const CHARACTER_MODELS = [
     name: PERSONAS.tavern_clerk.name,
     modelPath: '/static/models/Waitress_01.glb',
     modelScale: 0.80,
-    modelOffset: [0, -170, 0],
-    framingOffsetY: 70,
-    preferEmbeddedAnimations: true,
+    modelOffset: [0, 40, 0],
+    animations: NPC_ANIMS,
     motionIntensity: 0.55,
   },
+]
+
+// 팔 꺾임 검사용: 각 버튼이 특정 제스처 스타일(buildMotionProfile/detectGestureStyle)을
+// 유발하는 샘플 대사. 절차적 모션(window.playLinProcedural)으로 재생해 팔 본 회전을 관찰.
+const INSPECT_GESTURES = [
+  { label: 'idle', emotion: 'idle' },
+  { label: '말하기', text: '그러니까 말하자면, 이렇게 된 겁니다.', emotion: 'talk' },
+  { label: '가리키기', text: '저기 보십시오. 저쪽을 확인해야 합니다.', emotion: 'talk' },
+  { label: '명령/분노', text: '당장 멈춰! 위험하다, 물러서!', emotion: 'angry' },
+  { label: '환영', text: '어서 오십시오! 정말 반갑군요.', emotion: 'happy' },
+  { label: '질문', text: '그게 정말입니까? 어떻게 된 거죠?', emotion: 'thinking' },
+  { label: '부정', text: '아니요, 그건 절대 안 됩니다.', emotion: 'deny' },
+  { label: '놀람', text: '뭐? 설마, 믿을 수 없어!', emotion: 'angry' },
+  { label: '생각', text: '잠깐, 그 단서를 다시 생각해 보죠.', emotion: 'thinking' },
 ]
 
 const LOCATION_BACKGROUNDS = [
@@ -760,6 +794,31 @@ export default function Dialogue({
   const [npcTestRunning, setNpcTestRunning] = useState(false)
   const [shortTtsTestRunning, setShortTtsTestRunning] = useState(false)
   const [gmSpeaking, setGmSpeaking] = useState(false)
+  const [inspectMode, setInspectMode] = useState(false)
+  const [inspectIndex, setInspectIndex] = useState(0)
+  // 모델검사 패널 위치(px). null이면 CSS 기본(우측 도킹). 드래그로 이동 가능.
+  const [inspectPanelPos, setInspectPanelPos] = useState(null)
+  const inspectDragRef = useRef(null)
+  const startInspectDrag = (e) => {
+    const panel = e.currentTarget.closest('.inspect-panel')
+    if (!panel) return
+    const rect = panel.getBoundingClientRect()
+    inspectDragRef.current = { dx: e.clientX - rect.left, dy: e.clientY - rect.top }
+    const onMove = (ev) => {
+      const d = inspectDragRef.current
+      if (!d) return
+      const x = Math.max(0, Math.min(window.innerWidth - 60, ev.clientX - d.dx))
+      const y = Math.max(0, Math.min(window.innerHeight - 40, ev.clientY - d.dy))
+      setInspectPanelPos({ x, y })
+    }
+    const onUp = () => {
+      inspectDragRef.current = null
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+  }
   const [tavernCastMode, setTavernCastMode] = useState('clerk')
   const tavernCastModeRef = useRef('clerk')
   const logRef = useRef(null)
@@ -1024,6 +1083,35 @@ export default function Dialogue({
     return () => { _onGmSpeakChange = null }
   }, [])
 
+  // --- 팔 꺾임 검사용 모델 뷰어 ---
+  const stepInspect = (dir) => setInspectIndex(i =>
+    (i + dir + CHARACTER_MODELS.length) % CHARACTER_MODELS.length)
+
+  const triggerInspectGesture = (gesture) => {
+    if (!gesture.text) {
+      window.playLinAnimation?.('idle', { loop: true })
+      return
+    }
+    window.playLinProcedural?.(gesture.text, gesture.emotion, 4)
+  }
+
+  useEffect(() => {
+    if (!inspectMode) return undefined
+    const onKey = (e) => {
+      const tag = e.target?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return
+      if (e.key === 'ArrowLeft' || e.key === '[') { e.preventDefault(); stepInspect(-1) }
+      else if (e.key === 'ArrowRight' || e.key === ']') { e.preventDefault(); stepInspect(1) }
+      else if (e.key === 'Escape') setInspectMode(false)
+      else if (e.key === ' ' || e.key.toLowerCase() === 'g') {
+        e.preventDefault()
+        triggerInspectGesture(INSPECT_GESTURES[1])
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [inspectMode])
+
   const triggerJudge = (dc = 11, stat = '지각', opts = {}) => {
     judgeRef.current = {
       dc, stat, after: opts.after,
@@ -1271,6 +1359,7 @@ export default function Dialogue({
   }
 
   const activeCharacter = CHARACTER_MODELS.find(c => c.speaker === activeSpeaker) || CHARACTER_MODELS[0]
+  const inspectCharacter = CHARACTER_MODELS[inspectIndex] || CHARACTER_MODELS[0]
   const npcTestCharacters = NPC_TEST_SPEAKERS
     .map(speaker => CHARACTER_MODELS.find(c => c.speaker === speaker))
     .filter(Boolean)
@@ -1390,8 +1479,50 @@ export default function Dialogue({
               {endingJumping ? '…' : `▶${k}`}
             </button>
           ))}
+          <button onClick={() => setInspectMode(v => !v)}
+            title="NPC 모델을 하나씩 불러와 팔 꺾임을 점검 ([ ] 이동, G 제스처, Esc 종료)">
+            {inspectMode ? '검사종료' : '모델검사'}
+          </button>
         </div>
-        {testStageRunning ? (
+        {inspectMode ? (
+          <div className="char-center inspect-stage" data-speaker={inspectCharacter.speaker}>
+            <Character3D
+              key={`inspect-${inspectCharacter.speaker}`}
+              modelPath={inspectCharacter.modelPath}
+              modelRotation={inspectCharacter.modelRotation}
+              modelScale={inspectCharacter.modelScale}
+              modelOffset={inspectCharacter.modelOffset}
+              framingOffsetY={inspectCharacter.framingOffsetY}
+              framingScale={inspectCharacter.framingScale}
+              preferEmbeddedAnimations={inspectCharacter.preferEmbeddedAnimations}
+              animations={inspectCharacter.animations}
+              motionIntensity={inspectCharacter.motionIntensity}
+            />
+            <div
+              className="inspect-panel"
+              style={inspectPanelPos
+                ? { left: inspectPanelPos.x, top: inspectPanelPos.y, right: 'auto', transform: 'none' }
+                : undefined}
+            >
+              <div className="inspect-title inspect-drag-handle" onPointerDown={startInspectDrag} title="드래그해서 이동">
+                ⠿ 모델 검사 {inspectIndex + 1}/{CHARACTER_MODELS.length} · {inspectCharacter.name}
+              </div>
+              <div className="inspect-path">{inspectCharacter.modelPath}</div>
+              <div className="inspect-nav">
+                <button onClick={() => stepInspect(-1)}>◀ 이전 [</button>
+                <button onClick={() => stepInspect(1)}>다음 ] ▶</button>
+                <button onClick={() => setInspectMode(false)}>닫기 Esc</button>
+              </div>
+              <div className="inspect-gestures">
+                {INSPECT_GESTURES.map(gesture => (
+                  <button key={gesture.label} onClick={() => triggerInspectGesture(gesture)}>
+                    {gesture.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : testStageRunning ? (
           <div className="char-ensemble">
             {stagedNpcTestCharacters.map((character) => {
               const active = character.speaker === activeSpeaker
@@ -1410,6 +1541,7 @@ export default function Dialogue({
                     framingOffsetY={character.framingOffsetY}
                     framingScale={character.framingScale}
                     preferEmbeddedAnimations={character.preferEmbeddedAnimations}
+                    animations={character.animations}
                     motionIntensity={active ? character.motionIntensity : 0.12}
                     registerGlobalControls={active}
                   />
@@ -1436,6 +1568,7 @@ export default function Dialogue({
                     framingOffsetY={character.framingOffsetY}
                     framingScale={character.framingScale}
                     preferEmbeddedAnimations={character.preferEmbeddedAnimations}
+                    animations={character.animations}
                     motionIntensity={active ? character.motionIntensity : 0.12}
                     registerGlobalControls={active}
                   />
@@ -1454,6 +1587,7 @@ export default function Dialogue({
               framingOffsetY={activeCharacter.framingOffsetY}
               framingScale={activeCharacter.framingScale}
               preferEmbeddedAnimations={activeCharacter.preferEmbeddedAnimations}
+              animations={activeCharacter.animations}
               motionIntensity={activeCharacter.motionIntensity}
             />
           </div>
@@ -1467,9 +1601,10 @@ export default function Dialogue({
               modelRotation={CHARACTER_MODELS[0].modelRotation}
               modelScale={CHARACTER_MODELS[0].modelScale}
               modelOffset={CHARACTER_MODELS[0].modelOffset}
+              animations={CHARACTER_MODELS[0].animations}
               motionIntensity={CHARACTER_MODELS[0].motionIntensity}
-              cameraPosition={[0, 830, 150]}
-              cameraTarget={[0, 820, 0]}
+              cameraPosition={[0, 160, 420]}
+              cameraTarget={[0, 160, 0]}
               cameraFov={25}
             />
           </div>

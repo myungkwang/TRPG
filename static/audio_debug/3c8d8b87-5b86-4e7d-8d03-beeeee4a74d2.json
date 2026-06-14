@@ -1,0 +1,52 @@
+{
+  "audio_file": "3c8d8b87-5b86-4e7d-8d03-beeeee4a74d2.wav",
+  "audio_float32_npy": "3c8d8b87-5b86-4e7d-8d03-beeeee4a74d2.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "은폐된 명부을 확보했습니다.",
+  "request_text_repr": "'은폐된 명부을 확보했습니다.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "은폐된 명부을 확보했습니다.",
+      "text_token_len": 10,
+      "text_tokens": [
+        [
+          33704,
+          136203,
+          52300,
+          130345,
+          63089,
+          17877,
+          130729,
+          41671,
+          133240,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    35520,
+    1
+  ],
+  "audio_min": -0.4328276216983795,
+  "audio_max": 0.3721276521682739,
+  "audio_mean": 0.0004122861719224602
+}
