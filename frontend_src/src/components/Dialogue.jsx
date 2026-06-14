@@ -82,10 +82,13 @@ const CHARACTER_MODELS = [
     personaId: 'gm',
     name: SPEAKERS.gm?.name || 'GM',
     modelPath: '/static/models/GM_v3_Standing W_Briefcase Idle_01.glb',
-    modelRotation: [-Math.PI / 2, Math.PI, Math.PI],
-    modelScale: 0.20,
-    modelOffset: [0, 100, 0],
-    motionIntensity: 4,
+    modelScale: 0.75,
+    modelOffset: [0, -130, 0],
+    animations: {
+      idle: '/static/animations/npc/gm_acknowledging.glb',
+      talk: '/static/animations/npc/gm_acknowledging.glb',
+    },
+    motionIntensity: 0.6,
   },
   {
     speaker: 'lin',
@@ -102,27 +105,30 @@ const CHARACTER_MODELS = [
     personaId: 'gail',
     name: PERSONAS.gail.name,
     modelPath: '/static/models/Gail_07_textureShading_01.glb',
-    modelRotation: [-Math.PI / 2, Math.PI, Math.PI],
-    modelScale: 0.25,
-    modelOffset: [0, 70, 0],
+    modelScale: 0.75,
+    modelOffset: [0, 40, 0],
+    animations: {},
+    disableProceduralMotion: true,
   },
   {
     speaker: 'marta',
     personaId: 'marta',
     name: PERSONAS.marta.name,
     modelPath: '/static/models/Marta_01.glb',
-    modelRotation: [-Math.PI / 2, Math.PI, Math.PI],
-    modelScale: 0.20,
-    modelOffset: [0, 20, 0],
+    modelScale: 0.75,
+    modelOffset: [0, 40, 0],
+    animations: {},
+    disableProceduralMotion: true,
   },
   {
     speaker: 'tobi',
     personaId: 'tobi',
     name: PERSONAS.tobi.name,
     modelPath: '/static/models/Tobi_01.glb',
-    modelRotation: [-Math.PI / 2, Math.PI, Math.PI],
-    modelScale: 0.15,
-    modelOffset: [0, 60, 0],
+    modelScale: 0.75,
+    modelOffset: [0, 40, 0],
+    animations: {},
+    disableProceduralMotion: true,
   },
   {
     speaker: 'doctor',
@@ -158,9 +164,9 @@ const CHARACTER_MODELS = [
     name: PERSONAS.tavern_clerk.name,
     modelPath: '/static/models/Waitress_01.glb',
     modelScale: 0.80,
-    modelOffset: [0, -170, 0],
-    framingOffsetY: 70,
-    preferEmbeddedAnimations: true,
+    modelOffset: [0, 40, 0],
+    animations: {},
+    disableProceduralMotion: true,
     motionIntensity: 0.55,
   },
 ]
@@ -1357,6 +1363,8 @@ export default function Dialogue({
                     framingOffsetY={character.framingOffsetY}
                     framingScale={character.framingScale}
                     preferEmbeddedAnimations={character.preferEmbeddedAnimations}
+                    animations={character.animations}
+                    disableProceduralMotion={character.disableProceduralMotion}
                     motionIntensity={active ? character.motionIntensity : 0.12}
                     registerGlobalControls={active}
                   />
@@ -1383,6 +1391,8 @@ export default function Dialogue({
                     framingOffsetY={character.framingOffsetY}
                     framingScale={character.framingScale}
                     preferEmbeddedAnimations={character.preferEmbeddedAnimations}
+                    animations={character.animations}
+                    disableProceduralMotion={character.disableProceduralMotion}
                     motionIntensity={active ? character.motionIntensity : 0.12}
                     registerGlobalControls={active}
                   />
@@ -1401,6 +1411,8 @@ export default function Dialogue({
               framingOffsetY={activeCharacter.framingOffsetY}
               framingScale={activeCharacter.framingScale}
               preferEmbeddedAnimations={activeCharacter.preferEmbeddedAnimations}
+              animations={activeCharacter.animations}
+              disableProceduralMotion={activeCharacter.disableProceduralMotion}
               motionIntensity={activeCharacter.motionIntensity}
             />
           </div>
@@ -1414,9 +1426,10 @@ export default function Dialogue({
               modelRotation={CHARACTER_MODELS[0].modelRotation}
               modelScale={CHARACTER_MODELS[0].modelScale}
               modelOffset={CHARACTER_MODELS[0].modelOffset}
+              animations={CHARACTER_MODELS[0].animations}
               motionIntensity={CHARACTER_MODELS[0].motionIntensity}
-              cameraPosition={[0, 830, 150]}
-              cameraTarget={[0, 820, 0]}
+              cameraPosition={[0, 160, 420]}
+              cameraTarget={[0, 160, 0]}
               cameraFov={25}
             />
           </div>
