@@ -9,7 +9,7 @@ import { StatusPanel, InventoryPanel, FullMapPanel, SettingsPanel } from './comp
 import CodexPanel from './components/Codex.jsx'
 import Ending from './components/Ending.jsx'
 import MapOverlay from './components/MapOverlay.jsx'
-import { apiLoadSession, apiNewSession, apiLockEnding, apiGetEnding, getStoredUser, getToken, logout } from './api.js'
+import { apiLoadSession, apiNewSession, apiLockEnding, apiGetEnding, apiEquip, getStoredUser, getToken, logout } from './api.js'
 import { EQUIPMENT, EQUIP_SLOTS } from './data.js'
 
 const SAVE_KEY = 'persona_session_id'
@@ -25,7 +25,8 @@ export default function App() {
   const [session, setSession] = useState(null)
   const [history, setHistory] = useState([])
   const [storyScene, setStoryScene] = useState(null)
-  const [equipment, setEquipment] = useState(() => ({ ...EQUIPMENT }))
+  // 장비는 세션 인벤토리(서버 권위)에서 끌어온다. 세션 없으면 데모 기본값.
+  const equipment = session?.inventory?.equipment || EQUIPMENT
   const [hasSave, setHasSave] = useState(false)
   const [toast, setToast] = useState('')
   const [loading, setLoading] = useState(false)
@@ -183,9 +184,17 @@ export default function App() {
 
   const equipItem = (item) => {
     const slot = EQUIP_SLOTS.find(s => s.label === item?.slot)
-    if (!slot) return
-    setEquipment(prev => ({ ...prev, [slot.key]: item.id }))
+    if (!slot || !item?.id) return
+    if (!session?.id) { flashToast('세션이 없습니다'); return }
+    // 낙관적 갱신 후 서버에 저장(서버가 권위 — 반환 세션으로 확정)
+    setSession(prev => prev ? {
+      ...prev,
+      inventory: { ...prev.inventory, equipment: { ...(prev.inventory?.equipment || {}), [slot.key]: item.id } },
+    } : prev)
     flashToast(`${item.name} 장착`)
+    apiEquip(session.id, item.id, slot.key)
+      .then(d => { if (d?.session) setSession(d.session) })
+      .catch(() => flashToast('장착 저장 실패'))
   }
 
   const doLogout = () => {

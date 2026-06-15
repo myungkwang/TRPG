@@ -68,9 +68,8 @@ const INV_LAYOUT = [
   { ref: 'ITM_ESSENCE', x: 0, y: 2, w: 1, h: 1, stack: 10, currency: true },
   { ref: 'ITM_ESSENCE', x: 1, y: 2, w: 1, h: 1, stack: 10, currency: true },
   { ref: 'ITM_ESSENCE', x: 2, y: 2, w: 1, h: 1, stack: 3,  currency: true },
-  { ref: 'ITM_WPN_OLD_PISTOL_3D', x: 0, y: 3, w: 1, h: 1 },
-  { ref: 'ITM_WPN_ARIA_REVOLVER_3D', x: 1, y: 3, w: 1, h: 1 },
-  { ref: 'ITM_WPN_GUN_3D', x: 2, y: 3, w: 1, h: 1 },
+  // 시작 직업(영석 연금술사) 유일무기 — 3D 모델 표시
+  { ref: 'ITM_UNIQ_REVOLVER', x: 0, y: 3, w: 1, h: 1 },
 ]
 export const INV_ITEMS = INV_LAYOUT.map((slot, i) => {
   const m = ITEMS[slot.ref]
@@ -136,7 +135,8 @@ export const CODEX_ITEMS = ITEM_LIST.map((it, i) => ({
   id: it.id, no: i + 1, name: it.name, icon: it.icon,
   category: it.category, slot: it.slot, unique: it.unique, tier: it.tier,
   effect: it.effect, price: it.price, sources: it.sources, desc: it.desc,
-  got: !isLocked(it),
+  modelPath: it.modelPath || null,
+  got: true,   // (임시) 모델 확인용 — 도감 아이템 전부 개방. 실제 해금규칙은 !isLocked(it)
 }))
 
 // 해금단서 — 아이템과 유사

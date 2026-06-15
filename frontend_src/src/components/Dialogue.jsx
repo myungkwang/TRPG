@@ -1270,11 +1270,20 @@ export default function Dialogue({
         setStageLocation(null)
         if (story?.location && story.location !== newLoc) onStoryChange?.(null)
       }
-      push('gm', data.answer, {
-        speak: true,
+      // 비고정 장소로 배경이 새로 '생성'될 예정이면 GM 대사+음성을 보류 → 생성 완료 후 함께 공개
+      const willGen = newLoc && !getLocationBackground(newLoc)
+        && !genBg[newLoc] && !bgTriedRef.current.has(newLoc)
+      const reveal = {
+        answer: data.answer,
         segments: normalizeStorySegments(data.segments, data.answer, 'gm'),
-      })
-      storyChoicesRef.current = normalizeChoices(data.choices)
+        choices: normalizeChoices(data.choices),
+      }
+      if (willGen) {
+        pendingRevealRef.current = reveal
+      } else {
+        push('gm', reveal.answer, { speak: true, segments: reveal.segments })
+        storyChoicesRef.current = reveal.choices
+      }
     } catch (err) {
       push('gm', `오류: ${err.message}`, { speak: false })
     } finally {
@@ -1403,6 +1412,7 @@ export default function Dialogue({
   const [genBg, setGenBg] = useState({})
   const [bgLoading, setBgLoading] = useState(false)
   const bgTriedRef = useRef(new Set())
+  const pendingRevealRef = useRef(null)   // 배경 생성 중 보류한 GM 대사(생성 후 음성과 함께 공개)
   // 배경은 '실제 게임 위치'를 따른다. story.location(멈춰있는 인트로 씬)은 배경 결정에서 제외 —
   // 안 그러면 자유 이동해도 인트로 씬 위치(진료소)가 계속 덮어 AI 배경 생성이 안 됨.
   const curLoc = stageLocation || session?.location
@@ -1416,7 +1426,15 @@ export default function Dialogue({
     apiGenerateBackground(session.id, curLoc)
       .then(d => { if (d.url) setGenBg(p => ({ ...p, [curLoc]: d.url })) })
       .catch(() => {})
-      .finally(() => setBgLoading(false))
+      .finally(() => {
+        setBgLoading(false)
+        const pr = pendingRevealRef.current   // 보류해 둔 GM 대사를 이제 음성과 함께 공개
+        if (pr) {
+          pendingRevealRef.current = null
+          push('gm', pr.answer, { speak: true, segments: pr.segments })
+          storyChoicesRef.current = pr.choices
+        }
+      })
   }, [curLoc, session?.id])
   const locationBgm = getLocationBgm([
     sceneContext.storyId,
@@ -1457,7 +1475,13 @@ export default function Dialogue({
       style={locationBackground ? { '--location-bg': `url("${locationBackground}")` } : undefined}
     >
       {locationBackground && <ParallaxBackground image={locationBackground} fx={getFx(curLoc)} />}
-      {bgLoading && <div className="bg-gen-loading">새로운 장소의 풍경을 그리는 중…</div>}
+      {bgLoading && (
+        <div className="bg-gen-loading">
+          <div className="bg-gen-spinner" />
+          <div className="bg-gen-title">AI가 새 장소를 그리는 중…</div>
+          <div className="bg-gen-sub">잠시만 기다려 주세요</div>
+        </div>
+      )}
       <div className="bg-embers" />
 
       {judge && (

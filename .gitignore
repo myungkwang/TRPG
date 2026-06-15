@@ -81,3 +81,8 @@ docs/superpowers/
 *.pkl
 *.npy
 *.npz
+
+# ComfyUI portable (코드와 별개로 공유 ? git 미포함)
+ComfyUI_windows_portable/
+/ComfyUI/
+
