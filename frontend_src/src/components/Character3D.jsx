@@ -334,6 +334,7 @@ export default function Character3D({
   modelOffset = DEFAULT_MODEL_OFFSET,
   preferEmbeddedAnimations = false,
   motionIntensity = 1,
+  disableProceduralMotion = false,
   cameraPosition = null,
   cameraTarget = null,
   cameraFov = 50,
@@ -615,11 +616,6 @@ export default function Character3D({
       if (!audio || morphMeshes.length === 0) return
 
       const fallbackDuration = Math.max(1, Array.from(String(text || '')).length * 0.08)
-      startProceduralMotion(text || 'talk', {
-        emotion: 'talk',
-        duration: Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : fallbackDuration,
-      })
-
       audioContext = new AudioContext()
       audioSource = audioContext.createMediaElementSource(audio)
       analyser = audioContext.createAnalyser()
@@ -822,8 +818,13 @@ export default function Character3D({
       motionToken += 1
       if (motionTimer) clearTimeout(motionTimer)
       motionTimer = 0
+      if (disableProceduralMotion) {
+        motionProfile = null
+        return null
+      }
       motionProfile = buildMotionProfile(text, options.emotion, options.duration)
       console.log('[Character3D Procedural Motion]', motionProfile)
+      return motionProfile
     }
 
     const applyProceduralMotion = () => {
@@ -1086,7 +1087,7 @@ export default function Character3D({
         return played
       }
 
-      return startProceduralMotion(textOrEmotion, options)
+      return disableProceduralMotion ? null : startProceduralMotion(textOrEmotion, options)
     }
 
     const playDirectAnimation = (name = 'talk', options = {}) => {
@@ -1377,6 +1378,10 @@ export default function Character3D({
     modelOffset,
     preferEmbeddedAnimations,
     motionIntensity,
+    disableProceduralMotion,
+    cameraPosition,
+    cameraTarget,
+    cameraFov,
     framingOffsetY,
     framingScale,
   ])

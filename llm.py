@@ -1,13 +1,6 @@
 from __future__ import annotations
 
-import base64
-import json
 import os
-import random
-import time
-import urllib.parse
-import urllib.request
-import uuid as _uuid
 from openai import OpenAI
 from dotenv import load_dotenv
 

@@ -75,21 +75,21 @@ const STORY_ENSEMBLES = {
 // 파일명은 공유 애니와 동일하게 두고, 폴더만 /npc/ 로 분리한다.
 // (가일에 구운 .glb 들을 static/animations/npc/ 에 넣으면 4명 모두 적용됨)
 const NPC_ANIMS = {
-  idle: '/static/animations/npc/acknowledging.glb',
+  idle: '/static/animations/npc/weight_shift.glb',
   talk: '/static/animations/npc/acknowledging.glb',
-  happy: '/static/animations/npc/happy_hand_gesture.glb',
-  angry: '/static/animations/npc/angry_gesture.glb',
-  thinking: '/static/animations/npc/thoughtful_head_shake.glb',
-  deny: '/static/animations/npc/shaking_head_no.glb',
-  sigh: '/static/animations/npc/relieved_sigh.glb',
-  cocky: '/static/animations/npc/being_cocky.glb',
-  yes: '/static/animations/npc/head_nod_yes.glb',
-  strong_yes: '/static/animations/npc/hard_head_nod.glb',
-  long_yes: '/static/animations/npc/lengthy_head_nod.glb',
-  sarcastic: '/static/animations/npc/sarcastic_head_nod.glb',
-  look_away: '/static/animations/npc/look_away_gesture.glb',
-  dismiss: '/static/animations/npc/dismissing_gesture.glb',
-  annoyed: '/static/animations/npc/annoyed_head_shake.glb',
+  happy: '/static/animations/npc/acknowledging.glb',
+  angry: '/static/animations/npc/acknowledging.glb',
+  thinking: '/static/animations/npc/acknowledging.glb',
+  deny: '/static/animations/npc/acknowledging.glb',
+  sigh: '/static/animations/npc/acknowledging.glb',
+  cocky: '/static/animations/npc/acknowledging.glb',
+  yes: '/static/animations/npc/acknowledging.glb',
+  strong_yes: '/static/animations/npc/acknowledging.glb',
+  long_yes: '/static/animations/npc/acknowledging.glb',
+  sarcastic: '/static/animations/npc/acknowledging.glb',
+  look_away: '/static/animations/npc/acknowledging.glb',
+  dismiss: '/static/animations/npc/acknowledging.glb',
+  annoyed: '/static/animations/npc/acknowledging.glb',
 }
 
 const TAVERN_LIN_SCENES = new Set([
@@ -107,7 +107,10 @@ const CHARACTER_MODELS = [
     modelPath: '/static/models/GM_v3_Standing W_Briefcase Idle_01.glb',
     modelScale: 0.75,
     modelOffset: [0, -130, 0],
-    animations: { idle: '/static/animations/npc/gm_acknowledging.glb' },
+    animations: {
+      idle: '/static/animations/npc/gm_acknowledging.glb',
+      talk: '/static/animations/npc/gm_acknowledging.glb',
+    },
     motionIntensity: 0.6,
   },
   {
@@ -125,9 +128,11 @@ const CHARACTER_MODELS = [
     personaId: 'gail',
     name: PERSONAS.gail.name,
     modelPath: '/static/models/Gail_07_textureShading_01.glb',
-    modelScale: 0.75,
-    modelOffset: [0, 40, 0],
+    modelScale: 0.90,
+    modelOffset: [0, 0, 0],
+    framingScale: 0.82,
     animations: NPC_ANIMS,
+    disableProceduralMotion: true,
   },
   {
     speaker: 'marta',
@@ -137,6 +142,7 @@ const CHARACTER_MODELS = [
     modelScale: 0.75,
     modelOffset: [0, 40, 0],
     animations: NPC_ANIMS,
+    disableProceduralMotion: true,
   },
   {
     speaker: 'tobi',
@@ -146,6 +152,7 @@ const CHARACTER_MODELS = [
     modelScale: 0.75,
     modelOffset: [0, 40, 0],
     animations: NPC_ANIMS,
+    disableProceduralMotion: true,
   },
   {
     speaker: 'doctor',
@@ -182,6 +189,7 @@ const CHARACTER_MODELS = [
     modelScale: 0.80,
     modelOffset: [0, 40, 0],
     animations: NPC_ANIMS,
+    disableProceduralMotion: true,
     motionIntensity: 0.55,
   },
   // --- 임시: 입모양(ShapeKey) 테스트용. 모델검사에서 확인 후 제거할 것 ---
@@ -1388,7 +1396,8 @@ export default function Dialogue({
     .filter(entry => entry.character)
   const [appSettings, setAppSettings] = useState(() => loadSettings())   // 레이아웃은 설정 패널에서 토글
   useEffect(() => subscribeSettings(setAppSettings), [])
-  const splitLayout = appSettings.layout === 'split'
+  const layoutMode = appSettings.layout === 'split' ? 'split' : 'stacked'
+  const splitLayout = layoutMode === 'split'
 
   // 배경: 핵심 장소=고정 이미지, 그 외=AI 즉석 생성(+gen 깊이맵으로 2.5D)
   const [genBg, setGenBg] = useState({})
@@ -1444,7 +1453,7 @@ export default function Dialogue({
 
   return (
     <div
-      className={`dialogue${splitLayout ? ' layout-split' : ''}${locationBackground ? ' has-location-bg' : ''}`}
+      className={`dialogue layout-${layoutMode}${splitLayout ? ' layout-split' : ''}${locationBackground ? ' has-location-bg' : ''}`}
       style={locationBackground ? { '--location-bg': `url("${locationBackground}")` } : undefined}
     >
       {locationBackground && <ParallaxBackground image={locationBackground} fx={getFx(curLoc)} />}
@@ -1552,6 +1561,7 @@ export default function Dialogue({
                     framingScale={character.framingScale}
                     preferEmbeddedAnimations={character.preferEmbeddedAnimations}
                     animations={character.animations}
+                    disableProceduralMotion={character.disableProceduralMotion}
                     motionIntensity={active ? character.motionIntensity : 0.12}
                     registerGlobalControls={active}
                   />
@@ -1579,6 +1589,7 @@ export default function Dialogue({
                     framingScale={character.framingScale}
                     preferEmbeddedAnimations={character.preferEmbeddedAnimations}
                     animations={character.animations}
+                    disableProceduralMotion={character.disableProceduralMotion}
                     motionIntensity={active ? character.motionIntensity : 0.12}
                     registerGlobalControls={active}
                   />
@@ -1587,7 +1598,7 @@ export default function Dialogue({
             })}
           </div>
         ) : activeSpeaker !== 'gm' && (
-          <div className="char-center">
+          <div className="char-center" data-speaker={activeCharacter.speaker}>
             <Character3D
               key={activeCharacter.speaker}
               modelPath={activeCharacter.modelPath}
@@ -1598,6 +1609,7 @@ export default function Dialogue({
               framingScale={activeCharacter.framingScale}
               preferEmbeddedAnimations={activeCharacter.preferEmbeddedAnimations}
               animations={activeCharacter.animations}
+              disableProceduralMotion={activeCharacter.disableProceduralMotion}
               motionIntensity={activeCharacter.motionIntensity}
             />
           </div>
