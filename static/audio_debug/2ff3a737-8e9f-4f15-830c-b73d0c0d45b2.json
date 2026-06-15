@@ -1,0 +1,63 @@
+{
+  "audio_file": "2ff3a737-8e9f-4f15-830c-b73d0c0d45b2.wav",
+  "audio_float32_npy": "2ff3a737-8e9f-4f15-830c-b73d0c0d45b2.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "그곳은 제국 영석공사의 감독인 가일이 있는 곳입니다.",
+  "request_text_repr": "'그곳은 제국 영석공사의 감독인 가일이 있는 곳입니다.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "그곳은 제국 영석공사의 감독인 가일이 있는 곳입니다.",
+      "text_token_len": 21,
+      "text_tokens": [
+        [
+          48606,
+          130638,
+          33704,
+          62071,
+          124785,
+          126440,
+          129150,
+          78125,
+          55054,
+          20401,
+          129423,
+          129502,
+          31328,
+          35509,
+          32077,
+          12802,
+          64521,
+          45130,
+          111,
+          78952,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    65280,
+    1
+  ],
+  "audio_min": -0.40495795011520386,
+  "audio_max": 0.5754818916320801,
+  "audio_mean": 0.00023139994300436229
+}

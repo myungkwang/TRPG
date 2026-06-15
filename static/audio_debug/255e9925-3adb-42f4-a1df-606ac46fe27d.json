@@ -1,0 +1,51 @@
+{
+  "audio_file": "255e9925-3adb-42f4-a1df-606ac46fe27d.wav",
+  "audio_float32_npy": "255e9925-3adb-42f4-a1df-606ac46fe27d.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_gail",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "\"당신이 돌아왔군요.",
+  "request_text_repr": "'\"당신이 돌아왔군요.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "\"당신이 돌아왔군요.",
+      "text_token_len": 9,
+      "text_tokens": [
+        [
+          1,
+          64795,
+          82528,
+          12802,
+          137844,
+          127621,
+          129534,
+          35711,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    37440,
+    1
+  ],
+  "audio_min": -0.24428285658359528,
+  "audio_max": 0.37118926644325256,
+  "audio_mean": 0.00018782191909849644
+}

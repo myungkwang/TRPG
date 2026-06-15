@@ -68,14 +68,19 @@ const HANGUL_BASE = 0xac00
 const HANGUL_END = 0xd7a3
 const JUNGSEONG_COUNT = 21
 const JONGSEONG_COUNT = 28
+// 중성(21) → 입술 모양 viseme. ㅜ계열은 oo, ㅗ계열은 oh로 분리한다.
+// 순서: ㅏㅐㅑㅒ ㅓㅔㅕㅖ ㅗㅘㅙㅚ ㅛㅜㅝㅞ ㅟㅠㅡㅢ ㅣ
 const JUNGSEONG_TO_VISEME = [
-  'aa_viseme', 'aa_viseme', 'aa_viseme', 'aa_viseme',
-  'eh_viseme', 'eh_viseme', 'eh_viseme', 'eh_viseme',
-  'oh_viseme', 'oh_viseme', 'oh_viseme', 'oh_viseme', 'oh_viseme',
-  'oh_viseme', 'oh_viseme', 'oh_viseme',
-  'ee_viseme', 'ee_viseme', 'ee_viseme',
-  'ee_viseme', 'ee_viseme',
+  'aa_viseme', 'eh_viseme', 'aa_viseme', 'eh_viseme',
+  'aa_viseme', 'eh_viseme', 'aa_viseme', 'eh_viseme',
+  'oh_viseme', 'oh_viseme', 'oo_viseme', 'oo_viseme',
+  'oh_viseme', 'oo_viseme', 'oo_viseme', 'oo_viseme',
+  'oo_viseme', 'oo_viseme', 'ee_viseme', 'ee_viseme',
+  'ee_viseme',
 ]
+// 양순음(입술을 다무는 자음) 인덱스. 초성: ㅁ6 ㅂ7 ㅃ8 ㅍ17 / 종성: ㅁ16 ㅂ17 ㅄ18 ㅍ26
+const BILABIAL_CHO = new Set([6, 7, 8, 17])
+const BILABIAL_JONG = new Set([16, 17, 18, 26])
 
 function smoothStep(edge0, edge1, value) {
   const t = THREE.MathUtils.clamp((value - edge0) / Math.max(0.0001, edge1 - edge0), 0, 1)
@@ -93,20 +98,48 @@ function guessVisemeFromChar(char) {
   if (/[aA]/.test(char)) return 'aa_viseme'
   if (/[eE]/.test(char)) return 'eh_viseme'
   if (/[iI]/.test(char)) return 'ee_viseme'
-  if (/[oOuU]/.test(char)) return 'oh_viseme'
+  if (/[oO]/.test(char)) return 'oh_viseme'
+  if (/[uU]/.test(char)) return 'oo_viseme'
   return 'JawOpen'
+}
+
+// 한글 한 글자를 초성/중성/종성으로 분해. 한글이 아니면 null.
+function decomposeHangul(code) {
+  if (code < HANGUL_BASE || code > HANGUL_END) return null
+  const s = code - HANGUL_BASE
+  return {
+    cho: Math.floor(s / (JUNGSEONG_COUNT * JONGSEONG_COUNT)),
+    jung: Math.floor(s / JONGSEONG_COUNT) % JUNGSEONG_COUNT,
+    jong: s % JONGSEONG_COUNT, // 0 = 받침 없음
+  }
+}
+
+// 한 글자 → viseme 이벤트열. 양순 초성/받침은 입을 다무는 폐쇄(close) 프레임으로 끼운다.
+function syllableToVisemeEvents(char) {
+  const d = decomposeHangul(char.charCodeAt(0))
+  if (!d) return [{ viseme: guessVisemeFromChar(char), close: false }]
+
+  const events = []
+  if (BILABIAL_CHO.has(d.cho)) events.push({ viseme: 'viseme_PP', close: true })
+  events.push({ viseme: JUNGSEONG_TO_VISEME[d.jung] || 'aa_viseme', close: false })
+  if (BILABIAL_JONG.has(d.jong)) events.push({ viseme: 'viseme_PP', close: true })
+  return events
 }
 
 function makeVisemeTimeline(text, duration) {
   const chars = Array.from(String(text || '').replace(/\s+/g, '')).filter(Boolean)
   if (!chars.length || !duration || !Number.isFinite(duration)) return []
 
-  const step = duration / chars.length
-  return chars.map((char, index) => ({
-    time: index * step,
-    step,
-    viseme: guessVisemeFromChar(char),
-  }))
+  // 자음 폐쇄는 짧게(0.4), 모음은 길게(1.0) 시간을 배분한다.
+  const events = chars.flatMap(syllableToVisemeEvents)
+  const totalWeight = events.reduce((sum, e) => sum + (e.close ? 0.4 : 1), 0) || 1
+  let t = 0
+  return events.map((e) => {
+    const step = (duration / totalWeight) * (e.close ? 0.4 : 1)
+    const frame = { time: t, step, viseme: e.viseme, close: !!e.close }
+    t += step
+    return frame
+  })
 }
 
 function getVisemeWeights(timeline, time) {
@@ -147,6 +180,7 @@ function getAudioVisemeWeights(freqData, sampleRate, fftSize, mouth) {
     eh_viseme: Math.max(0, mid * 1.05 + high * 0.20),
     ee_viseme: Math.max(0, high * 1.25 + mid * 0.30 - low * 0.15),
     oh_viseme: Math.max(0, low * 1.10 + lowMid * 0.42 - high * 0.18),
+    oo_viseme: Math.max(0, low * 1.18 + lowMid * 0.18 - mid * 0.10 - high * 0.24),
   }
 
   const total = Object.values(scores).reduce((sum, value) => sum + value, 0)
@@ -158,7 +192,7 @@ function getAudioVisemeWeights(freqData, sampleRate, fftSize, mouth) {
 }
 
 function blendVisemeWeights(audioWeights, textWeights) {
-  const names = ['aa_viseme', 'eh_viseme', 'ee_viseme', 'oh_viseme']
+  const names = ['aa_viseme', 'eh_viseme', 'ee_viseme', 'oh_viseme', 'oo_viseme']
   const weights = {}
   let total = 0
   const hasTextWeights = names.some((name) => (textWeights[name] || 0) > 0.01)
@@ -184,13 +218,19 @@ function getRhythmTextVisemeWeights(sequence, cursor, carry) {
   if (!sequence.length) return {}
 
   const index = THREE.MathUtils.clamp(Math.floor(cursor), 0, sequence.length - 1)
-  const current = sequence[index]?.viseme
-  const next = sequence[Math.min(index + 1, sequence.length - 1)]?.viseme
+  const cur = sequence[index]
+  const nxt = sequence[Math.min(index + 1, sequence.length - 1)]
   const blend = smoothStep(0.42, 0.92, carry)
   const weights = {}
 
-  if (current && current !== 'JawOpen') weights[current] = (weights[current] || 0) + (1 - blend)
-  if (next && next !== 'JawOpen') weights[next] = (weights[next] || 0) + blend
+  // 폐쇄 프레임은 viseme_PP(입 다묾)로, 모음 프레임은 해당 viseme으로 누적한다.
+  const add = (frame, amt) => {
+    if (!frame || amt <= 0) return
+    const key = frame.close ? 'viseme_PP' : frame.viseme
+    if (key && key !== 'JawOpen') weights[key] = (weights[key] || 0) + amt
+  }
+  add(cur, 1 - blend)
+  if (nxt !== cur) add(nxt, blend)
 
   return weights
 }
@@ -355,12 +395,20 @@ export default function Character3D({
       eh_viseme: 0,
       ee_viseme: 0,
       oh_viseme: 0,
+      oo_viseme: 0,
+      viseme_PP: 0,
+      mouthClose: 0,
+      mouthPucker: 0,
+      mouthFunnel: 0,
+      mouthSmile_L: 0,
+      mouthSmile_R: 0,
     }
     let smoothedVisemes = {
       aa_viseme: 0,
       eh_viseme: 0,
       ee_viseme: 0,
       oh_viseme: 0,
+      oo_viseme: 0,
     }
 
     const collectMorphMeshes = (root) => {
@@ -437,24 +485,61 @@ export default function Character3D({
         eh_viseme: 0,
         ee_viseme: 0,
         oh_viseme: 0,
+        oo_viseme: 0,
+        viseme_PP: 0,
+        mouthClose: 0,
+        mouthPucker: 0,
+        mouthFunnel: 0,
+        mouthSmile_L: 0,
+        mouthSmile_R: 0,
       }
       smoothedVisemes = {
         aa_viseme: 0,
         eh_viseme: 0,
         ee_viseme: 0,
         oh_viseme: 0,
+        oo_viseme: 0,
       }
     }
 
+    const CLOSURE_KEYS = new Set(['viseme_PP', 'mouthClose'])
     const applyStableLipMorphs = (targets, amount = 1) => {
       Object.keys(lipMorphState).forEach((name) => {
         const targetValue = (targets[name] || 0) * amount
         const currentValue = lipMorphState[name]
-        const factor = targetValue > currentValue ? 0.24 : 0.16
+        // 입 다묾(폐쇄)은 또렷하게 보이도록 더 빠르게 붙였다 뗀다.
+        const fast = CLOSURE_KEYS.has(name)
+        const factor = targetValue > currentValue
+          ? (fast ? 0.5 : 0.24)
+          : (fast ? 0.34 : 0.16)
         lipMorphState[name] += (targetValue - currentValue) * factor
         if (Math.abs(lipMorphState[name]) < 0.004) lipMorphState[name] = 0
         setMorph(name, lipMorphState[name])
       })
+    }
+
+    // 양순음 폐쇄 강도를 입 다묾 shape(viseme_PP/mouthClose)로 변환한다.
+    const closureTargets = (closeAmt) => {
+      const t = {}
+      if (closeAmt > 0.01) {
+        t.viseme_PP = closeAmt
+        t.mouthClose = closeAmt * 0.9
+      }
+      return t
+    }
+
+    // 모음 가중치에서 입술의 둥글림(pucker/funnel)·좌우당김(smile)을 파생해 자연스러움을 더한다.
+    const applyAuxShapes = (targets, gate = 1) => {
+      const oo = targets.oo_viseme || 0
+      const oh = targets.oh_viseme || 0
+      const ee = targets.ee_viseme || 0
+      const eh = targets.eh_viseme || 0
+      const pucker = Math.min(0.72, oo * 1.0 + oh * 0.55) * gate
+      const funnel = Math.min(0.55, oh * 0.7 + oo * 0.35) * gate
+      const smile = Math.min(0.5, ee * 1.0 + eh * 0.45) * gate
+      if (pucker > 0.02) targets.mouthPucker = pucker
+      if (funnel > 0.02) targets.mouthFunnel = funnel
+      if (smile > 0.02) { targets.mouthSmile_L = smile; targets.mouthSmile_R = smile }
     }
 
     const stopAudioLipSync = () => {
@@ -502,18 +587,22 @@ export default function Character3D({
           : 0
         const carry = cursor % 1
         const visemeWeights = getRhythmTextVisemeWeights(visemeTimeline, cursor, carry)
-        const lipTargets = {
-          JawOpen: Math.min(0.4, mouth),
-          jawOpen: Math.min(0.4, mouth),
-        }
+        // 양순음 폐쇄 구간엔 턱·모음을 닫는다(openGate).
+        const closeAmt = visemeWeights.viseme_PP || 0
+        const openGate = 1 - closeAmt
+        const lipTargets = closureTargets(closeAmt)
+        const jaw = Math.min(0.4, mouth) * openGate
+        lipTargets.JawOpen = jaw
+        lipTargets.jawOpen = jaw
 
         Object.keys(smoothedVisemes).forEach((name) => {
           const targetWeight = visemeWeights[name] || 0
           const factor = targetWeight > smoothedVisemes[name] ? 0.22 : 0.14
           smoothedVisemes[name] += (targetWeight - smoothedVisemes[name]) * factor
-          const vowel = Math.min(0.58, (0.2 + mouth * 0.7) * smoothedVisemes[name])
+          const vowel = Math.min(0.58, (0.2 + mouth * 0.7) * smoothedVisemes[name]) * openGate
           if (vowel > 0.02) lipTargets[name] = vowel
         })
+        applyAuxShapes(lipTargets, openGate)
 
         applyStableLipMorphs(lipTargets)
         lipRaf = requestAnimationFrame(update)
@@ -585,9 +674,12 @@ export default function Character3D({
         const textWeights = getRhythmTextVisemeWeights(visemeTimeline, speechCursor, speechCarry)
         const visemeWeights = blendVisemeWeights(audioWeights, textWeights)
 
-        const lipTargets = {}
+        // 양순음(ㅁ/ㅂ/ㅍ) 폐쇄는 오디오 진폭과 무관하게 텍스트 기준으로 적용한다.
+        const closeAmt = textWeights.viseme_PP || 0
+        const openGate = 1 - closeAmt
+        const lipTargets = closureTargets(closeAmt)
         if (mouth > 0.045) {
-          const jaw = Math.min(0.46, 0.06 + mouth * 0.44)
+          const jaw = Math.min(0.46, 0.06 + mouth * 0.44) * openGate
           lipTargets.JawOpen = jaw
           lipTargets.jawOpen = jaw
 
@@ -595,9 +687,10 @@ export default function Character3D({
             const targetWeight = visemeWeights[name] || 0
             const factor = targetWeight > smoothedVisemes[name] ? 0.22 : 0.14
             smoothedVisemes[name] += (targetWeight - smoothedVisemes[name]) * factor
-            const vowel = Math.min(0.74, (0.24 + mouth * 0.58) * smoothedVisemes[name])
+            const vowel = Math.min(0.74, (0.24 + mouth * 0.58) * smoothedVisemes[name]) * openGate
             if (vowel > 0.02) lipTargets[name] = vowel
           })
+          applyAuxShapes(lipTargets, openGate)
         } else {
           Object.keys(smoothedVisemes).forEach((name) => {
             smoothedVisemes[name] *= 0.78

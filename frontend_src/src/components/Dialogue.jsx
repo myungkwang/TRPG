@@ -173,13 +173,13 @@ const CHARACTER_MODELS = [
     modelOffset: [0, 80, 0],
   },
   {
-  speaker: 'miner',
-  personaId: 'miner',
-  name: PERSONAS.miner.name,
-  modelPath: '/static/models/광부.glb',
-  modelScale: 0.22,          // ← modelRotation 줄 제거됨
-  modelOffset: [0, 70, 0],
-  motionIntensity: 0.55,
+    speaker: 'miner',
+    personaId: 'miner',
+    name: PERSONAS.miner.name,
+    modelPath: '/static/models/광부.glb',
+    modelScale: 0.22,
+    modelOffset: [0, 70, 0],
+    motionIntensity: 0.55,
   },
   {
     speaker: 'tavern_clerk',
@@ -191,6 +191,17 @@ const CHARACTER_MODELS = [
     animations: NPC_ANIMS,
     disableProceduralMotion: true,
     motionIntensity: 0.55,
+  },
+  // --- 임시: 입모양(ShapeKey) 테스트용. 모델검사에서 확인 후 제거할 것 ---
+  {
+    speaker: 'shapekey_test',
+    personaId: 'gm',
+    name: '입모양 테스트',
+    modelPath: '/static/models/ShapeKey_10_anim_05.glb',
+    modelScale: 0.75,
+    modelOffset: [0, -130, 0],
+    preferEmbeddedAnimations: true,
+    motionIntensity: 0,
   },
 ]
 

@@ -1,0 +1,49 @@
+{
+  "audio_file": "bc43a0cf-f997-45d2-8a42-1598638127e2.wav",
+  "audio_float32_npy": "bc43a0cf-f997-45d2-8a42-1598638127e2.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_marta",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "바람이 차갑습니다.",
+  "request_text_repr": "'바람이 차갑습니다.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "바람이 차갑습니다.",
+      "text_token_len": 7,
+      "text_tokens": [
+        [
+          130271,
+          133016,
+          12802,
+          129882,
+          138685,
+          38231,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    31680,
+    1
+  ],
+  "audio_min": -0.44978058338165283,
+  "audio_max": 0.3999181091785431,
+  "audio_mean": 0.0006816305103711784
+}

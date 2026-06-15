@@ -1,0 +1,64 @@
+{
+  "audio_file": "3e205072-07d7-42f1-af24-b5f0a6593209.wav",
+  "audio_float32_npy": "3e205072-07d7-42f1-af24-b5f0a6593209.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "광산 입구에는 새 명패보다 뜯겨 나간 명패가 더 많습니다.",
+  "request_text_repr": "'광산 입구에는 새 명패보다 뜯겨 나간 명패가 더 많습니다.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "광산 입구에는 새 명패보다 뜯겨 나간 명패가 더 많습니다.",
+      "text_token_len": 22,
+      "text_tokens": [
+        [
+          126861,
+          85057,
+          38150,
+          88259,
+          126377,
+          134583,
+          130345,
+          133087,
+          129885,
+          5140,
+          250,
+          107,
+          132269,
+          73518,
+          62275,
+          130345,
+          133087,
+          19969,
+          126366,
+          126735,
+          38231,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    115200,
+    1
+  ],
+  "audio_min": -0.3365342915058136,
+  "audio_max": 0.30387431383132935,
+  "audio_mean": 8.802937372820452e-05
+}
