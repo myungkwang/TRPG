@@ -11,6 +11,7 @@ from rag import retrieve_context
 from game_logic import perform_roll, infer_check
 from personas import PERSONA_CONTEXT
 import progression
+import items_catalog
 import endings
 import codex
 import reflection
@@ -247,14 +248,20 @@ def _execute_tool(session_id: str, session: dict, tool_call) -> dict:
         payload = {"ok": True, "event": args.get("node_id")}
         if res["relations_changed"]:
             payload["relations_changed"] = res["relations_changed"]  # 이벤트로 오른 호감도
+        if res.get("items_added"):
+            payload["items_added"] = res["items_added"]              # 이벤트로 받은 아이템(이름)
         return _with_ending(session_id, payload)
 
     if name == "give_item":
         item = args.get("item", "").strip()
         if not item:
             return {"error": "item is empty"}
-        progression.give_item(session_id, item)
-        return _with_ending(session_id, {"ok": True, "item": item})
+        res = progression.give_item(session_id, item)
+        return _with_ending(session_id, {
+            "ok": True,
+            "item": res.get("display") or item,
+            "already_had": not res.get("added", True),
+        })
 
     if name == "set_location":
         try:
@@ -281,8 +288,10 @@ def _with_ending(session_id: str, result: dict) -> dict:
 
 
 # 안전망: GM이 set_location을 빠뜨려도, 플레이어가 이동을 명시하면 서버가 장소를 갱신한다.
-_MOVE_HINTS = ("간다", "향한다", "들어간다", "들어선다", "도착", "이동", "들른다", "들려",
-               "찾아간다", "올라간다", "내려간다", "로 간다", "에 간다", "으로 간다")
+_MOVE_HINTS = ("간다", "갈래", "갈게", "갈까", "갈란다", "가자", "가요", "가볼", "가보", "가겠",
+               "가야", "가서", "가신", "가는", "향한", "향해", "향하", "들어가", "들어선",
+               "도착", "이동", "들른", "들러", "찾아가", "올라가", "내려가", "떠난", "떠나",
+               "출발", "나선", "로 가", "으로 가", "에 가")
 _KNOWN_LOCS = ["재끝 마을 광장", "마을 광장", "광장", "진료소", "여관", "주점", "주막",
                "대장간", "풀무간", "정제소", "갱도 심부", "갱도", "광산", "봉우리",
                "산기슭 오두막", "오두막", "주둔소", "암시장", "교단 성소", "교단", "폐광"]
@@ -296,6 +305,22 @@ def _detect_move_target(text: str) -> str | None:
         if loc in text:
             return loc
     return None
+
+
+def _humanize_inventory(inventory) -> dict:
+    """ITM_* ID가 섞인 인벤토리를 GM이 읽기 쉬운 이름으로 바꿔 준다(상태 전달용)."""
+    inv = progression.as_dict(inventory)
+    out = dict(inv)
+    items = inv.get("items")
+    if isinstance(items, list):
+        out["items"] = [items_catalog.display_name(it) for it in items]
+    equip = inv.get("equipment")
+    if isinstance(equip, dict):
+        out["equipment"] = {
+            slot: (items_catalog.display_name(v) if v else None)
+            for slot, v in equip.items()
+        }
+    return out
 
 
 def gm_reply(session_id: str, user_input: str) -> dict:
@@ -321,7 +346,7 @@ def gm_reply(session_id: str, user_input: str) -> dict:
             },
             "talent_grade": session["talent_grade"],
             "job": session["job"],
-            "inventory": session["inventory"],
+            "inventory": _humanize_inventory(session["inventory"]),
             "flags": session["flags"],
             "relations": session["relations"],
         },

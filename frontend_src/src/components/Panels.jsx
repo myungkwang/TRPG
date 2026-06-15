@@ -3,13 +3,20 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import Dice3D from './Dice3D.jsx'
+import ItemModel3D from './ItemModel3D.jsx'
+import ItemThumb from './ItemThumb.jsx'
 import {
   STATUS, INV_COLS, INV_ROWS, INV_ITEMS, EQUIP_SLOTS, EQUIPMENT,
 } from '../data.js'
-import { ITEMS, categoryLabel, priceLabel } from '../items.js'
+import { ITEMS, categoryLabel, priceLabel, statEntries } from '../items.js'
 import { QUALITY_PRESETS, loadSettings, subscribeSettings, updateSetting } from '../settings.js'
 
 const slotKeyOf = (item) => EQUIP_SLOTS.find(s => s.label === item?.slot)?.key
+
+// 세션 인벤토리 항목(ITM_* ID 또는 자유 문자열) → 표시용 아이템.
+// 마스터에 없는 값(GM이 준 단서·유품 등)은 ❔ 폴백으로.
+const resolveBagItem = (ref) =>
+  ITEMS[ref] || { id: ref, name: ref, icon: '❔', desc: '정체를 알 수 없는 물건.' }
 
 const damageWithBonus = (damage, bonus = 0) => {
   const match = String(damage || '').match(/^(\d+)\s*-\s*(\d+)$/)
@@ -143,13 +150,16 @@ function ItemDetailModal({ item, onClose, onEquip, equippedId }) {
       <div className="item-detail" onClick={e => e.stopPropagation()}>
         <button className="item-detail-x" onClick={onClose}>✕</button>
         {item.modelPath ? (
-          <WeaponModelPreview path={item.modelPath} fallback={item.icon} />
+          <ItemModel3D path={item.modelPath} fallback={item.icon} spin orient={item.model3d} />
         ) : (
           <div className="id-icon">{item.icon}</div>
         )}
         <div className="id-name">{item.name}</div>
         <div className="id-cat">{categoryLabel(item)}</div>
         <div className="id-meta">
+          {statEntries(item).map(([k, v]) => (
+            <div className="id-row" key={k}><span>{k}</span><b>{v}</b></div>
+          ))}
           {item.effect && item.effect !== '-' && (
             <div className="id-row"><span>효과</span><b>{item.effect}</b></div>
           )}
@@ -191,11 +201,16 @@ function Overlay({ title, onClose, className, children }) {
   )
 }
 
-function EquipmentPickerModal({ slot, equipment, onEquip, onClose }) {
+function EquipmentPickerModal({ slot, equipment, session, onEquip, onClose }) {
   if (!slot) return null
-  const choices = INV_ITEMS
-    .map(inv => ITEMS[inv.ref])
-    .filter(item => item?.slot === slot.label)
+  // 세션 가방 + 현재 장착 중인 아이템 중 이 슬롯에 맞는 것만. 세션 없으면 데모.
+  const bag = Array.isArray(session?.inventory?.items) ? session.inventory.items : INV_ITEMS.map(i => i.ref)
+  const equippedId = equipment[slot.key]
+  const pool = equippedId ? [equippedId, ...bag] : bag
+  const seen = new Set()
+  const choices = pool
+    .map(ref => ITEMS[ref])
+    .filter(item => item?.slot === slot.label && item.id && !seen.has(item.id) && seen.add(item.id))
 
   return (
     <div className="overlay item-detail-overlay" onClick={onClose}>
@@ -203,6 +218,9 @@ function EquipmentPickerModal({ slot, equipment, onEquip, onClose }) {
         <button className="item-detail-x" onClick={onClose}>✕</button>
         <div className="id-name">{slot.label} 선택</div>
         <div className="equip-picker-list">
+          {choices.length === 0 && (
+            <div className="equip-empty">~ 장비할 수 있는 아이템이 없습니다. ~</div>
+          )}
           {choices.map(item => {
             const equipped = equipment[slot.key] === item.id
             return (
@@ -213,12 +231,23 @@ function EquipmentPickerModal({ slot, equipment, onEquip, onClose }) {
                   onEquip?.(item)
                   onClose()
                 }}>
-                <span className="equip-choice-icon">{item.icon}</span>
+                <span className="equip-choice-icon">
+                  {item.modelPath
+                    ? <ItemThumb path={item.modelPath} orient={item.model3d} fallback={item.icon} className="equip-choice-thumb" />
+                    : item.icon}
+                </span>
                 <span className="equip-choice-main">
                   <b>{item.name}</b>
-                  <small>{item.effect || '-'}</small>
+                  {statEntries(item).length > 0 && (
+                    <span className="equip-choice-stats">
+                      {statEntries(item).map(([k, v]) => (
+                        <span key={k} className="stat-chip"><i>{k}</i><b>{v}</b></span>
+                      ))}
+                    </span>
+                  )}
+                  {item.desc && <small className="equip-choice-desc">{item.desc}</small>}
                 </span>
-                <span>{equipped ? '장착 중' : '장착'}</span>
+                <span className="equip-choice-act">{equipped ? '장착 중' : '장착'}</span>
               </button>
             )
           })}
@@ -229,12 +258,29 @@ function EquipmentPickerModal({ slot, equipment, onEquip, onClose }) {
 }
 
 /* ---------- 스테이터스 ---------- */
-export function StatusPanel({ onClose, equipment = EQUIPMENT, onEquip }) {
+export function StatusPanel({ onClose, session, equipment = EQUIPMENT, onEquip }) {
   const [detail, setDetail] = useState(null)
   const [pickerSlot, setPickerSlot] = useState(null)
-  const v = STATUS.vitals, rep = STATUS.reputation
+  const inv = session?.inventory || null
+  // 활력: 세션 현재값 + 명목 최대치(막대 표시용)
+  const vmax = (cur, nom) => Math.max(cur || 0, nom)
+  const v = session ? {
+    hp: [session.hp ?? 0, vmax(session.hp, 25)],
+    mp: [session.mp ?? 0, vmax(session.mp, 40)],
+    stamina: [session.stamina ?? 0, vmax(session.stamina, 16)],
+  } : STATUS.vitals
+  const rep = STATUS.reputation
+  const abilities = session?.stats
+    ? Object.entries(session.stats).map(([k, val]) => ({ k, v: val }))
+    : STATUS.abilities
+  const resources = inv
+    ? { 금화: inv.금화 || 0, 은화: inv.은화 || 0, 동화: inv.동화 || 0, 영정: inv.영정 || 0 }
+    : STATUS.resources
+  const playerName = session?.player_name || STATUS.name
+  const talent = session?.talent_grade || STATUS.talent
+  const job = session?.job || STATUS.job
   const weapon = equipment.weapon ? ITEMS[equipment.weapon] : null
-  const attackBonus = weapon?.attackBonus || 0
+  const attackBonus = weapon?.stats?.['무기 공격력'] || weapon?.attackBonus || 0
   const damage = damageWithBonus(STATUS.combat.피해, attackBonus)
   const repPct = ((rep.val - rep.min) / (rep.max - rep.min)) * 100
   const bar = (cur, max, bg) => (
@@ -247,7 +293,7 @@ export function StatusPanel({ onClose, equipment = EQUIPMENT, onEquip }) {
       <div className="st2-top">
         <div className="st2-portrait">
           <div className="st2-pic">당신</div>
-          <div className="st2-name">{STATUS.name}</div>
+          <div className="st2-name">{playerName}</div>
         </div>
         <div className="st2-vitals">
           <div className="v-row"><span className="v-lab">HP</span>{bar(v.hp[0], v.hp[1], 'linear-gradient(90deg,#7a2020,#d24b4b)')}<i>{v.hp[0]}/{v.hp[1]}</i></div>
@@ -273,7 +319,11 @@ export function StatusPanel({ onClose, equipment = EQUIPMENT, onEquip }) {
               <div key={s.key} className={'eq-slot' + (it ? ' clickable' : ' empty')}
                 title={`${s.label} 선택`}
                 onClick={() => onEquip ? setPickerSlot(s) : it && setDetail(it)}>
-                <div className="eq-icon">{it ? it.icon : s.ph}</div>
+                <div className="eq-icon">
+                  {it?.modelPath
+                    ? <ItemThumb path={it.modelPath} orient={it.model3d} fallback={it.icon} className="eq-thumb" />
+                    : (it ? it.icon : s.ph)}
+                </div>
                 <div className="eq-slotlab">{s.label}</div>
                 <div className="eq-name">{it ? it.name : '비어 있음'}</div>
               </div>
@@ -288,7 +338,7 @@ export function StatusPanel({ onClose, equipment = EQUIPMENT, onEquip }) {
       <div className="st2-split">
         <div className="st2-col">
           <h3>특성</h3>
-          {STATUS.abilities.map(a => <div className="kv" key={a.k}><span>{a.k}</span><b>{a.v}</b></div>)}
+          {abilities.map(a => <div className="kv" key={a.k}><span>{a.k}</span><b>{a.v}</b></div>)}
         </div>
         <div className="st2-vline" />
         <div className="st2-col">
@@ -301,7 +351,7 @@ export function StatusPanel({ onClose, equipment = EQUIPMENT, onEquip }) {
         <div className="st2-vline" />
         <div className="st2-col">
           <h3>자원</h3>
-          {Object.entries(STATUS.resources).map(([k, val]) => <div className="kv" key={k}><span>{k}</span><b>{val}</b></div>)}
+          {Object.entries(resources).map(([k, val]) => <div className="kv" key={k}><span>{k}</span><b>{val}</b></div>)}
         </div>
       </div>
 
@@ -311,8 +361,8 @@ export function StatusPanel({ onClose, equipment = EQUIPMENT, onEquip }) {
       <div className="st2-split">
         <div className="st2-col">
           <h3>재능 · 직업</h3>
-          <div className="kv"><span>재능</span><b>{STATUS.talent}</b></div>
-          <div className="kv"><span>직업</span><b>{STATUS.job}</b></div>
+          <div className="kv"><span>재능</span><b>{talent}</b></div>
+          <div className="kv"><span>직업</span><b>{job}</b></div>
         </div>
         <div className="st2-vline" />
         <div className="st2-col">
@@ -325,6 +375,7 @@ export function StatusPanel({ onClose, equipment = EQUIPMENT, onEquip }) {
     <EquipmentPickerModal
       slot={pickerSlot}
       equipment={equipment}
+      session={session}
       onEquip={onEquip}
       onClose={() => setPickerSlot(null)}
     />
@@ -333,12 +384,22 @@ export function StatusPanel({ onClose, equipment = EQUIPMENT, onEquip }) {
 }
 
 /* ---------- 인벤토리 (가방 + 우측 드롭아웃 주사위 창) ---------- */
-export function InventoryPanel({ onClose, equipment = EQUIPMENT, onEquip }) {
-  const CELL = 86, GAPX = 9, GAPY = 18
+export function InventoryPanel({ onClose, session, equipment = EQUIPMENT, onEquip }) {
+  const CELL = 108, GAPX = 11, GAPY = 20
   const [diceOpen, setDiceOpen] = useState(false)
   const [detail, setDetail] = useState(null)
+
+  // 세션 가방(ID/문자열 배열)을 그리드 셀로. 세션 없으면 데모 인벤토리로 폴백.
+  //  · 마스터에 없는(미해석) 항목은 인벤토리에서 숨긴다 — 도감에서만 확인.
+  const bag = Array.isArray(session?.inventory?.items)
+    ? session.inventory.items.filter(ref => ITEMS[ref])
+    : null
+  const cells = bag
+    ? bag.map((ref, i) => ({ key: `${ref}_${i}`, ref, x: i % INV_COLS, y: Math.floor(i / INV_COLS), stack: null }))
+    : INV_ITEMS.map(it => ({ key: it.id, ref: it.ref, x: it.x, y: it.y, stack: it.stack }))
+  const rows = Math.max(INV_ROWS, cells.length ? Math.max(...cells.map(c => c.y)) + 1 : INV_ROWS)
   const gw = INV_COLS * CELL + (INV_COLS - 1) * GAPX
-  const gh = INV_ROWS * CELL + (INV_ROWS - 1) * GAPY
+  const gh = rows * CELL + (rows - 1) * GAPY
   return (
     <>
     <div className="overlay bag-overlay">
@@ -349,24 +410,30 @@ export function InventoryPanel({ onClose, equipment = EQUIPMENT, onEquip }) {
         <button className="bag-x" onClick={onClose}>✕</button>
 
         <div className="inv-grid" style={{ width: gw, height: gh }}>
-          {Array.from({ length: INV_COLS * INV_ROWS }).map((_, i) => {
+          {Array.from({ length: INV_COLS * rows }).map((_, i) => {
             const cx = i % INV_COLS, cy = Math.floor(i / INV_COLS)
             return <div key={i} className="inv-cell"
               style={{ left: cx * (CELL + GAPX), top: cy * (CELL + GAPY), width: CELL, height: CELL }} />
           })}
-          {INV_ITEMS.map(it => (
-            <div key={it.id} className="inv-item clickable"
-              title={`${it.name} — 클릭하면 상세`}
-              onClick={() => setDetail(ITEMS[it.ref])}
-              style={{
-                left: it.x * (CELL + GAPX), top: it.y * (CELL + GAPY),
-                width: it.w * CELL + (it.w - 1) * GAPX, height: it.h * CELL + (it.h - 1) * GAPY,
-              }}>
-              <span className="inv-icon">{it.icon}</span>
-              {it.stack != null && <span className="inv-stack">{it.stack}</span>}
-            </div>
-          ))}
+          {cells.map(c => {
+            const m = resolveBagItem(c.ref)
+            return (
+              <div key={c.key} className="inv-item clickable"
+                title={`${m.name} — 클릭하면 상세`}
+                onClick={() => setDetail(m)}
+                style={{
+                  left: c.x * (CELL + GAPX), top: c.y * (CELL + GAPY),
+                  width: CELL, height: CELL,
+                }}>
+                {m.modelPath
+                  ? <ItemThumb path={m.modelPath} orient={m.model3d} fallback={m.icon} className="inv-thumb" />
+                  : <span className="inv-icon">{m.icon}</span>}
+                {c.stack != null && <span className="inv-stack">{c.stack}</span>}
+              </div>
+            )
+          })}
         </div>
+
 
         {/* 좌하단 바깥 주사위 탭 — 클릭하면 아래로 주사위 창이 나타났다/사라짐 (인벤토리 고정) */}
         <div className={'dice-drawer' + (diceOpen ? ' open' : '')}>
