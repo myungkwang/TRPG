@@ -104,7 +104,7 @@ const CHARACTER_MODELS = [
     speaker: 'gm',
     personaId: 'gm',
     name: SPEAKERS.gm?.name || 'GM',
-    modelPath: '/static/models/GM_v3_Standing W_Briefcase Idle_01.glb',
+    modelPath: '/static/models/GM_v3_17.glb',
     modelScale: 0.75,
     modelOffset: [0, -130, 0],
     animations: {
@@ -197,7 +197,7 @@ const CHARACTER_MODELS = [
     speaker: 'shapekey_test',
     personaId: 'gm',
     name: '입모양 테스트',
-    modelPath: '/static/models/ShapeKey_10_anim_05.glb',
+    modelPath: '/static/models/GM_v3_17.glb',
     modelScale: 0.75,
     modelOffset: [0, -130, 0],
     preferEmbeddedAnimations: true,

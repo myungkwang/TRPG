@@ -1,0 +1,55 @@
+{
+  "audio_file": "6acdaf60-22c0-4557-a93e-98f00f5a8098.wav",
+  "audio_float32_npy": "6acdaf60-22c0-4557-a93e-98f00f5a8098.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_gail",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "\"말하자면, 상황이 심각합니다.",
+  "request_text_repr": "'\"말하자면, 상황이 심각합니다.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "\"말하자면, 상황이 심각합니다.",
+      "text_token_len": 13,
+      "text_tokens": [
+        [
+          1,
+          127452,
+          140026,
+          32290,
+          11,
+          58034,
+          130803,
+          12802,
+          28927,
+          105,
+          126317,
+          60838,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    65280,
+    1
+  ],
+  "audio_min": -0.3296046555042267,
+  "audio_max": 0.3212694823741913,
+  "audio_mean": 9.188451804220676e-05
+}

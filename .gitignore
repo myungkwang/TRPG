@@ -82,7 +82,8 @@ docs/superpowers/
 *.npy
 *.npz
 
-# ComfyUI portable (ÄÚµå¿Í º°°³·Î °øÀ¯ ? git ¹ÌÆ÷ÇÔ)
+# ComfyUI portable (ï¿½Úµï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ? git ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½)
 ComfyUI_windows_portable/
 /ComfyUI/
 
+.gstack/

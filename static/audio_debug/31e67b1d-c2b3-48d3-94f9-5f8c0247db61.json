@@ -1,0 +1,67 @@
+{
+  "audio_file": "31e67b1d-c2b3-48d3-94f9-5f8c0247db61.wav",
+  "audio_float32_npy": "31e67b1d-c2b3-48d3-94f9-5f8c0247db61.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "그의 눈빛이 살짝 흔들리며, 불안한 기색이 감돌습니다.",
+  "request_text_repr": "'그의 눈빛이 살짝 흔들리며, 불안한 기색이 감돌습니다.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "그의 눈빛이 살짝 흔들리며, 불안한 기색이 감돌습니다.",
+      "text_token_len": 25,
+      "text_tokens": [
+        [
+          48606,
+          20401,
+          138658,
+          230,
+          143467,
+          12802,
+          127166,
+          144183,
+          10764,
+          251,
+          242,
+          64850,
+          28002,
+          124905,
+          11,
+          126488,
+          126246,
+          23573,
+          54116,
+          77226,
+          12802,
+          129423,
+          133485,
+          38231,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    114240,
+    1
+  ],
+  "audio_min": -0.6012872457504272,
+  "audio_max": 0.5948148965835571,
+  "audio_mean": 0.000290611176751554
+}

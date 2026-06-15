@@ -1,0 +1,62 @@
+{
+  "audio_file": "6bb1081b-b9ee-4e3f-8352-e68f9b382ea8.wav",
+  "audio_float32_npy": "6bb1081b-b9ee-4e3f-8352-e68f9b382ea8.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_gail",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "밤 운송표와 맞춰 볼 생각은 하지 않는 게 좋을 거요.",
+  "request_text_repr": "'밤 운송표와 맞춰 볼 생각은 하지 않는 게 좋을 거요.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "밤 운송표와 맞춰 볼 생각은 하지 않는 게 좋을 거요.",
+      "text_token_len": 20,
+      "text_tokens": [
+        [
+          144076,
+          132028,
+          127105,
+          126414,
+          80573,
+          131417,
+          144162,
+          30520,
+          120,
+          128646,
+          33704,
+          53900,
+          21329,
+          127728,
+          98927,
+          125953,
+          17877,
+          126352,
+          35711,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    92160,
+    1
+  ],
+  "audio_min": -0.4475826919078827,
+  "audio_max": 0.5685045719146729,
+  "audio_mean": 2.6257150238961913e-05
+}

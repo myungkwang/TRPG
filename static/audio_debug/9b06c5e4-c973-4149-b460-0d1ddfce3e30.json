@@ -1,0 +1,66 @@
+{
+  "audio_file": "9b06c5e4-c973-4149-b460-0d1ddfce3e30.wav",
+  "audio_float32_npy": "9b06c5e4-c973-4149-b460-0d1ddfce3e30.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "당신은 가일의 말에서 단서를 찾거나, 그에게 질문을 던질 수 있습니다.",
+  "request_text_repr": "'당신은 가일의 말에서 단서를 찾거나, 그에게 질문을 던질 수 있습니다.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "당신은 가일의 말에서 단서를 찾거나, 그에게 질문을 던질 수 있습니다.",
+      "text_token_len": 24,
+      "text_tokens": [
+        [
+          64795,
+          82528,
+          33704,
+          35509,
+          32077,
+          20401,
+          126254,
+          56475,
+          129400,
+          26698,
+          18411,
+          138037,
+          127451,
+          11,
+          54825,
+          126327,
+          138520,
+          17877,
+          126365,
+          246,
+          128732,
+          28733,
+          128472,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    121920,
+    1
+  ],
+  "audio_min": -0.4535941779613495,
+  "audio_max": 0.628304123878479,
+  "audio_mean": 4.013878424302675e-05
+}

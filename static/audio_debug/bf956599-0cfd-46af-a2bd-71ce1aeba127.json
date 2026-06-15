@@ -1,0 +1,67 @@
+{
+  "audio_file": "bf956599-0cfd-46af-a2bd-71ce1aeba127.wav",
+  "audio_float32_npy": "bf956599-0cfd-46af-a2bd-71ce1aeba127.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "감독 가일은 당신을 보자마자 서류철을 품 안으로 숨깁니다.",
+  "request_text_repr": "'감독 가일은 당신을 보자마자 서류철을 품 안으로 숨깁니다.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "감독 가일은 당신을 보자마자 서류철을 품 안으로 숨깁니다.",
+      "text_token_len": 25,
+      "text_tokens": [
+        [
+          129567,
+          129502,
+          35509,
+          32077,
+          33704,
+          131502,
+          17877,
+          63332,
+          25715,
+          125544,
+          25715,
+          89860,
+          97929,
+          131573,
+          17877,
+          10764,
+          240,
+          230,
+          95170,
+          42039,
+          69192,
+          101,
+          144758,
+          21953,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    87360,
+    1
+  ],
+  "audio_min": -0.7899088859558105,
+  "audio_max": 0.7577896118164062,
+  "audio_mean": 2.2723927031620406e-05
+}
