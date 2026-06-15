@@ -14,14 +14,17 @@ from typing import Any
 
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from openai import OpenAI
 
+BASE_DIR = Path(__file__).resolve().parent
+load_dotenv(BASE_DIR / ".env", override=True)
+
 from db import get_conn
-from gm_cli import create_session, gm_reply, load_session, recent_history, generate_ending
+from gm_cli import create_session, gm_reply, gm_reply_stream, load_session, recent_history, generate_ending
 import llm
 from llm import generate_image
 import progression
@@ -38,10 +41,8 @@ from auth import (
     get_user_id_from_token,
 )
 
-load_dotenv()
 logger = logging.getLogger("uvicorn.error")
 
-BASE_DIR = Path(__file__).resolve().parent
 os.environ.setdefault("MPLCONFIGDIR", str(BASE_DIR / "external" / ".matplotlib"))
 os.environ.setdefault("HF_HOME", str(BASE_DIR / "external" / ".hf_cache"))
 os.environ.setdefault("TORCH_HOME", str(BASE_DIR / "external" / ".torch_cache"))
@@ -102,24 +103,38 @@ COSYVOICE_LLM_FILE = os.getenv("COSYVOICE_LLM_FILE", "llm.pt").strip() or "llm.p
 COSYVOICE_MODE = os.getenv("COSYVOICE_MODE", "sft").strip().lower()
 COSYVOICE_TEXT_FRONTEND = os.getenv("COSYVOICE_TEXT_FRONTEND", "false").strip().lower() in {"1", "true", "yes", "on"}
 COSYVOICE_SEED = int(os.getenv("COSYVOICE_SEED", "1986"))
+COSYVOICE_PRELOAD = os.getenv("COSYVOICE_PRELOAD", "true").strip().lower() in {"1", "true", "yes", "on"}
+COSYVOICE_DEBUG = os.getenv("COSYVOICE_DEBUG", "false").strip().lower() in {"1", "true", "yes", "on"}
+COSYVOICE_GM_SPEAKER = os.getenv("COSYVOICE_GM_SPEAKER", "aux_skt_voice_skt_m0001_serious").strip() or "aux_skt_voice_skt_m0001_serious"
+try:
+    COSYVOICE_SPEED = float(os.getenv("COSYVOICE_SPEED", "1.0"))
+except ValueError:
+    COSYVOICE_SPEED = 1.0
+COSYVOICE_SPEED = max(0.75, min(1.35, COSYVOICE_SPEED))
 
 COSYVOICE_SPEAKERS = {
     "doctor": "char_doctor",
-    "gm": "char_gm",
+    "gm": COSYVOICE_GM_SPEAKER,
     "gail": "char_gail",
     "kargas": "char_kargas",
     "marta": "char_marta",
-    "lin": "char_rin",
-    "rin": "char_rin",
-    "tobi": "char_toby",
-    "toby": "char_toby",
+    "lin": "char_lin",
+    "rin": "char_lin",
+    "tobi": "char_tobi",
+    "toby": "char_tobi",
     "nurse": "char_nurse",
     "miner": "char_miner",
     "tavern": "char_tavern_clerk",
     "tavern_clerk": "char_tavern_clerk",
+    "char_gm": COSYVOICE_GM_SPEAKER,
+    "char_rin": "char_lin",
+    "char_toby": "char_tobi",
+    "char_lin": "char_lin",
+    "char_tobi": "char_tobi",
 }
 
 TTS_PROVIDER = os.getenv("TTS_PROVIDER", "edge").strip().lower()
+TTS_FALLBACK_PROVIDER = os.getenv("TTS_FALLBACK_PROVIDER", "none").strip().lower()
 
 EDGE_TTS_VOICES = {
     "doctor": "ko-KR-HyunsuMultilingualNeural",
@@ -236,13 +251,56 @@ def get_cosyvoice_client():
         return cosyvoice_client
 
 
+def _preload_cosyvoice_client() -> None:
+    if TTS_PROVIDER != "cosyvoice" or not COSYVOICE_PRELOAD:
+        return
+    try:
+        get_cosyvoice_client()
+    except Exception:
+        logger.exception("CosyVoice preload failed")
+
+
+app.add_event_handler("startup", _preload_cosyvoice_client)
+
+
 def _cosyvoice_speaker(req: TTSRequest) -> str:
     key = (req.speaker or req.voice or "gm").strip().lower()
-    return COSYVOICE_SPEAKERS.get(key, key if key.startswith("char_") else "char_gm")
+    return COSYVOICE_SPEAKERS.get(key, key if key.startswith("char_") else COSYVOICE_GM_SPEAKER)
 
 
 def _edge_speaker(req: TTSRequest) -> str:
     return (req.speaker or req.voice or "gm").strip().lower()
+
+
+def _tts_model_stamp() -> dict[str, int | None]:
+    flow_path = COSYVOICE_MODEL_DIR / "flow.pt"
+    try:
+        stat = flow_path.stat()
+    except OSError:
+        return {"flow_size": None, "flow_mtime_ns": None}
+    return {"flow_size": stat.st_size, "flow_mtime_ns": stat.st_mtime_ns}
+
+
+def _tts_cache_key(req: TTSRequest, speaker: str, use_cosyvoice: bool) -> str:
+    payload = {
+        "provider": "cosyvoice" if use_cosyvoice else "edge",
+        "speaker": speaker,
+        "voice": req.voice or "",
+        "instructions": req.instructions or "",
+        "text": req.text.strip(),
+    }
+    if use_cosyvoice:
+        payload.update({
+            "model_dir": str(COSYVOICE_MODEL_DIR.resolve()),
+            "mode": COSYVOICE_MODE,
+            "llm_file": COSYVOICE_LLM_FILE,
+            "seed": COSYVOICE_SEED,
+            "text_frontend": COSYVOICE_TEXT_FRONTEND,
+            "speed": COSYVOICE_SPEED,
+            **_tts_model_stamp(),
+        })
+    raw = json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
+    return hashlib.sha256(raw).hexdigest()[:32]
 
 
 def _cosyvoice3_text(text: str, instruction: str) -> str:
@@ -307,11 +365,12 @@ def synthesize_cosyvoice(req: TTSRequest, out_path: Path) -> str:
                 torch.cuda.manual_seed_all(COSYVOICE_SEED)
             speeches = []
             logger.info(
-                "CosyVoice synth mode=%s llm=%s seed=%s text_frontend=%s speaker=%s text=%r",
+                "CosyVoice synth mode=%s llm=%s seed=%s text_frontend=%s speed=%s speaker=%s text=%r",
                 COSYVOICE_MODE,
                 COSYVOICE_LLM_FILE,
                 COSYVOICE_SEED,
                 COSYVOICE_TEXT_FRONTEND,
+                COSYVOICE_SPEED,
                 speaker,
                 text,
             )
@@ -330,7 +389,7 @@ def synthesize_cosyvoice(req: TTSRequest, out_path: Path) -> str:
                 logger.info("CosyVoice normalized segments=%r", segments)
                 for segment in segments:
                     model_input = model.frontend.frontend_instruct(segment, speaker, normalized_instruction)
-                    chunks = model.model.tts(**model_input, stream=False, speed=1.0)
+                    chunks = model.model.tts(**model_input, stream=False, speed=COSYVOICE_SPEED)
                     for chunk in chunks:
                         speech = chunk["tts_speech"].detach().cpu()
                         if speech.dim() == 1:
@@ -357,7 +416,7 @@ def synthesize_cosyvoice(req: TTSRequest, out_path: Path) -> str:
                         "text_token_len": int(model_input["text_len"].detach().cpu().item()),
                         "text_tokens": _tensor_debug(model_input["text"]),
                     })
-                    chunks = model.model.tts(**model_input, stream=False, speed=1.0)
+                    chunks = model.model.tts(**model_input, stream=False, speed=COSYVOICE_SPEED)
                     for chunk in chunks:
                         speech = chunk["tts_speech"].detach().cpu()
                         if speech.dim() == 1:
@@ -370,7 +429,7 @@ def synthesize_cosyvoice(req: TTSRequest, out_path: Path) -> str:
             if audio_np.ndim == 2:
                 audio_np = audio_np.T
             sf.write(str(out_path), audio_np, getattr(model, "sample_rate", 24000), subtype="PCM_16")
-            if TTS_PROVIDER == "cosyvoice":
+            if TTS_PROVIDER == "cosyvoice" and COSYVOICE_DEBUG:
                 debug_stem = out_path.stem
                 np.save(AUDIO_DEBUG_DIR / f"{debug_stem}.float32.npy", audio_np.astype(np.float32, copy=False))
                 debug_info = {
@@ -382,6 +441,7 @@ def synthesize_cosyvoice(req: TTSRequest, out_path: Path) -> str:
                     "llm_file": COSYVOICE_LLM_FILE,
                     "seed": COSYVOICE_SEED,
                     "text_frontend": COSYVOICE_TEXT_FRONTEND,
+                    "speed": COSYVOICE_SPEED,
                     "request_text": text,
                     "request_text_repr": repr(text),
                     "prompt_text": prompt_text if COSYVOICE_MODE != "instruct" else instruction,
@@ -402,6 +462,178 @@ def synthesize_cosyvoice(req: TTSRequest, out_path: Path) -> str:
         raise HTTPException(status_code=500, detail=f"CosyVoice 생성 실패({speaker}): {exc}")
 
     return speaker
+
+
+def _prepare_cosyvoice_inputs(model: Any, req: TTSRequest, speaker: str) -> list[dict[str, Any]]:
+    text = req.text.strip()
+    instruction = (req.instructions or COSYVOICE_DEFAULT_INSTRUCTION).strip()
+    if "<|endofprompt|>" not in instruction:
+        instruction = f"{instruction}<|endofprompt|>"
+
+    if COSYVOICE_MODE == "instruct":
+        normalized_instruction = model.frontend.text_normalize(
+            instruction,
+            split=False,
+            text_frontend=COSYVOICE_TEXT_FRONTEND,
+        )
+        segments = model.frontend.text_normalize(
+            text,
+            split=True,
+            text_frontend=COSYVOICE_TEXT_FRONTEND,
+        )
+        return [
+            {
+                "text": segment,
+                "input": model.frontend.frontend_instruct(segment, speaker, normalized_instruction),
+            }
+            for segment in segments
+        ]
+
+    prompt_text = COSYVOICE_SFT_INSTRUCTION
+    if "<|endofprompt|>" not in prompt_text:
+        prompt_text = f"{prompt_text}<|endofprompt|>"
+    prompt_text_token, prompt_text_token_len = model.frontend._extract_text_token(prompt_text)
+    segments = model.frontend.text_normalize(
+        text,
+        split=True,
+        text_frontend=COSYVOICE_TEXT_FRONTEND,
+    )
+    prepared = []
+    for segment in segments:
+        model_input = model.frontend.frontend_sft(segment, speaker)
+        model_input["prompt_text"] = prompt_text_token
+        model_input["prompt_text_len"] = prompt_text_token_len
+        prepared.append({"text": segment, "input": model_input})
+    return prepared
+
+
+def _save_cosyvoice_speech_wav(speech: Any, out_path: Path, sample_rate: int) -> None:
+    import soundfile as sf
+
+    audio_np = speech.detach().cpu().float().clamp(-1.0, 1.0).numpy()
+    if audio_np.ndim == 2:
+        audio_np = audio_np.T
+    sf.write(str(out_path), audio_np, sample_rate, subtype="PCM_16")
+
+
+def _stream_tts_manifest_path(cache_key: str) -> Path:
+    return AUDIO_DIR / f"tts-stream-{cache_key}.json"
+
+
+def _load_stream_tts_manifest(cache_key: str) -> dict[str, Any] | None:
+    manifest_path = _stream_tts_manifest_path(cache_key)
+    if not manifest_path.exists():
+        return None
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+    chunks = manifest.get("chunks")
+    if not isinstance(chunks, list) or not chunks:
+        return None
+    for chunk in chunks:
+        filename = chunk.get("filename")
+        if not filename or not (AUDIO_DIR / filename).exists():
+            return None
+    return manifest
+
+
+def _iter_cosyvoice_stream_chunks(req: TTSRequest, speaker: str, cache_key: str):
+    try:
+        import torch
+        import numpy as np
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"torch/numpy is required for CosyVoice streaming. Import error: {exc}")
+
+    cached_manifest = _load_stream_tts_manifest(cache_key)
+    if cached_manifest:
+        for chunk in cached_manifest["chunks"]:
+            yield {
+                "type": "chunk",
+                "audio_url": f"/static/audio/{chunk['filename']}",
+                "voice": speaker,
+                "chunk_index": chunk["chunk_index"],
+                "cached": True,
+                "audio_sec": chunk.get("audio_sec"),
+            }
+        yield {
+            "type": "final",
+            "voice": speaker,
+            "chunk_count": len(cached_manifest["chunks"]),
+            "cached": True,
+        }
+        return
+
+    model = get_cosyvoice_client()
+    sample_rate = int(getattr(model, "sample_rate", 24000))
+
+    try:
+        with cosyvoice_lock:
+            random.seed(COSYVOICE_SEED)
+            np.random.seed(COSYVOICE_SEED)
+            torch.manual_seed(COSYVOICE_SEED)
+            if torch.cuda.is_available():
+                torch.cuda.manual_seed_all(COSYVOICE_SEED)
+            if hasattr(model.model, "token_hop_len"):
+                model.model.token_hop_len = 25
+
+            chunk_infos = []
+            chunk_index = 0
+            for prepared in _prepare_cosyvoice_inputs(model, req, speaker):
+                chunks = model.model.tts(
+                    **prepared["input"],
+                    stream=True,
+                    speed=COSYVOICE_SPEED,
+                )
+                for chunk in chunks:
+                    speech = chunk["tts_speech"].detach().cpu()
+                    if speech.dim() == 1:
+                        speech = speech.unsqueeze(0)
+                    filename = f"tts-stream-{cache_key}-{chunk_index:03d}.wav"
+                    out_path = AUDIO_DIR / filename
+                    _save_cosyvoice_speech_wav(speech, out_path, sample_rate)
+                    audio_sec = float(speech.shape[-1]) / sample_rate
+                    chunk_info = {
+                        "chunk_index": chunk_index,
+                        "filename": filename,
+                        "audio_sec": audio_sec,
+                        "segment_text": prepared["text"],
+                    }
+                    chunk_infos.append(chunk_info)
+                    yield {
+                        "type": "chunk",
+                        "audio_url": f"/static/audio/{filename}",
+                        "voice": speaker,
+                        "chunk_index": chunk_index,
+                        "cached": False,
+                        "audio_sec": audio_sec,
+                    }
+                    chunk_index += 1
+
+            if not chunk_infos:
+                raise RuntimeError("CosyVoice generated no stream chunks.")
+
+            _stream_tts_manifest_path(cache_key).write_text(
+                json.dumps({
+                    "voice": speaker,
+                    "chunks": chunk_infos,
+                    "model_dir": str(COSYVOICE_MODEL_DIR.resolve()),
+                    "mode": COSYVOICE_MODE,
+                    "llm_file": COSYVOICE_LLM_FILE,
+                    "speed": COSYVOICE_SPEED,
+                    **_tts_model_stamp(),
+                }, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+            yield {
+                "type": "final",
+                "voice": speaker,
+                "chunk_count": len(chunk_infos),
+                "cached": False,
+            }
+    except Exception as exc:
+        logger.exception("CosyVoice stream generation failed")
+        raise HTTPException(status_code=500, detail=f"CosyVoice stream 생성 실패({speaker}): {exc}")
 
 
 def _json_safe(value: Any) -> Any:
@@ -854,6 +1086,45 @@ def chat(
     }
 
 
+def _sse_pack(event_type: str, data: dict[str, Any]) -> str:
+    payload = json.dumps(data, ensure_ascii=False, default=str)
+    return f"event: {event_type}\ndata: {payload}\n\n"
+
+
+@app.post("/api/chat/stream")
+def chat_stream(
+    req: ChatRequest,
+    user_id: str = Depends(get_user_id_from_token),
+) -> StreamingResponse:
+    message = req.message.strip()
+
+    if not message:
+        raise HTTPException(status_code=400, detail="message is empty")
+
+    assert_session_owner(req.session_id, user_id)
+
+    def events():
+        try:
+            for event in gm_reply_stream(req.session_id, message):
+                event_type = event.get("type", "message")
+                if event_type == "final":
+                    event["session"] = public_session(req.session_id)
+                    event["story"] = story.current_scene(req.session_id)
+                yield _sse_pack(event_type, event)
+        except Exception as exc:
+            logger.exception("Streaming chat failed")
+            yield _sse_pack("error", {"type": "error", "detail": str(exc)})
+
+    return StreamingResponse(
+        events(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
 @app.post("/api/move")
 def move(
     req: MoveRequest,
@@ -1026,20 +1297,32 @@ def debug_ending(
 
 
 @app.post("/api/tts")
-def tts(req: TTSRequest, user_id: str = Depends(get_user_id_from_token)) -> dict[str, str]:
+def tts(req: TTSRequest, user_id: str = Depends(get_user_id_from_token)) -> dict[str, Any]:
     text = req.text.strip()
     if not text:
         raise HTTPException(status_code=400, detail="text is empty")
 
     use_cosyvoice = TTS_PROVIDER == "cosyvoice"
     logger.info("TTS request provider=%s speaker=%s text=%s repr=%r", TTS_PROVIDER, req.speaker or req.voice or "gm", text, text)
-    filename = f"{uuid.uuid4()}.{'wav' if use_cosyvoice else 'mp3'}"
+    speaker = _cosyvoice_speaker(req) if use_cosyvoice else _edge_speaker(req)
+    extension = "wav" if use_cosyvoice else "mp3"
+    filename = f"tts-{_tts_cache_key(req, speaker, use_cosyvoice)}.{extension}"
     out_path = AUDIO_DIR / filename
+    if out_path.exists():
+        return {
+            "audio_url": f"/static/audio/{filename}",
+            "voice": speaker,
+            "cached": True,
+        }
+
     fallback_provider = None
     if use_cosyvoice:
         try:
             speaker = synthesize_cosyvoice(req, out_path)
         except HTTPException:
+            if TTS_FALLBACK_PROVIDER != "edge":
+                logger.exception("CosyVoice TTS failed")
+                raise
             logger.exception("CosyVoice TTS failed; falling back to Edge TTS")
             fallback_provider = "edge"
             filename = f"{uuid.uuid4()}.mp3"
@@ -1050,10 +1333,62 @@ def tts(req: TTSRequest, user_id: str = Depends(get_user_id_from_token)) -> dict
     response = {"audio_url": f"/static/audio/{filename}", "voice": speaker}
     if fallback_provider:
         response["provider"] = fallback_provider
-    if use_cosyvoice and not fallback_provider:
+    if use_cosyvoice and not fallback_provider and COSYVOICE_DEBUG:
         response["debug_url"] = f"/static/audio_debug/{out_path.stem}.json"
         response["debug_float32_url"] = f"/static/audio_debug/{out_path.stem}.float32.npy"
     return response
+
+
+@app.post("/api/tts/stream")
+def tts_stream(req: TTSRequest, user_id: str = Depends(get_user_id_from_token)) -> StreamingResponse:
+    text = req.text.strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="text is empty")
+
+    use_cosyvoice = TTS_PROVIDER == "cosyvoice"
+    speaker = _cosyvoice_speaker(req) if use_cosyvoice else _edge_speaker(req)
+    cache_key = _tts_cache_key(req, speaker, use_cosyvoice)
+
+    def events():
+        try:
+            if use_cosyvoice:
+                for event in _iter_cosyvoice_stream_chunks(req, speaker, cache_key):
+                    yield _sse_pack(event.get("type", "chunk"), event)
+                return
+
+            filename = f"tts-{cache_key}.mp3"
+            out_path = AUDIO_DIR / filename
+            was_cached = out_path.exists()
+            if not was_cached:
+                synthesize_edge_tts(req, out_path)
+            yield _sse_pack("chunk", {
+                "type": "chunk",
+                "audio_url": f"/static/audio/{filename}",
+                "voice": speaker,
+                "chunk_index": 0,
+                "cached": was_cached,
+            })
+            yield _sse_pack("final", {
+                "type": "final",
+                "voice": speaker,
+                "chunk_count": 1,
+                "cached": was_cached,
+            })
+        except HTTPException as exc:
+            detail = exc.detail if isinstance(exc.detail, str) else str(exc.detail)
+            yield _sse_pack("error", {"type": "error", "detail": detail})
+        except Exception as exc:
+            logger.exception("Streaming TTS failed")
+            yield _sse_pack("error", {"type": "error", "detail": str(exc)})
+
+    return StreamingResponse(
+        events(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 

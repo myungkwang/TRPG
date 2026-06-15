@@ -50,6 +50,7 @@ vectorstore/
 
 # Generated media / backups
 static/audio/
+static/audio_debug/
 static_backup/
 
 # Ending images

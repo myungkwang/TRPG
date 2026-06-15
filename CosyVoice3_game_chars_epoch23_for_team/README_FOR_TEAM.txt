@@ -1,6 +1,8 @@
-﻿CosyVoice3 game character TTS model package
+CosyVoice3 game character TTS model package
 
-Best checkpoint basis: epoch_23_whole.pt had the lowest CV validation loss.
+Current runtime checkpoint: game_chars_12h best flow checkpoint.
+Best checkpoint basis: game_chars_12h epoch_35_whole.pt selected by the automatic scoreboard.
+Original epoch23 flow checkpoint is kept locally as eval_model/flow.epoch23_backup_*.pt when available.
 
 Use this model directory in CosyVoice:
   eval_model
@@ -13,14 +15,15 @@ Speaker IDs:
   char_marta
   char_miner
   char_nurse
-  char_rin
+  char_lin
   char_tavern_clerk
-  char_toby
+  char_tobi
 
 Included files:
-  eval_model/          Full runnable Fun-CosyVoice3-0.5B model folder with fine-tuned flow.pt and spk2info.pt
-  summary.json         Evaluation summary for epoch_23
-  metrics.csv          Per-sample evaluation metrics
+  eval_model/          Full runnable Fun-CosyVoice3-0.5B model folder with 12h-best fine-tuned flow.pt and spk2info.pt
+  best_checkpoint.json Best-checkpoint selection metadata
+  summary.json         Evaluation summary for the 12h-best checkpoint
+  metrics.csv          Per-sample evaluation metrics for the 12h-best checkpoint
   EVALUATION_METRICS.md Metric descriptions and references
 
-Do not replace eval_model/flow.pt with epoch_23_whole.pt directly; epoch_23_whole.pt contains training metadata.
+Do not replace eval_model/flow.pt with epoch_*_whole.pt directly unless the packaging script converts it for runtime use.

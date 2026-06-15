@@ -3,7 +3,7 @@ import { SPEAKERS, FLAVOR_CHOICE, CHOICES } from '../data.js'
 import D12 from './D12.jsx'
 import Character3D from './Character3D.jsx'
 import ParallaxBackground from './ParallaxBackground.jsx'
-import { apiChat, apiTTS, apiDebugEnding, apiStoryChoice, apiGenerateBackground } from '../api.js'
+import { apiChat, apiChatStream, apiTTS, apiTTSStream, apiDebugEnding, apiStoryChoice, apiGenerateBackground } from '../api.js'
 import { PERSONAS, getPersona } from '../personas.js'
 import { applyBgmVolume, applyMasterVolume, applySpeechVolume } from '../audioSettings.js'
 import { loadSettings, subscribeSettings } from '../settings.js'
@@ -31,6 +31,7 @@ const LOCATION_BGMS = [
   },
 ]
 const USE_BROWSER_TTS = false
+const USE_SERVER_TTS_STREAM = false
 
 const NPC_DIALOGUE_TEST_LINES = [
   { speaker: 'doctor', text: '린, 환자의 반응이 안정적입니다. 하지만 기억은 아직 흐릿한 것 같군요.' },
@@ -356,6 +357,160 @@ const estimateSpeechDuration = (text) => {
   return Math.min(5.5, Math.max(1.2, length * 0.085))
 }
 
+const prepareTtsSegment = (segment) => {
+  const persona = getPersonaForSpeaker(segment.speaker)
+  const { cleanText, toneHint } = extractToneHint(segment.text)
+  const spokenText = cleanText || segment.text
+  const ttsInstructions = toneHint
+    ? `${getTtsInstructions(persona)} ${toneHint}`.trim()
+    : getTtsInstructions(persona)
+
+  return {
+    segment,
+    persona,
+    spokenText,
+    cleanSegment: { ...segment, text: spokenText },
+    ttsInstructions,
+    fallbackDuration: estimateSpeechDuration(spokenText),
+  }
+}
+
+const requestServerTts = async (prepared) => {
+  const data = await apiTTS(prepared.spokenText, {
+    speaker: prepared.segment.speaker || prepared.persona.id,
+    voice: prepared.persona.tts?.voice,
+    instructions: prepared.ttsInstructions,
+  })
+  return { ...prepared, data }
+}
+
+const playAudioUrl = async (data, spokenText, runId, options = {}) => {
+  if (runId !== speechRunId) return
+
+  const audio = new Audio(data.audio_url)
+  const stopAudioVolume = applyMasterVolume(audio, 1)
+  currentAudio = audio
+
+  audio.onplay = () => {
+    if (options.startPerformance !== false) {
+      window.playLinPerformance?.(spokenText, data.emotion || 'talk', audio.duration)
+    }
+    window.startLinLipSync?.(audio, spokenText)
+  }
+
+  try {
+    await new Promise((resolve, reject) => {
+      audio.onended = resolve
+      audio.onerror = reject
+      audio.onpause = () => {
+        if (runId !== speechRunId) resolve()
+      }
+      audio.play().catch(reject)
+    })
+  } finally {
+    window.stopLinLipSync?.()
+    stopAudioVolume()
+    if (currentAudio === audio) currentAudio = null
+  }
+}
+
+async function playServerTtsStream(prepared, runId) {
+  const { segment, spokenText, fallbackDuration } = prepared
+  const chunks = []
+  let streamClosed = false
+  let streamError = null
+  let wake = null
+  const controller = new AbortController()
+
+  const notify = () => {
+    if (!wake) return
+    const resolve = wake
+    wake = null
+    resolve()
+  }
+
+  const waitForChunk = () => new Promise(resolve => {
+    const timeout = setTimeout(() => {
+      if (wake === done) wake = null
+      resolve()
+    }, 100)
+    const done = () => {
+      clearTimeout(timeout)
+      resolve()
+    }
+    wake = done
+  })
+  const producer = apiTTSStream(prepared.spokenText, {
+    speaker: segment.speaker || prepared.persona.id,
+    voice: prepared.persona.tts?.voice,
+    instructions: prepared.ttsInstructions,
+  }, (eventName, payload) => {
+    if (eventName === 'chunk' && payload?.audio_url) {
+      chunks.push(payload)
+      notify()
+    }
+  }, { signal: controller.signal }).catch(error => {
+    streamError = error
+    notify()
+  }).finally(() => {
+    streamClosed = true
+    notify()
+  })
+
+  let playedChunks = 0
+  let performanceStarted = false
+
+  while (runId === speechRunId && (!streamClosed || chunks.length)) {
+    if (!chunks.length) {
+      if (streamError) throw streamError
+      await waitForChunk()
+      continue
+    }
+
+    const chunk = chunks.shift()
+    await playAudioUrl(chunk, spokenText, runId, {
+      startPerformance: !performanceStarted,
+    })
+    performanceStarted = true
+    playedChunks += 1
+  }
+
+  if (runId !== speechRunId) {
+    controller.abort()
+    return
+  }
+
+  await producer
+  if (streamError) throw streamError
+  if (!playedChunks) {
+    window.playLinPerformance?.(spokenText, 'talk', fallbackDuration)
+    window.startLinFallbackLipSync?.(spokenText, fallbackDuration)
+    await new Promise(resolve => setTimeout(resolve, fallbackDuration * 1000))
+    window.stopLinLipSync?.()
+  }
+}
+
+const createTtsPrefetcher = (preparedSegments) => {
+  const promises = new Map()
+  const queueTts = (prepared) => requestServerTts(prepared).catch(error => ({ ...prepared, error }))
+
+  const ensure = (index) => {
+    if (USE_BROWSER_TTS || index < 0 || index >= preparedSegments.length) return null
+    if (!promises.has(index)) {
+      promises.set(index, queueTts(preparedSegments[index]))
+    }
+    return promises.get(index)
+  }
+
+  const warm = (startIndex) => {
+    if (USE_BROWSER_TTS) return
+    const end = Math.min(preparedSegments.length, startIndex + TTS_PREFETCH_AHEAD)
+    for (let index = startIndex; index < end; index += 1) ensure(index)
+  }
+
+  return { ensure, warm }
+}
+
 const getBrowserVoice = () => {
   if (!('speechSynthesis' in window)) return null
   const voices = window.speechSynthesis.getVoices?.() || []
@@ -569,6 +724,45 @@ const mergeShortSpeechSegments = (segments) => {
   return merged
 }
 
+const TTS_MAX_CHARS_PER_REQUEST = 72
+const TTS_PREFETCH_AHEAD = 3
+
+const splitTextIntoTtsChunks = (text, maxChars = TTS_MAX_CHARS_PER_REQUEST) => {
+  const source = String(text || '').trim()
+  const chars = Array.from(source)
+  if (chars.length <= maxChars) return source ? [source] : []
+
+  const chunks = []
+  let start = 0
+  const breakChars = ['.', '!', '?', '。', '！', '？', ',', '，', ';', '；', ':', '：', ' ']
+
+  while (start < chars.length) {
+    let end = Math.min(start + maxChars, chars.length)
+    if (end < chars.length) {
+      const windowText = chars.slice(start, end).join('')
+      let cut = -1
+      breakChars.forEach((mark) => {
+        const index = windowText.lastIndexOf(mark)
+        if (index > cut) cut = index
+      })
+      if (cut >= Math.floor(maxChars * 0.45)) {
+        end = start + cut + 1
+      }
+    }
+
+    const chunk = chars.slice(start, end).join('').trim()
+    if (chunk) chunks.push(chunk)
+    start = end
+    while (start < chars.length && /\s/.test(chars[start])) start += 1
+  }
+
+  return chunks
+}
+
+const splitLongTtsSegments = (segments) => segments.flatMap(segment => (
+  splitTextIntoTtsChunks(segment.text).map(chunk => ({ ...segment, text: chunk }))
+))
+
 const splitAttributedQuotes = (text, fallbackSpeaker = 'gm') => {
   const source = String(text || '').trim()
   const segments = []
@@ -641,10 +835,19 @@ const normalizeStorySegments = (segments, fallbackText = '', fallbackSpeaker = '
   }
 
   const normalized = segments
-    .map(segment => ({
-      speaker: segment.speaker || (segment.role === 'gm' ? 'gm' : fallbackSpeaker),
-      text: String(segment.text || '').trim(),
-    }))
+    .flatMap(segment => {
+      const text = String(segment.text || '').trim()
+      if (!text) return []
+
+      if ((!segment.speaker || segment.speaker === 'gm') && segment.role === 'gm') {
+        return splitSpeechSegments(text, fallbackSpeaker)
+      }
+
+      return [{
+        speaker: segment.speaker || (segment.role === 'gm' ? 'gm' : fallbackSpeaker),
+        text,
+      }]
+    })
     .filter(segment => segment.text)
 
   return splitSegmentsIntoSentences(normalized.length ? normalized : [{ speaker: fallbackSpeaker, text: fallbackText }])
@@ -672,25 +875,21 @@ async function speakNpc(text, speaker = 'gm', options = {}) {
     }
     cancelBrowserSpeech()
 
-    const segments = mergeShortSpeechSegments(normalizeStorySegments(options.segments, text, speaker))
+    const segments = splitLongTtsSegments(mergeShortSpeechSegments(normalizeStorySegments(options.segments, text, speaker)))
+    const preparedSegments = segments.map(prepareTtsSegment)
+    const prefetcher = createTtsPrefetcher(preparedSegments)
+    prefetcher.warm(0)
     console.log('TTS SEGMENTS:', segments)
 
-    for (const segment of segments) {
+    for (let index = 0; index < preparedSegments.length; index += 1) {
       if (runId !== speechRunId) return
 
+      const prepared = preparedSegments[index]
+      const { segment, spokenText, cleanSegment, fallbackDuration } = prepared
       _onGmSpeakChange?.(segment.speaker === 'gm')
 
-      const persona = getPersonaForSpeaker(segment.speaker)
-      const { cleanText, toneHint } = extractToneHint(segment.text)
-      const spokenText = cleanText || segment.text
-      const ttsInstructions = toneHint
-        ? `${getTtsInstructions(persona)} ${toneHint}`.trim()
-        : getTtsInstructions(persona)
-      const cleanSegment = { ...segment, text: spokenText }
-      const fallbackDuration = estimateSpeechDuration(spokenText)
       options.onSegmentStart?.(segment)
       revealedCount += 1
-      await new Promise(resolve => setTimeout(resolve, 60))
       if (runId !== speechRunId) return
 
       if (USE_BROWSER_TTS) {
@@ -706,11 +905,13 @@ async function speakNpc(text, speaker = 'gm', options = {}) {
       }
 
       try {
-        const data = await apiTTS(spokenText, {
-          speaker: persona.id,
-          voice: persona.tts?.voice,
-          instructions: ttsInstructions,
-        })
+        const ttsPromise = prefetcher.ensure(index) || requestServerTts(prepared).catch(error => ({ ...prepared, error }))
+        prefetcher.warm(index + 1)
+        const ttsResult = await ttsPromise
+        if (ttsResult.error) throw ttsResult.error
+        if (runId !== speechRunId) return
+
+        const data = ttsResult.data
         console.log('TTS RESPONSE:', data)
 
         if (runId !== speechRunId) return
@@ -735,7 +936,7 @@ async function speakNpc(text, speaker = 'gm', options = {}) {
         if (currentAudio === audio) currentAudio = null
 
         if (runId !== speechRunId) return
-        await new Promise(resolve => setTimeout(resolve, 80))
+        await new Promise(resolve => setTimeout(resolve, 20))
       } catch (segmentErr) {
         console.warn('TTS segment error:', segment.speaker, segmentErr)
         window.stopLinLipSync?.()
@@ -768,6 +969,107 @@ async function speakNpc(text, speaker = 'gm', options = {}) {
     window.playLinEmotion?.(text)
   } finally {
     _onGmSpeakChange?.(false)
+  }
+}
+
+async function playPreparedTtsItem(prepared, ttsPromise, runId, options = {}) {
+  const { segment, spokenText, cleanSegment, fallbackDuration } = prepared
+  if (runId !== speechRunId) return
+
+  _onGmSpeakChange?.(segment.speaker === 'gm')
+  options.onSegmentStart?.(segment)
+  if (runId !== speechRunId) return
+
+  if (USE_BROWSER_TTS) {
+    await speakWithBrowserTts(cleanSegment, fallbackDuration)
+    return
+  }
+
+  try {
+    if (USE_SERVER_TTS_STREAM && !ttsPromise) {
+      await playServerTtsStream(prepared, runId)
+      return
+    }
+
+    const ttsResult = await (ttsPromise || requestServerTts(prepared).catch(error => ({ ...prepared, error })))
+    if (ttsResult.error) throw ttsResult.error
+    if (runId !== speechRunId) return
+
+    const data = ttsResult.data
+    await playAudioUrl(data, spokenText, runId)
+  } catch (segmentErr) {
+    console.warn('Streaming TTS segment error:', segment.speaker, segmentErr)
+    window.stopLinLipSync?.()
+    if (currentAudio) {
+      currentAudio.pause()
+      currentAudio = null
+    }
+    try {
+      await speakWithBrowserTts(cleanSegment, fallbackDuration)
+    } catch (browserFallbackErr) {
+      console.warn('Browser TTS fallback failed:', segment.speaker, browserFallbackErr)
+      window.playLinPerformance?.(spokenText, 'talk', fallbackDuration)
+      window.startLinFallbackLipSync?.(spokenText, fallbackDuration)
+      await new Promise(resolve => setTimeout(resolve, fallbackDuration * 1000))
+      window.stopLinLipSync?.()
+    }
+  }
+}
+
+function createStreamingTtsQueue(runId, options = {}) {
+  const items = []
+  let closed = false
+  let wake = null
+
+  const notify = () => {
+    if (!wake) return
+    const resolve = wake
+    wake = null
+    resolve()
+  }
+
+  const waitForWork = () => new Promise(resolve => { wake = resolve })
+
+  const done = (async () => {
+    while (runId === speechRunId && (!closed || items.length)) {
+      if (!items.length) {
+        await waitForWork()
+        continue
+      }
+
+      const item = items.shift()
+      await playPreparedTtsItem(item.prepared, item.ttsPromise, runId, options)
+      if (runId !== speechRunId) break
+      await new Promise(resolve => setTimeout(resolve, 20))
+    }
+    _onGmSpeakChange?.(false)
+    window.playLinAnimation?.('idle')
+  })()
+
+  return {
+    enqueue(segment) {
+      const normalized = {
+        role: segment.role || (segment.speaker === 'gm' ? 'gm' : 'npc'),
+        speaker: segment.speaker || 'gm',
+        text: String(segment.text || '').trim(),
+      }
+      if (!normalized.text) return
+
+      const pieces = splitLongTtsSegments(mergeShortSpeechSegments(normalizeStorySegments([normalized], normalized.text, normalized.speaker)))
+      pieces.forEach((piece) => {
+        const prepared = prepareTtsSegment(piece)
+        const ttsPromise = USE_BROWSER_TTS
+          ? null
+          : requestServerTts(prepared).catch(error => ({ ...prepared, error }))
+        items.push({ prepared, ttsPromise })
+      })
+      notify()
+    },
+    close() {
+      closed = true
+      notify()
+    },
+    done,
   }
 }
 
@@ -1243,23 +1545,97 @@ export default function Dialogue({
     setSending(true)
     try {
       const prevLoc = session?.location
-      const data = await apiChat(session.id, text)
-      onSessionChange?.(data.session)
-      if (data.story) onStoryChange?.(data.story)
-      // GM이 이번 대화로 위치를 옮겼으면(세션 location 변경) 인트로/씬의 stage·story 고정을 풀어 새 배경 반영
-      const newLoc = data.session?.location
+      const streamRunId = ++speechRunId
+      const streamedSegments = []
+      let receivedStreamSegment = false
+      let finalData = null
+
+      holdChoicesRef.current = true
+      const streamingTts = createStreamingTtsQueue(streamRunId, {
+        onSegmentStart: (segment) => {
+          updateTavernCastMode(segment)
+          setActiveSpeaker(segment.speaker || 'gm')
+          setLog(prev => [...prev, { who: segment.speaker || 'gm', text: segment.text, speak: false }])
+        },
+      })
+
+      try {
+        finalData = await apiChatStream(session.id, text, (eventName, payload) => {
+          if (eventName === 'segment') {
+            const segment = payload.segment || {}
+            const normalized = {
+              role: segment.role || (segment.speaker === 'gm' ? 'gm' : 'npc'),
+              speaker: segment.speaker || 'gm',
+              text: String(segment.text || '').trim(),
+            }
+            if (!normalized.text) return
+
+            receivedStreamSegment = true
+            streamedSegments.push(normalized)
+            updateTavernCastMode(normalized)
+            streamingTts.enqueue(normalized)
+          }
+        })
+      } catch (streamErr) {
+        streamingTts.close()
+        if (receivedStreamSegment) throw streamErr
+
+        const data = await apiChat(session.id, text)
+        onSessionChange?.(data.session)
+        if (data.story) onStoryChange?.(data.story)
+        const newLoc = data.session?.location
+        if (newLoc && newLoc !== prevLoc) {
+          setStageLocation(null)
+          if (story?.location && story.location !== newLoc) onStoryChange?.(null)
+        }
+        push('gm', data.answer, {
+          speak: true,
+          segments: normalizeStorySegments(data.segments, data.answer, 'gm'),
+        })
+        storyChoicesRef.current = normalizeChoices(data.choices)
+        return
+      }
+
+      streamingTts.close()
+      streamingTts.done.catch(error => console.warn('Streaming TTS queue failed:', error))
+      holdChoicesRef.current = false
+
+      if (!finalData) throw new Error('스트리밍 응답이 완료되지 않았습니다.')
+
+      onSessionChange?.(finalData.session)
+      if (finalData.story) onStoryChange?.(finalData.story)
+      const newLoc = finalData.session?.location
       if (newLoc && newLoc !== prevLoc) {
         setStageLocation(null)
         if (story?.location && story.location !== newLoc) onStoryChange?.(null)
       }
-      push('gm', data.answer, {
-        speak: true,
-        segments: normalizeStorySegments(data.segments, data.answer, 'gm'),
-      })
-      storyChoicesRef.current = normalizeChoices(data.choices)
+
+      const finalSegments = normalizeStorySegments(
+        finalData.segments || streamedSegments,
+        finalData.answer,
+        'gm',
+      )
+      if (!receivedStreamSegment) {
+        push('gm', finalData.answer, {
+          speak: true,
+          segments: finalSegments,
+        })
+      } else if (onHistoryChange) {
+        onHistoryChange(prev => [...prev, {
+          role: 'assistant',
+          speaker: 'gm',
+          content: finalData.answer,
+          segments: finalSegments,
+          speak: false,
+        }])
+      }
+      storyChoicesRef.current = normalizeChoices(finalData.choices)
+      setChoices(storyChoicesRef.current)
     } catch (err) {
+      holdChoicesRef.current = false
       push('gm', `오류: ${err.message}`, { speak: false })
     } finally {
+      holdChoicesRef.current = false
       setSending(false)
     }
   }
