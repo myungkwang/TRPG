@@ -1,0 +1,51 @@
+{
+  "audio_file": "8146a6ef-6cb4-46d6-90fe-68ff160f6b2e.wav",
+  "audio_float32_npy": "8146a6ef-6cb4-46d6-90fe-68ff160f6b2e.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_gm",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "복구 검증 음성입니다.",
+  "request_text_repr": "'복구 검증 음성입니다.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "복구 검증 음성입니다.",
+      "text_token_len": 9,
+      "text_tokens": [
+        [
+          97834,
+          88259,
+          85322,
+          128844,
+          16751,
+          234,
+          32831,
+          78952,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    24000,
+    1
+  ],
+  "audio_min": -0.1468222290277481,
+  "audio_max": 0.17177413403987885,
+  "audio_mean": 0.0002351888979319483
+}

@@ -534,7 +534,9 @@ export function SettingsPanel({ onClose, user, onLogout }) {
         <button
           type="button"
           className={`layout-switch ${settings.layout}`}
+          aria-pressed={settings.layout === 'split'}
           onClick={() => setValue('layout', settings.layout === 'split' ? 'stacked' : 'split')}
+          title={settings.layout === 'split' ? '현재 가로 배치입니다. 클릭하면 세로 배치로 바뀝니다.' : '현재 세로 배치입니다. 클릭하면 가로 배치로 바뀝니다.'}
         >
           <span className="ls-icon"><i /><i /></span>
           <span className="ls-label">{settings.layout === 'split' ? '가로' : '세로'}</span>

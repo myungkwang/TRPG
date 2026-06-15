@@ -16,6 +16,7 @@ from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
+from openai import OpenAI
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -904,8 +905,14 @@ def character_confirm(
     next_scene = (
         "GM: 의사가 진료 기록을 덮자, 창밖의 증기관이 낮게 울립니다. "
         "낡은 진료소 문 너머로 재끝 마을의 축축한 안개와 광산 종소리가 밀려듭니다.\n"
-        "의사: \"무리하지 마십시오. 기억이 돌아오지 않더라도, 마을 사람들과 이야기하다 보면 "
-        "단서가 남아 있을 겁니다. 먼저 여관의 린을 찾아가 보시겠습니까, 아니면 광산 쪽 상황을 살펴보시겠습니까?\""
+        "의사: \"무리하지 마십시오. 재끝 마을은 지금 겉보기보다 훨씬 불안합니다. 영정 채굴량은 "
+        "늘었는데 광부들은 돌아오지 않고, 공식 보고서에는 사라진 이름들이 빠져 있습니다.\"\n"
+        "의사: \"밤마다 광산 쪽 종이 울리면 안개가 봉우리에서 내려오고, 부상자들은 모두 같은 말을 "
+        "합니다. 갱도 안쪽에서 기계가 아닌 것이 숨을 쉰다고요.\"\n"
+        "의사: \"여관의 린은 마을 소문과 거래 장부를 쥐고 있고, 광산의 감독 가일은 실종자 기록을 "
+        "숨기고 있습니다. 기억이 돌아오지 않더라도, 그 둘을 따라가면 당신이 왜 이곳에 쓰러져 있었는지 "
+        "단서가 남아 있을 겁니다.\"\n"
+        "의사: \"먼저 여관의 린을 찾아가 보시겠습니까, 아니면 광산 쪽 상황을 살펴보시겠습니까?\""
     )
     with get_conn() as conn:
         conn.execute(

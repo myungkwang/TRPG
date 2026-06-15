@@ -1,0 +1,61 @@
+{
+  "audio_file": "ca796fa7-9501-42ee-98f1-f0f0d0fd8f5e.wav",
+  "audio_float32_npy": "ca796fa7-9501-42ee-98f1-f0f0d0fd8f5e.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_gail",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "광산 쪽에서 일어난 일은 공식적으로 기록되지 않습니다.",
+  "request_text_repr": "'광산 쪽에서 일어난 일은 공식적으로 기록되지 않습니다.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "광산 쪽에서 일어난 일은 공식적으로 기록되지 않습니다.",
+      "text_token_len": 19,
+      "text_tokens": [
+        [
+          126861,
+          85057,
+          3315,
+          103,
+          121,
+          56475,
+          83556,
+          31079,
+          126588,
+          83556,
+          33704,
+          125466,
+          76337,
+          128552,
+          54116,
+          49664,
+          132553,
+          138539,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    75840,
+    1
+  ],
+  "audio_min": -0.2487369179725647,
+  "audio_max": 0.2595573961734772,
+  "audio_mean": 2.451233558531385e-05
+}

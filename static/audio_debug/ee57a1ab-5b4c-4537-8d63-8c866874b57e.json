@@ -1,0 +1,58 @@
+{
+  "audio_file": "ee57a1ab-5b4c-4537-8d63-8c866874b57e.wav",
+  "audio_float32_npy": "ee57a1ab-5b4c-4537-8d63-8c866874b57e.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_miner",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "동료들이 사라지고 있는데, 누군가 알아주길 바랍니다.\"",
+  "request_text_repr": "'동료들이 사라지고 있는데, 누군가 알아주길 바랍니다.\"'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "동료들이 사라지고 있는데, 누군가 알아주길 바랍니다.\"",
+      "text_token_len": 16,
+      "text_tokens": [
+        [
+          57089,
+          63256,
+          126253,
+          32129,
+          50340,
+          134497,
+          134563,
+          11,
+          138659,
+          129534,
+          19969,
+          137676,
+          54330,
+          130105,
+          136925,
+          1189
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    116160,
+    1
+  ],
+  "audio_min": -0.7106871008872986,
+  "audio_max": 0.8498347401618958,
+  "audio_mean": 0.0008476743241772056
+}

@@ -1,0 +1,65 @@
+{
+  "audio_file": "dd8890fb-c1b1-4901-b21a-958f4dc5dce3.wav",
+  "audio_float32_npy": "dd8890fb-c1b1-4901-b21a-958f4dc5dce3.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_gail",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "\"실종된 광부들에 대한 보고서에는 누락된 부분이 많습니다.",
+  "request_text_repr": "'\"실종된 광부들에 대한 보고서에는 누락된 부분이 많습니다.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "\"실종된 광부들에 대한 보고서에는 누락된 부분이 많습니다.",
+      "text_token_len": 23,
+      "text_tokens": [
+        [
+          1,
+          125086,
+          126337,
+          52300,
+          8620,
+          112,
+          239,
+          63089,
+          64850,
+          19391,
+          128605,
+          63332,
+          34395,
+          26698,
+          126377,
+          138659,
+          132772,
+          52300,
+          129881,
+          12802,
+          126735,
+          38231,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    114240,
+    1
+  ],
+  "audio_min": -0.18572847545146942,
+  "audio_max": 0.2526310384273529,
+  "audio_mean": 3.039956027350854e-05
+}

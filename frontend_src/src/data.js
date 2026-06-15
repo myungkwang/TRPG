@@ -111,17 +111,19 @@ export const REP_RANGE = { min: -50, max: 50 }
 
 // 인물 — 현재 플롯 순서. affinity = 현재 평판 기반 호감 수치
 export const CODEX_CHARACTERS = [
-  { id:'lin',    name:"여우 ‘린’", role:'재끝 마을 여관 주인 · 구미호', got:true, affinity:32,
+  { id:'gm',     name:'GM', role:'재끝 마을의 이야기꾼', got:true, affinity:0, portrait:'/static/portraits/codex/gm.png',
+    desc:'당신의 여정을 기록하고 장면을 이끄는 목소리. 안개 너머의 진실을 차분히 펼쳐 보인다.' },
+  { id:'lin',    name:"여우 ‘린’", role:'재끝 마을 여관 주인 · 구미호', got:true, affinity:32, portrait:'/static/portraits/codex/lin.png',
     desc:'재끝 마을 여관의 주인. 말끝마다 무언가를 숨기는 듯한 미소를 짓는다. 마을의 모든 소문이 그녀를 거쳐 간다.' },
-  { id:'gail',   name:'가일', role:'제국 영석공사 채굴 감독', got:true, affinity:-14,
+  { id:'gail',   name:'가일', role:'제국 영석공사 채굴 감독', got:true, affinity:-14, portrait:'/static/portraits/codex/gail.png',
     desc:'채굴 현장의 감독. 사라진 광부 수를 축소·은폐하고 있다. 권위적이지만 속은 겁이 많다.' },
-  { id:'marta',  name:'마르타', role:'재끝 마을 노파', got:true, affinity:10,
+  { id:'marta',  name:'마르타', role:'재끝 마을 노파', got:true, affinity:10, portrait:'/static/portraits/codex/marta.png',
     desc:'산의 전설을 아는 노파. 봉우리 위 옛 둥지를 기억하는 마지막 사람이다.' },
-  { id:'tobi',   name:'토비', role:'사라진 광부의 동생', got:true, affinity:46,
+  { id:'tobi',   name:'토비', role:'사라진 광부의 동생', got:true, affinity:46, portrait:'/static/portraits/codex/tobi.png',
     desc:'사라진 형을 찾는 소년. 순수하고 절박하다. 어느새 당신을 형처럼 따른다.' },
-  { id:'doctor', name:'의사', role:'마을 진료소', got:true, affinity:6,
+  { id:'doctor', name:'의사', role:'마을 진료소', got:true, affinity:6, portrait:'/static/portraits/codex/doctor.png',
     desc:'기억을 잃은 당신을 처음 진찰한 인물. 무언가 알고 있는 듯 말을 아낀다.' },
-  { id:'kargas', name:'???', role:'???', got:false, affinity:0,
+  { id:'kargas', name:'???', role:'???', got:false, affinity:0, portrait:'/static/portraits/codex/kargas.png',
     desc:'아직 만나지 못한 존재. 태고의 무언가가 봉우리 너머에서 숨 쉰다.' },
 ]
 

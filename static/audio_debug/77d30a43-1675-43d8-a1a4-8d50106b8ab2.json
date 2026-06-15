@@ -1,0 +1,57 @@
+{
+  "audio_file": "77d30a43-1675-43d8-a1a4-8d50106b8ab2.wav",
+  "audio_float32_npy": "77d30a43-1675-43d8-a1a4-8d50106b8ab2.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "당신은 이 상황을 어떻게 할 것인지 결정해야 합니다.",
+  "request_text_repr": "'당신은 이 상황을 어떻게 할 것인지 결정해야 합니다.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "당신은 이 상황을 어떻게 할 것인지 결정해야 합니다.",
+      "text_token_len": 15,
+      "text_tokens": [
+        [
+          64795,
+          82528,
+          33704,
+          23084,
+          58034,
+          130803,
+          17877,
+          130108,
+          95002,
+          71108,
+          134039,
+          135763,
+          129264,
+          130650,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    72000,
+    1
+  ],
+  "audio_min": -0.5952638983726501,
+  "audio_max": 0.6223741173744202,
+  "audio_mean": 0.00032317463774234056
+}

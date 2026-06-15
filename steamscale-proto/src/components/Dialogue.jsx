@@ -4,9 +4,9 @@ import D12 from './D12.jsx'
 import Character3D from './Character3D.jsx'
 
 const CHARACTER_MODELS = [
-  { speaker: 'gm', name: 'GM', modelPath: '/models/GM_v3_Standing W_Briefcase Idle_01.glb' },
-  { speaker: 'lin', name: '린', modelPath: '/models/Lin_ack_shrtleg_decntarm.glb' },
-  { speaker: 'gail', name: '게일', modelPath: '/models/Gail_07_textureShading_01.glb' },
+  { speaker: 'gm', name: 'GM', modelPath: '/models/GM_Demo.fbx' },
+  { speaker: 'lin', name: '린', modelPath: '/models/GM_Demo.fbx' },
+  // { speaker: 'gail', name: '게일', modelPath: '/models/gail.fbx' },
 ]
 
 const getLastNpcSpeaker = (log) => {
