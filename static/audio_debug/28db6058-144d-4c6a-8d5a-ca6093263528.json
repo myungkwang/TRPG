@@ -1,0 +1,61 @@
+{
+  "audio_file": "28db6058-144d-4c6a-8d5a-ca6093263528.wav",
+  "audio_float32_npy": "28db6058-144d-4c6a-8d5a-ca6093263528.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "재끝 마을은 지금 겉보기보다 훨씬 불안합니다.",
+  "request_text_repr": "'재끝 마을은 지금 겉보기보다 훨씬 불안합니다.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "재끝 마을은 지금 겉보기보다 훨씬 불안합니다.",
+      "text_token_len": 19,
+      "text_tokens": [
+        [
+          57132,
+          134539,
+          95577,
+          17877,
+          33704,
+          129082,
+          23894,
+          231,
+          41671,
+          20487,
+          129885,
+          10764,
+          249,
+          101,
+          144915,
+          126488,
+          126246,
+          60838,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    83520,
+    1
+  ],
+  "audio_min": -0.8536719679832458,
+  "audio_max": 0.9310186505317688,
+  "audio_mean": 0.00023864334798417985
+}

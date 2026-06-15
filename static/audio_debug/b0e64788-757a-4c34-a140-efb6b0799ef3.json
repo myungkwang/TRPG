@@ -1,0 +1,71 @@
+{
+  "audio_file": "b0e64788-757a-4c34-a140-efb6b0799ef3.wav",
+  "audio_float32_npy": "b0e64788-757a-4c34-a140-efb6b0799ef3.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "그의 품에서 삐져나온 서류에는 공식 명패와 맞지 않는 숫자가 적혀 있습니다.",
+  "request_text_repr": "'그의 품에서 삐져나온 서류에는 공식 명패와 맞지 않는 숫자가 적혀 있습니다.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "그의 품에서 삐져나온 서류에는 공식 명패와 맞지 않는 숫자가 적혀 있습니다.",
+      "text_token_len": 29,
+      "text_tokens": [
+        [
+          48606,
+          20401,
+          10764,
+          240,
+          230,
+          56475,
+          127165,
+          238,
+          83277,
+          60315,
+          130000,
+          89860,
+          97929,
+          126377,
+          125466,
+          76337,
+          130345,
+          133087,
+          80573,
+          131417,
+          21329,
+          127728,
+          69192,
+          92187,
+          19969,
+          135968,
+          128173,
+          128472,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    140160,
+    1
+  ],
+  "audio_min": -0.9900000095367432,
+  "audio_max": 0.9368842244148254,
+  "audio_mean": 1.990633609239012e-05
+}

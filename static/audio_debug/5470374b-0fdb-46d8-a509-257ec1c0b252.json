@@ -1,0 +1,53 @@
+{
+  "audio_file": "5470374b-0fdb-46d8-a509-257ec1c0b252.wav",
+  "audio_float32_npy": "5470374b-0fdb-46d8-a509-257ec1c0b252.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_gail",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "실종? 헛소문이오.",
+  "request_text_repr": "'실종? 헛소문이오.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "실종? 헛소문이오.",
+      "text_token_len": 11,
+      "text_tokens": [
+        [
+          125086,
+          126337,
+          30,
+          10764,
+          245,
+          249,
+          43590,
+          51588,
+          12802,
+          57268,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    36480,
+    1
+  ],
+  "audio_min": -0.15145133435726166,
+  "audio_max": 0.24179919064044952,
+  "audio_mean": 0.0001020988347590901
+}

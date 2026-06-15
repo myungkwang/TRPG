@@ -1,0 +1,58 @@
+{
+  "audio_file": "a50f43e5-8e9f-44fb-be5c-1c0e6a5d6dd1.wav",
+  "audio_float32_npy": "a50f43e5-8e9f-44fb-be5c-1c0e6a5d6dd1.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_gail",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "당신이 개입할 여지가 없으니 돌아가세요.\"",
+  "request_text_repr": "'당신이 개입할 여지가 없으니 돌아가세요.\"'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "당신이 개입할 여지가 없으니 돌아가세요.\"",
+      "text_token_len": 16,
+      "text_tokens": [
+        [
+          64795,
+          82528,
+          12802,
+          73523,
+          43866,
+          47836,
+          83518,
+          21329,
+          19969,
+          46682,
+          33509,
+          83036,
+          137844,
+          19969,
+          50302,
+          1189
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    77760,
+    1
+  ],
+  "audio_min": -0.1434791386127472,
+  "audio_max": 0.21369928121566772,
+  "audio_mean": 2.4574263079557568e-05
+}

@@ -1,0 +1,66 @@
+{
+  "audio_file": "9453cfbb-1acb-420e-9d76-6a0f8f292419.wav",
+  "audio_float32_npy": "9453cfbb-1acb-420e-9d76-6a0f8f292419.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "그들은 피곤해 보이며, 서로의 얼굴에는 불안과 두려움이 가득합니다.",
+  "request_text_repr": "'그들은 피곤해 보이며, 서로의 얼굴에는 불안과 두려움이 가득합니다.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "그들은 피곤해 보이며, 서로의 얼굴에는 불안과 두려움이 가득합니다.",
+      "text_token_len": 24,
+      "text_tokens": [
+        [
+          48606,
+          128901,
+          142510,
+          142561,
+          33883,
+          63332,
+          136262,
+          11,
+          137765,
+          20401,
+          138665,
+          144071,
+          126377,
+          126488,
+          126246,
+          53680,
+          129419,
+          125476,
+          133914,
+          12802,
+          35509,
+          132524,
+          60838,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    146880,
+    1
+  ],
+  "audio_min": -0.5045525431632996,
+  "audio_max": 0.562548041343689,
+  "audio_mean": 0.0002126337931258604
+}

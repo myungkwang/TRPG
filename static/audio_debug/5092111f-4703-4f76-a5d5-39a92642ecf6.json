@@ -1,0 +1,64 @@
+{
+  "audio_file": "5092111f-4703-4f76-a5d5-39a92642ecf6.wav",
+  "audio_float32_npy": "5092111f-4703-4f76-a5d5-39a92642ecf6.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_gail",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "하지만 당신처럼 생명력이 강한 사람이라면 도움이 될지도 모르겠군요.\"",
+  "request_text_repr": "'하지만 당신처럼 생명력이 강한 사람이라면 도움이 될지도 모르겠군요.\"'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "하지만 당신처럼 생명력이 강한 사람이라면 도움이 될지도 모르겠군요.\"",
+      "text_token_len": 22,
+      "text_tokens": [
+        [
+          87425,
+          72553,
+          131502,
+          131137,
+          141659,
+          28754,
+          12802,
+          129413,
+          23573,
+          124889,
+          125866,
+          32290,
+          129392,
+          133914,
+          12802,
+          130647,
+          133692,
+          136105,
+          124923,
+          129534,
+          35711,
+          1189
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    155520,
+    1
+  ],
+  "audio_min": -0.15970246493816376,
+  "audio_max": 0.21492044627666473,
+  "audio_mean": 2.569637945271097e-05
+}

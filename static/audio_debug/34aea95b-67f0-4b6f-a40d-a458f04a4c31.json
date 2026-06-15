@@ -1,0 +1,52 @@
+{
+  "audio_file": "34aea95b-67f0-4b6f-a40d-a458f04a4c31.wav",
+  "audio_float32_npy": "34aea95b-67f0-4b6f-a40d-a458f04a4c31.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_gail",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "\"여기서 뭐하는 겁니까?",
+  "request_text_repr": "'\"여기서 뭐하는 겁니까?'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "\"여기서 뭐하는 겁니까?",
+      "text_token_len": 10,
+      "text_tokens": [
+        [
+          1,
+          57026,
+          20487,
+          26698,
+          5140,
+          98734,
+          42905,
+          141693,
+          125716,
+          30
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    36480,
+    1
+  ],
+  "audio_min": -0.16895122826099396,
+  "audio_max": 0.3328424096107483,
+  "audio_mean": 0.0004244208976160735
+}
