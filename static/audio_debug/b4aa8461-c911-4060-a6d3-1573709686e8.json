@@ -1,0 +1,53 @@
+{
+  "audio_file": "b4aa8461-c911-4060-a6d3-1573709686e8.wav",
+  "audio_float32_npy": "b4aa8461-c911-4060-a6d3-1573709686e8.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_gail",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "광부 실종 사건은 제가 처리하고 있습니다.",
+  "request_text_repr": "'광부 실종 사건은 제가 처리하고 있습니다.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "광부 실종 사건은 제가 처리하고 있습니다.",
+      "text_token_len": 11,
+      "text_tokens": [
+        [
+          126861,
+          63089,
+          126423,
+          126337,
+          138629,
+          33704,
+          132254,
+          81058,
+          126204,
+          128472,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    56640,
+    1
+  ],
+  "audio_min": -0.23390524089336395,
+  "audio_max": 0.33918270468711853,
+  "audio_mean": 8.977878678706475e-06
+}

@@ -1,0 +1,55 @@
+{
+  "audio_file": "beecc08b-6f04-4813-866e-ef9069d90f0a.wav",
+  "audio_float32_npy": "beecc08b-6f04-4813-866e-ef9069d90f0a.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_gail",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "그건 작업 배치표일 뿐이오.",
+  "request_text_repr": "'그건 작업 배치표일 뿐이오.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "그건 작업 배치표일 뿐이오.",
+      "text_token_len": 13,
+      "text_tokens": [
+        [
+          48606,
+          124873,
+          139495,
+          73669,
+          59698,
+          126414,
+          32077,
+          5140,
+          123,
+          238,
+          12802,
+          57268,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    34560,
+    1
+  ],
+  "audio_min": -0.15119504928588867,
+  "audio_max": 0.2499443143606186,
+  "audio_mean": 9.063527977559716e-05
+}

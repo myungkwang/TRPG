@@ -1,0 +1,59 @@
+{
+  "audio_file": "befe2f78-f623-4dc8-ae70-f9db524458c5.wav",
+  "audio_float32_npy": "befe2f78-f623-4dc8-ae70-f9db524458c5.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_gail",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "\"품안에 숨긴 것이라니, 무슨 소리입니까?",
+  "request_text_repr": "'\"품안에 숨긴 것이라니, 무슨 소리입니까?'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "\"품안에 숨긴 것이라니, 무슨 소리입니까?",
+      "text_token_len": 17,
+      "text_tokens": [
+        [
+          1,
+          125678,
+          126246,
+          19391,
+          69192,
+          101,
+          133507,
+          71108,
+          125866,
+          83036,
+          11,
+          142374,
+          126291,
+          28002,
+          43866,
+          125716,
+          30
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    64320,
+    1
+  ],
+  "audio_min": -0.21801428496837616,
+  "audio_max": 0.3013646602630615,
+  "audio_mean": 8.034722850425169e-05
+}

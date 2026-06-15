@@ -1,0 +1,56 @@
+{
+  "audio_file": "a0a33618-2491-4547-82f9-641d512a157e.wav",
+  "audio_float32_npy": "a0a33618-2491-4547-82f9-641d512a157e.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_gail",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "제가 뭘 숨긴다고 생각하십니까?",
+  "request_text_repr": "'제가 뭘 숨긴다고 생각하십니까?'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "제가 뭘 숨긴다고 생각하십니까?",
+      "text_token_len": 14,
+      "text_tokens": [
+        [
+          37087,
+          19969,
+          5140,
+          255,
+          246,
+          69192,
+          101,
+          133507,
+          131042,
+          128646,
+          16186,
+          127421,
+          125716,
+          30
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    48000,
+    1
+  ],
+  "audio_min": -0.5228437781333923,
+  "audio_max": 0.680542528629303,
+  "audio_mean": 0.00018161052139475942
+}

@@ -1,0 +1,68 @@
+{
+  "audio_file": "1d9f974c-e6d0-459e-9b90-e11b44e24093.wav",
+  "audio_float32_npy": "1d9f974c-e6d0-459e-9b90-e11b44e24093.float32.npy",
+  "sample_rate": 24000,
+  "speaker": "char_doctor",
+  "mode": "sft",
+  "llm_file": "llm.pt",
+  "seed": 1986,
+  "text_frontend": false,
+  "request_text": "입구는 어둡고, 수많은 광부들이 바삐 움직이는 모습이 보입니다.",
+  "request_text_repr": "'입구는 어둡고, 수많은 광부들이 바삐 움직이는 모습이 보입니다.'",
+  "prompt_text": "You are a helpful assistant.<|endofprompt|>",
+  "prompt_token_len": 7,
+  "prompt_tokens": [
+    [
+      2610,
+      525,
+      264,
+      10950,
+      17847,
+      13,
+      151646
+    ]
+  ],
+  "segments": [
+    {
+      "text": "입구는 어둡고, 수많은 광부들이 바삐 움직이는 모습이 보입니다.",
+      "text_token_len": 26,
+      "text_tokens": [
+        [
+          43866,
+          88259,
+          16560,
+          124685,
+          145030,
+          34395,
+          11,
+          28733,
+          131456,
+          33704,
+          8620,
+          112,
+          239,
+          63089,
+          126253,
+          81718,
+          144919,
+          85413,
+          222,
+          125545,
+          132044,
+          136665,
+          12802,
+          63332,
+          78952,
+          13
+        ]
+      ]
+    }
+  ],
+  "audio_shape": [
+    107520,
+    1
+  ],
+  "audio_min": -0.7778751850128174,
+  "audio_max": 0.6429814696311951,
+  "audio_mean": 0.00016201236576307565
+}
