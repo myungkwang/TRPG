@@ -351,6 +351,8 @@ export default function Character3D({
   registerGlobalControls = false,
   lipGain = 1,
   hideTeeth = false,
+  apiRef = null,            // [평가용] 이 인스턴스의 lip-sync API를 외부에 노출(정량검사 립싱크 측정)
+  onModelReady = null,      // [평가용] 모델 로드 완료 콜백
 }) {
   const hostRef = useRef(null)
   const lipApiRef = useRef(null)
@@ -504,6 +506,32 @@ export default function Character3D({
         }
       })
     }
+
+    // [평가용·립싱크 §5-B 실측] 실제로 모델에 적용된 입 morph 값을 읽는다.
+    //   shape key가 없는 모델(setMorph가 no-op)은 항상 0 → 오디오와 상관이 안 잡힘 → 점수 낮음.
+    const MOUTH_MORPH_NAMES = [
+      'JawOpen', 'jawOpen', 'aa_viseme', 'eh_viseme', 'ee_viseme',
+      'oh_viseme', 'oo_viseme', 'eu_viseme', 'uh_viseme', 'sh_viseme',
+      'viseme_PP', 'mbp_viseme',
+    ]
+    const modelHasMouthShapeKey = () => morphMeshes.some((mesh) => {
+      const dict = mesh.morphTargetDictionary
+      return dict && MOUTH_MORPH_NAMES.some((n) => dict[n] !== undefined)
+    })
+    const readAppliedMouth = () => {
+      let v = 0
+      morphMeshes.forEach((mesh) => {
+        const dict = mesh.morphTargetDictionary
+        if (!dict) return
+        for (const n of MOUTH_MORPH_NAMES) {
+          const idx = dict[n]
+          if (idx !== undefined) v = Math.max(v, mesh.morphTargetInfluences[idx] || 0)
+        }
+      })
+      return v
+    }
+    let lipRecording = false
+    let lipRecordBuf = []
 
     const resetLipState = () => {
       lipMorphState = {
@@ -774,6 +802,14 @@ export default function Character3D({
           })
         }
         applyStableLipMorphs(lipTargets)
+        // [평가용] 오디오 입벌림 vs 실제 적용된 입 morph를 함께 기록(립싱크 실측).
+        if (lipRecording) {
+          lipRecordBuf.push({
+            t: +audio.currentTime.toFixed(4),
+            audioMouth: +mouth.toFixed(4),
+            renderedMouth: +readAppliedMouth().toFixed(4),
+          })
+        }
         lipRaf = requestAnimationFrame(update)
       }
       update()
@@ -1297,6 +1333,7 @@ export default function Character3D({
         }
 
         await loadAnimations()
+        if (!disposed) onModelReady?.()
       })
       .catch(() => setSafeStatus('3D model load failed'))
 
@@ -1322,15 +1359,9 @@ export default function Character3D({
     // clips, so the model inspector can reproduce the "arm bending" symptom on demand.
     window.playLinProcedural = (text, emotion, duration) =>
       startProceduralMotion(text || 'talk', { emotion, duration })
-    // 전역 lip-sync 등록은 아래 별도 effect가 registerGlobalControls(발화 주체)일 때만 한다.
-    // 여기서는 이 인스턴스의 lip-sync 함수만 ref로 보관한다.
-    lipApiRef.current = { startAudioLipSync, startFallbackLipSync, stopAudioLipSync }
-    window.startLinLipSync = startAudioLipSync
-    window.startLinFallbackLipSync = startFallbackLipSync
-    window.stopLinLipSync = stopAudioLipSync
     // TTS 인터럽트 시: 진행 중이던 제스처(퍼포먼스) 모션을 멈추고 중립 자세로 복귀.
     // (안 하면 음성이 끊겨도 아바타가 계속 움직이다 튀어 깜빡거림/렉처럼 보임)
-    window.stopLinPerformance = () => {
+    const stopPerformance = () => {
       clearMotionQueue()
       resetMotionBonesToBasePose()
       if (model) {
@@ -1338,6 +1369,19 @@ export default function Character3D({
         if (model.userData.baseRotation) model.rotation.copy(model.userData.baseRotation)
       }
     }
+    // [평가용] 립싱크 실측 녹화 제어.
+    const beginLipRecord = () => { lipRecordBuf = []; lipRecording = true }
+    const endLipRecord = () => {
+      lipRecording = false
+      return { frames: lipRecordBuf.slice(), hasShapeKey: modelHasMouthShapeKey() }
+    }
+    // 전역 lip-sync 등록은 아래 별도 effect가 registerGlobalControls(발화 주체)일 때만 한다.
+    // 여기서는 이 인스턴스의 lip-sync 함수만 ref로 보관한다(여러 인스턴스가 window.* 를 가로채는 레이스 방지).
+    lipApiRef.current = {
+      startAudioLipSync, startFallbackLipSync, stopAudioLipSync,
+      stopPerformance, beginLipRecord, endLipRecord,
+    }
+    if (apiRef) apiRef.current = lipApiRef.current
     window.__debugLinMorph = () => {
       console.log('morphMeshes:', morphMeshes.length)
       morphMeshes.forEach((mesh) => console.log(mesh.name, mesh.morphTargetDictionary, mesh.morphTargetInfluences))
@@ -1442,10 +1486,7 @@ export default function Character3D({
       if (window.playLinPerformance) delete window.playLinPerformance
       if (window.playLinProcedural) delete window.playLinProcedural
       lipApiRef.current = null
-      if (window.startLinLipSync === startAudioLipSync) delete window.startLinLipSync
-      if (window.startLinFallbackLipSync === startFallbackLipSync) delete window.startLinFallbackLipSync
-      if (window.stopLinLipSync === stopAudioLipSync) delete window.stopLinLipSync
-      if (window.stopLinPerformance) delete window.stopLinPerformance
+      if (apiRef) apiRef.current = null
       if (window.__debugLinMorph) delete window.__debugLinMorph
       if (window.__testMorph) delete window.__testMorph
       stopAudioLipSync()
@@ -1498,10 +1539,12 @@ export default function Character3D({
     window.startLinLipSync = api.startAudioLipSync
     window.startLinFallbackLipSync = api.startFallbackLipSync
     window.stopLinLipSync = api.stopAudioLipSync
+    window.stopLinPerformance = api.stopPerformance
     return () => {
       if (window.startLinLipSync === api.startAudioLipSync) delete window.startLinLipSync
       if (window.startLinFallbackLipSync === api.startFallbackLipSync) delete window.startLinFallbackLipSync
       if (window.stopLinLipSync === api.stopAudioLipSync) delete window.stopLinLipSync
+      if (window.stopLinPerformance === api.stopPerformance) delete window.stopLinPerformance
       api.stopAudioLipSync?.()
     }
   }, [registerGlobalControls, modelPath])

@@ -170,7 +170,7 @@ def lipsync_proxy(wav_path: str, fps: int = 30) -> dict:
 
 
 def render_charts(results: list[dict], out_dir: Path) -> dict[str, str]:
-    """NPC별 막대그래프 PNG 3장 + 요약 1장 생성. 파일명(상대)만 반환."""
+    """G-Eval·CER 막대그래프 PNG 생성(립싱크는 클라 실측 후 render_lipsync_chart로 별도)."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -209,19 +209,41 @@ def render_charts(results: list[dict], out_dir: Path) -> dict[str, str]:
     fig.tight_layout(); fig.savefig(out_dir / "cer.png", dpi=120); plt.close(fig)
     files["cer"] = "cer.png"
 
-    # 3) Lipsync correlation
+    return files
+
+
+def render_lipsync_chart(results: list[dict], out_dir: Path) -> str:
+    """브라우저에서 실측한 '실제 3D 모델 입 morph ↔ 오디오' 상관을 막대그래프로 그린다.
+    입 shape key가 없는 NPC(상관 0)는 빨간색 + 'no shape key' 표기로 구분."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+    labels = [r["label"] for r in results]
+    x = np.arange(len(labels))
+    vals, colors = [], []
+    for r in results:
+        lip = r.get("lipsync") or {}
+        corr = lip.get("correlation")
+        has_key = lip.get("has_shapekey", True)
+        vals.append(corr if isinstance(corr, (int, float)) else 0.0)
+        colors.append("#76b7b2" if has_key else "#d1495b")
+
     fig, ax = plt.subplots(figsize=(8, 4))
-    vals = [(r["lipsync"].get("correlation") or 0) for r in results]
-    ax.bar(x, vals, color="#76b7b2")
+    bars = ax.bar(x, vals, color=colors)
     ax.axhline(0.7, ls="--", c="green", lw=1, label="target ≥0.7")
     ax.set_xticks(x); ax.set_xticklabels(labels)
     ax.set_ylim(0, 1.05); ax.set_ylabel("correlation (higher better)")
-    ax.set_title("Lip-sync mouth↔RMS correlation per NPC")
+    ax.set_title("Lip-sync: rendered mouth morph ↔ audio (per NPC)")
     ax.legend(fontsize=8)
+    for b, r in zip(bars, results):
+        lip = r.get("lipsync") or {}
+        if not lip.get("has_shapekey", True):
+            ax.text(b.get_x() + b.get_width() / 2, 0.02, "no\nshape key", ha="center", va="bottom", fontsize=7, color="#d1495b")
     fig.tight_layout(); fig.savefig(out_dir / "lipsync.png", dpi=120); plt.close(fig)
-    files["lipsync"] = "lipsync.png"
-
-    return files
+    return "lipsync.png"
 
 
 def summarize(results: list[dict]) -> dict:
