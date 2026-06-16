@@ -1115,3 +1115,6 @@ button{font-family:var(--font-body);cursor:pointer}
 .eval-charts{display:grid;grid-template-columns:1fr;gap:14px;padding:14px 20px 22px}
 .eval-charts img{width:100%;border:1px solid #33271a;border-radius:8px;background:#fff}
 @media(min-width:760px){.eval-charts{grid-template-columns:1fr 1fr}.eval-charts img:first-child{grid-column:1/-1}}
+/* 립싱크 실측용 숨김 3D 무대: 화면 밖에서 렌더(캔버스 크기는 유지해야 morph가 돈다) */
+.eval-hidden-stage{position:fixed;left:-9999px;top:0;width:200px;height:260px;opacity:0;pointer-events:none}
+.eval-hidden-stage .character3d,.eval-hidden-stage .character3d-canvas{width:200px;height:260px}

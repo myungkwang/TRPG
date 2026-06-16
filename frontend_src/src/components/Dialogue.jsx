@@ -105,7 +105,7 @@ const TAVERN_LIN_SCENES = new Set([
   'lin_trust_trial',
 ])
 
-const CHARACTER_MODELS = [
+export const CHARACTER_MODELS = [
   {
     speaker: 'gm',
     personaId: 'gm',

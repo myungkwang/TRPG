@@ -2049,16 +2049,16 @@ def _eval_worker(job_id: str) -> None:
             line = eval_service.generate_npc_line(llm.chat, npc["persona"])
             # 2) 대화 품질 (GPT-4o)
             g_eval = eval_service.g_eval_line(judge, EVAL_JUDGE_MODEL, npc["persona"], line, EVAL_JUDGE_REPEAT)
-            # 3) TTS 합성 → CER + 립싱크 프록시
+            # 3) TTS 합성 → CER (립싱크는 브라우저에서 실제 3D 모델로 측정 → /api/eval/lipsync)
             wav_path = out_dir / f"{npc['key']}.{ext}"
             _synthesize_tts_provider(TTSRequest(text=line, speaker=npc["voice"]), provider, wav_path)
             speech = eval_service.cer_score(whisper_model, str(wav_path), line)
-            lipsync = eval_service.lipsync_proxy(str(wav_path))
 
             results.append({
                 "key": npc["key"], "name": npc["name"], "label": npc["label"],
                 "voice": npc["voice"], "line": line,
-                "g_eval": g_eval, "speech": speech, "lipsync": lipsync,
+                "g_eval": g_eval, "speech": speech,
+                "lipsync": {"status": "pending_client"},   # 클라이언트 실측 대기
                 "audio_url": f"/static/eval/{job_id}/{wav_path.name}",
             })
             job["results"] = results
@@ -2102,3 +2102,45 @@ def eval_status(job_id: str, user_id: str = Depends(get_user_id_from_token)) -> 
     if not job:
         raise HTTPException(status_code=404, detail="eval job not found")
     return job
+
+
+class EvalLipsyncRequest(BaseModel):
+    job_id: str
+    results: list[dict[str, Any]]   # [{key, correlation, lag_ms, has_shapekey, frames}]
+
+
+@app.post("/api/eval/lipsync")
+def eval_lipsync(req: EvalLipsyncRequest, user_id: str = Depends(get_user_id_from_token)) -> dict[str, Any]:
+    """브라우저가 실제 3D 모델 입 morph로 측정한 립싱크 결과를 받아 잡에 병합하고 차트를 그린다."""
+    job = EVAL_JOBS.get(req.job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="eval job not found")
+
+    by_key = {r["key"]: r for r in job.get("results", [])}
+    for item in req.results:
+        target = by_key.get(item.get("key"))
+        if target is None:
+            continue
+        corr = item.get("correlation")
+        lag = item.get("lag_ms")
+        has_key = item.get("has_shapekey", True)
+        target["lipsync"] = {
+            "correlation": corr,
+            "lag_ms": lag,
+            "has_shapekey": has_key,
+            "frames": item.get("frames"),
+            "pass": bool(
+                has_key
+                and isinstance(corr, (int, float)) and corr >= 0.7
+                and isinstance(lag, (int, float)) and abs(lag) <= 100.0
+            ),
+        }
+
+    out_dir = EVAL_OUT_DIR / req.job_id
+    try:
+        chart = eval_service.render_lipsync_chart(job["results"], out_dir)
+        job.setdefault("charts", {})["lipsync"] = f"/static/eval/{req.job_id}/{chart}"
+    except Exception:
+        logger.exception("lipsync chart render failed")
+    job["summary"] = eval_service.summarize(job["results"])
+    return {"ok": True, "charts": job.get("charts", {}), "summary": job["summary"]}

@@ -373,3 +373,12 @@ export async function apiEvalStatus(jobId) {
     headers: { ...authHeaders() },
   })
 }
+
+// 브라우저에서 실제 3D 모델로 측정한 립싱크 결과를 서버에 올려 차트/요약 갱신
+export async function apiEvalLipsync(jobId, results) {
+  return fetchJson('/api/eval/lipsync', {
+    method: 'POST',
+    headers: { ...JSON_HEADERS, ...authHeaders() },
+    body: JSON.stringify({ job_id: jobId, results }),
+  })
+}
