@@ -1088,3 +1088,30 @@ button{font-family:var(--font-body);cursor:pointer}
   margin-bottom: 6px;
   text-transform: uppercase;
 }
+
+/* ── NPC 정량검사 패널 ─────────────────────────────── */
+.eval-panel{width:min(960px,94%)}
+.eval-toolbar{display:flex;align-items:center;gap:14px;padding:16px 20px 4px}
+.eval-run-btn{background:linear-gradient(180deg,#c79b54,#9c7636);color:#1a120a;border:none;
+  padding:9px 18px;border-radius:8px;font-weight:700;cursor:pointer}
+.eval-run-btn:disabled{opacity:.55;cursor:default}
+.eval-dl-btn{background:none;border:1px solid #5a4628;color:#cbb892;padding:7px 12px;border-radius:7px;cursor:pointer}
+.eval-fps{color:#cbb892;font-size:14px;margin-left:auto}
+.eval-hint{padding:6px 20px 12px;color:#9a8a6d;font-size:13px;line-height:1.5}
+.eval-error{margin:6px 20px;padding:10px 14px;background:rgba(150,40,30,.25);border:1px solid #7a3326;
+  border-radius:7px;color:#e8b4a8}
+.eval-progress{padding:8px 20px 14px}
+.eval-bar{height:10px;background:#2a1f13;border-radius:6px;overflow:hidden}
+.eval-bar-fill{height:100%;background:linear-gradient(90deg,#9c7636,#d8b063);transition:width .4s ease}
+.eval-progress-text{margin-top:8px;color:#bda988;font-size:13px}
+.eval-table-wrap{padding:6px 20px;overflow-x:auto}
+.eval-table{width:100%;border-collapse:collapse;font-size:13px}
+.eval-table th,.eval-table td{padding:8px 10px;border-bottom:1px solid #33271a;text-align:center;white-space:nowrap}
+.eval-table th{color:var(--gold-soft);font-weight:600}
+.eval-table .eval-npc{font-weight:700;color:#e8d6b0;text-align:left}
+.eval-summary{display:flex;flex-wrap:wrap;gap:18px;padding:12px 20px;color:#bda988;font-size:14px;
+  border-top:1px solid #33271a;margin-top:6px}
+.eval-summary b{color:#e8d6b0}
+.eval-charts{display:grid;grid-template-columns:1fr;gap:14px;padding:14px 20px 22px}
+.eval-charts img{width:100%;border:1px solid #33271a;border-radius:8px;background:#fff}
+@media(min-width:760px){.eval-charts{grid-template-columns:1fr 1fr}.eval-charts img:first-child{grid-column:1/-1}}

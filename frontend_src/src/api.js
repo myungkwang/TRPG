@@ -358,3 +358,18 @@ export async function apiGetEnding(sessionId) {
     headers: { ...authHeaders() },
   })
 }
+
+// NPC별 정량검사 — 백그라운드 잡 시작 → job_id 반환
+export async function apiEvalRun() {
+  return fetchJson('/api/eval/run', {
+    method: 'POST',
+    headers: { ...authHeaders() },
+  })
+}
+
+// 정량검사 진행 상태/부분결과 폴링
+export async function apiEvalStatus(jobId) {
+  return fetchJson(`/api/eval/status/${jobId}`, {
+    headers: { ...authHeaders() },
+  })
+}

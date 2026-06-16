@@ -3,6 +3,7 @@ import { SPEAKERS, FLAVOR_CHOICE, CHOICES } from '../data.js'
 import D12 from './D12.jsx'
 import Character3D from './Character3D.jsx'
 import ParallaxBackground from './ParallaxBackground.jsx'
+import EvalPanel from './EvalPanel.jsx'
 import { apiChat, apiChatStream, apiTTS, apiTTSStream, apiDebugEnding, apiStoryChoice, apiGenerateBackground } from '../api.js'
 import { PERSONAS, getPersona } from '../personas.js'
 import { applyBgmVolume, applyMasterVolume, applySpeechVolume } from '../audioSettings.js'
@@ -122,22 +123,24 @@ const CHARACTER_MODELS = [
     speaker: 'lin',
     personaId: 'lin',
     name: PERSONAS.lin.name,
-    modelPath: '/static/models/Lin_ack_shrtleg_decntarm.glb',
+    modelPath: '/static/models/Lin_09_TextureFixed.glb',
     modelScale: 0.82,
     modelOffset: [0, -120, 0],
     preferEmbeddedAnimations: true,
     motionIntensity: 0.9,
+    lipGain: 1.1,   // Lin은 viseme 셰이프가 약해 입 강도를 키운다(GM 대비 oo/ee/oh가 작음)
   },
   {
     speaker: 'gail',
     personaId: 'gail',
     name: PERSONAS.gail.name,
-    modelPath: '/static/models/Gail_07_textureShading_01.glb',
+    modelPath: '/static/models/Gail_17_textureFixed.glb',
     modelScale: 0.90,
     modelOffset: [0, 0, 0],
     framingScale: 0.82,
     animations: NPC_ANIMS,
     disableProceduralMotion: true,
+    hideTeeth: true,   // 가일은 별도 이빨 메시(Low_Teeth*)를 숨긴다
   },
   {
     speaker: 'marta',
@@ -163,7 +166,7 @@ const CHARACTER_MODELS = [
     speaker: 'doctor',
     personaId: 'doctor',
     name: PERSONAS.doctor.name,
-    modelPath: '/static/models/Doctor_04_tracksDevided.glb',
+    modelPath: '/static/models/Doctor_09_textureFixed.glb',
     modelScale: 0.75,
     modelOffset: [0, -120, 0],
     preferEmbeddedAnimations: true,
@@ -373,6 +376,11 @@ let currentAudio = null
 let currentUtterance = null
 let speechRunId = 0
 let _onGmSpeakChange = null
+// GM 팝업 카메라 값은 모듈 상수로 고정한다. 인라인 배열로 넘기면 매 렌더 새 참조가 되어
+// Character3D effect(deps: cameraPosition/cameraTarget)가 재실행 → 모델이 매번 재로드되고
+// 립싱크 상태/등록이 날아가 "두 번째 발화부터 입이 멈추는" 버그가 난다.
+const GM_POPUP_CAMERA_POS = [0, 160, 420]
+const GM_POPUP_CAMERA_TARGET = [0, 160, 0]
 
 const estimateSpeechDuration = (text) => {
   const length = Array.from(String(text || '')).length
@@ -1201,6 +1209,14 @@ export default function Dialogue({
   const [gmSpeaking, setGmSpeaking] = useState(false)
   const [inspectMode, setInspectMode] = useState(false)
   const [inspectIndex, setInspectIndex] = useState(0)
+  const [evalOpen, setEvalOpen] = useState(false)   // 정량검사 패널(모델검사 옆 버튼)
+  // 캐릭터 GLB를 미리 받아 둔다(특히 31MB 가일 등). 발화 시점엔 이미 브라우저 캐시에 있어
+  // "첫 발화에서 모델 로드가 늦어 입이 안 움직이는" 레이스를 줄인다.
+  useEffect(() => {
+    CHARACTER_MODELS.forEach((m) => {
+      if (m.modelPath) fetch(m.modelPath).catch(() => {})
+    })
+  }, [])
   // 모델검사 패널 위치(px). null이면 CSS 기본(우측 도킹). 드래그로 이동 가능.
   const [inspectPanelPos, setInspectPanelPos] = useState(null)
   const inspectDragRef = useRef(null)
@@ -1995,7 +2011,12 @@ export default function Dialogue({
             title="NPC 모델을 하나씩 불러와 팔 꺾임을 점검 ([ ] 이동, G 제스처, Esc 종료)">
             {inspectMode ? '검사종료' : '모델검사'}
           </button>
+          <button onClick={() => setEvalOpen(true)}
+            title="NPC별 대화품질(G-Eval)·발음(CER)·립싱크를 측정해 그래프로 표시">
+            정량검사
+          </button>
         </div>
+        {evalOpen && <EvalPanel onClose={() => setEvalOpen(false)} />}
         {inspectMode ? (
           <div className="char-center inspect-stage" data-speaker={inspectCharacter.speaker}>
             <Character3D
@@ -2047,6 +2068,8 @@ export default function Dialogue({
                 >
                   <Character3D
                     modelPath={character.modelPath}
+                    lipGain={character.lipGain}
+                    hideTeeth={character.hideTeeth}
                     modelRotation={character.modelRotation}
                     modelScale={character.modelScale}
                     modelOffset={character.modelOffset}
@@ -2075,6 +2098,8 @@ export default function Dialogue({
                 >
                   <Character3D
                     modelPath={character.modelPath}
+                    lipGain={character.lipGain}
+                    hideTeeth={character.hideTeeth}
                     modelRotation={character.modelRotation}
                     modelScale={character.modelScale}
                     modelOffset={character.modelOffset}
@@ -2094,7 +2119,10 @@ export default function Dialogue({
           <div className="char-center" data-speaker={activeCharacter.speaker}>
             <Character3D
               key={activeCharacter.speaker}
+              registerGlobalControls={true}
               modelPath={activeCharacter.modelPath}
+              lipGain={activeCharacter.lipGain}
+              hideTeeth={activeCharacter.hideTeeth}
               modelRotation={activeCharacter.modelRotation}
               modelScale={activeCharacter.modelScale}
               modelOffset={activeCharacter.modelOffset}
@@ -2115,14 +2143,15 @@ export default function Dialogue({
             <div className="gm-face-popup">
               <Character3D
                 key="gm-popup"
+                registerGlobalControls={true}
                 modelPath={CHARACTER_MODELS[0].modelPath}
                 modelRotation={CHARACTER_MODELS[0].modelRotation}
                 modelScale={CHARACTER_MODELS[0].modelScale}
                 modelOffset={CHARACTER_MODELS[0].modelOffset}
                 animations={CHARACTER_MODELS[0].animations}
                 motionIntensity={CHARACTER_MODELS[0].motionIntensity}
-                cameraPosition={[0, 160, 420]}
-                cameraTarget={[0, 160, 0]}
+                cameraPosition={GM_POPUP_CAMERA_POS}
+                cameraTarget={GM_POPUP_CAMERA_TARGET}
                 cameraFov={25}
               />
             </div>

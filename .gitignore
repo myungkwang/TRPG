@@ -23,6 +23,7 @@ steamscale-proto/dist/
 
 # Built frontend assets
 static/assets/
+static/eval/
 
 # Binary / large files
 *.zip
