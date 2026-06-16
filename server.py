@@ -4,6 +4,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 import asyncio
 import sys
 import uuid
@@ -11,6 +12,8 @@ import threading
 import random
 from pathlib import Path
 from typing import Any
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
@@ -107,6 +110,15 @@ COSYVOICE_SEED = int(os.getenv("COSYVOICE_SEED", "1986"))
 COSYVOICE_PRELOAD = os.getenv("COSYVOICE_PRELOAD", "true").strip().lower() in {"1", "true", "yes", "on"}
 COSYVOICE_DEBUG = os.getenv("COSYVOICE_DEBUG", "false").strip().lower() in {"1", "true", "yes", "on"}
 COSYVOICE_GM_SPEAKER = os.getenv("COSYVOICE_GM_SPEAKER", "aux_skt_voice_skt_m0001_serious").strip() or "aux_skt_voice_skt_m0001_serious"
+COSYVOICE_WARMUP = os.getenv("COSYVOICE_WARMUP", "true").strip().lower() in {"1", "true", "yes", "on"}
+COSYVOICE_WARMUP_TEXT = os.getenv("COSYVOICE_WARMUP_TEXT", "네, 준비되었습니다.").strip() or "네, 준비되었습니다."
+COSYVOICE_WARMUP_SPEAKERS = [
+    item.strip()
+    for item in os.getenv("COSYVOICE_WARMUP_SPEAKERS", "gm,doctor").split(",")
+    if item.strip()
+]
+TTS_CACHE_NORMALIZE = os.getenv("TTS_CACHE_NORMALIZE", "true").strip().lower() in {"1", "true", "yes", "on"}
+TTS_SYNTHESIS_VERSION = "cosyvoice3-inline-prompt-stable-v2"
 try:
     COSYVOICE_SPEED = float(os.getenv("COSYVOICE_SPEED", "1.0"))
 except ValueError:
@@ -127,7 +139,7 @@ COSYVOICE_SPEAKERS = {
     "miner": "char_miner",
     "tavern": "char_tavern_clerk",
     "tavern_clerk": "char_tavern_clerk",
-    "char_gm": COSYVOICE_GM_SPEAKER,
+    "char_gm": "char_gm",
     "char_rin": "char_lin",
     "char_toby": "char_tobi",
     "char_lin": "char_lin",
@@ -137,16 +149,125 @@ COSYVOICE_SPEAKERS = {
 TTS_PROVIDER = os.getenv("TTS_PROVIDER", "edge").strip().lower()
 TTS_FALLBACK_PROVIDER = os.getenv("TTS_FALLBACK_PROVIDER", "none").strip().lower()
 
-EDGE_TTS_VOICES = {
-    "doctor": "ko-KR-HyunsuMultilingualNeural",
-    "gm": "ko-KR-HyunsuMultilingualNeural",
-    "gail": "ko-KR-HyunsuMultilingualNeural",
-    "kargas": "ko-KR-HyunsuMultilingualNeural",
-    "marta": "ko-KR-HyunsuMultilingualNeural",
-    "lin": "ko-KR-HyunsuMultilingualNeural",
-    "rin": "ko-KR-HyunsuMultilingualNeural",
-    "tobi": "ko-KR-HyunsuMultilingualNeural",
-    "toby": "ko-KR-HyunsuMultilingualNeural",
+SUPERTONE_API_KEY = os.getenv("SUPERTONE_API_KEY", "").strip()
+SUPERTONE_BASE_URL = os.getenv("SUPERTONE_BASE_URL", "https://supertoneapi.com/v1").rstrip("/")
+SUPERTONE_MODEL = os.getenv("SUPERTONE_MODEL", "sona_speech_2").strip() or "sona_speech_2"
+SUPERTONE_LANGUAGE = os.getenv("SUPERTONE_LANGUAGE", "ko").strip() or "ko"
+SUPERTONE_STYLE = os.getenv("SUPERTONE_STYLE", "neutral").strip() or "neutral"
+SUPERTONE_OUTPUT_FORMAT = os.getenv("SUPERTONE_OUTPUT_FORMAT", "wav").strip().lower()
+if SUPERTONE_OUTPUT_FORMAT not in {"wav", "mp3"}:
+    SUPERTONE_OUTPUT_FORMAT = "wav"
+SUPERTONE_DEFAULT_VOICE_ID = os.getenv("SUPERTONE_VOICE_ID", "91992bbd4758bdcf9c9b01").strip()
+
+
+def _env_float(name: str, default: float) -> float:
+    try:
+        return float(os.getenv(name, str(default)))
+    except ValueError:
+        return default
+
+
+SUPERTONE_DEFAULT_VOICE_SETTINGS = {
+    "pitch_shift": _env_float("SUPERTONE_PITCH_SHIFT", 0.0),
+    "pitch_variance": _env_float("SUPERTONE_PITCH_VARIANCE", 1.0),
+    "speed": _env_float("SUPERTONE_SPEED", 1.0),
+    "text_guidance": _env_float("SUPERTONE_TEXT_GUIDANCE", 2.0),
+}
+
+SUPERTONE_VOICE_IDS = {
+    "gm": os.getenv("SUPERTONE_GM_VOICE_ID", SUPERTONE_DEFAULT_VOICE_ID).strip() or SUPERTONE_DEFAULT_VOICE_ID,
+    "doctor": os.getenv("SUPERTONE_DOCTOR_VOICE_ID", SUPERTONE_DEFAULT_VOICE_ID).strip() or SUPERTONE_DEFAULT_VOICE_ID,
+    "gail": os.getenv("SUPERTONE_GAIL_VOICE_ID", SUPERTONE_DEFAULT_VOICE_ID).strip() or SUPERTONE_DEFAULT_VOICE_ID,
+    "kargas": os.getenv("SUPERTONE_KARGAS_VOICE_ID", SUPERTONE_DEFAULT_VOICE_ID).strip() or SUPERTONE_DEFAULT_VOICE_ID,
+    "marta": os.getenv("SUPERTONE_MARTA_VOICE_ID", SUPERTONE_DEFAULT_VOICE_ID).strip() or SUPERTONE_DEFAULT_VOICE_ID,
+    "lin": os.getenv("SUPERTONE_LIN_VOICE_ID", SUPERTONE_DEFAULT_VOICE_ID).strip() or SUPERTONE_DEFAULT_VOICE_ID,
+    "tobi": os.getenv("SUPERTONE_TOBI_VOICE_ID", SUPERTONE_DEFAULT_VOICE_ID).strip() or SUPERTONE_DEFAULT_VOICE_ID,
+    "miner": os.getenv("SUPERTONE_MINER_VOICE_ID", SUPERTONE_DEFAULT_VOICE_ID).strip() or SUPERTONE_DEFAULT_VOICE_ID,
+    "nurse": os.getenv("SUPERTONE_NURSE_VOICE_ID", SUPERTONE_DEFAULT_VOICE_ID).strip() or SUPERTONE_DEFAULT_VOICE_ID,
+    "tavern_clerk": os.getenv("SUPERTONE_TAVERN_CLERK_VOICE_ID", SUPERTONE_DEFAULT_VOICE_ID).strip() or SUPERTONE_DEFAULT_VOICE_ID,
+}
+
+SUPERTONE_SPEAKER_ALIASES = {
+    "rin": "lin",
+    "toby": "tobi",
+    "tavern": "tavern_clerk",
+    "char_gm": "gm",
+    "char_lin": "lin",
+    "char_rin": "lin",
+    "char_tobi": "tobi",
+    "char_toby": "tobi",
+}
+
+OPENAI_TTS_VOICE_NAMES = {"alloy", "ash", "ballad", "coral", "echo", "fable", "nova", "onyx", "sage", "shimmer", "verse"}
+
+def _env_text(name: str, default: str) -> str:
+    return os.getenv(name, default).strip() or default
+
+
+EDGE_TTS_PROFILES = {
+    "gm": {
+        "voice": _env_text("EDGE_TTS_GM_VOICE", "ko-KR-HyunsuMultilingualNeural"),
+        "rate": _env_text("EDGE_TTS_GM_RATE", "-3%"),
+        "pitch": _env_text("EDGE_TTS_GM_PITCH", "-2Hz"),
+    },
+    "doctor": {
+        "voice": _env_text("EDGE_TTS_DOCTOR_VOICE", "ko-KR-InJoonNeural"),
+        "rate": _env_text("EDGE_TTS_DOCTOR_RATE", "-8%"),
+        "pitch": _env_text("EDGE_TTS_DOCTOR_PITCH", "-4Hz"),
+    },
+    "gail": {
+        "voice": _env_text("EDGE_TTS_GAIL_VOICE", "ko-KR-InJoonNeural"),
+        "rate": _env_text("EDGE_TTS_GAIL_RATE", "-2%"),
+        "pitch": _env_text("EDGE_TTS_GAIL_PITCH", "-7Hz"),
+    },
+    "kargas": {
+        "voice": _env_text("EDGE_TTS_KARGAS_VOICE", "ko-KR-HyunsuMultilingualNeural"),
+        "rate": _env_text("EDGE_TTS_KARGAS_RATE", "-16%"),
+        "pitch": _env_text("EDGE_TTS_KARGAS_PITCH", "-18Hz"),
+    },
+    "marta": {
+        "voice": _env_text("EDGE_TTS_MARTA_VOICE", "ko-KR-SunHiNeural"),
+        "rate": _env_text("EDGE_TTS_MARTA_RATE", "-14%"),
+        "pitch": _env_text("EDGE_TTS_MARTA_PITCH", "-7Hz"),
+    },
+    "lin": {
+        "voice": _env_text("EDGE_TTS_LIN_VOICE", "ko-KR-SunHiNeural"),
+        "rate": _env_text("EDGE_TTS_LIN_RATE", "-6%"),
+        "pitch": _env_text("EDGE_TTS_LIN_PITCH", "-3Hz"),
+    },
+    "tobi": {
+        "voice": _env_text("EDGE_TTS_TOBI_VOICE", "ko-KR-SunHiNeural"),
+        "rate": _env_text("EDGE_TTS_TOBI_RATE", "+8%"),
+        "pitch": _env_text("EDGE_TTS_TOBI_PITCH", "+9Hz"),
+    },
+    "miner": {
+        "voice": _env_text("EDGE_TTS_MINER_VOICE", "ko-KR-InJoonNeural"),
+        "rate": _env_text("EDGE_TTS_MINER_RATE", "-5%"),
+        "pitch": _env_text("EDGE_TTS_MINER_PITCH", "-8Hz"),
+    },
+    "nurse": {
+        "voice": _env_text("EDGE_TTS_NURSE_VOICE", "ko-KR-SunHiNeural"),
+        "rate": _env_text("EDGE_TTS_NURSE_RATE", "-4%"),
+        "pitch": _env_text("EDGE_TTS_NURSE_PITCH", "-1Hz"),
+    },
+    "tavern_clerk": {
+        "voice": _env_text("EDGE_TTS_TAVERN_CLERK_VOICE", "ko-KR-SunHiNeural"),
+        "rate": _env_text("EDGE_TTS_TAVERN_CLERK_RATE", "-2%"),
+        "pitch": _env_text("EDGE_TTS_TAVERN_CLERK_PITCH", "+1Hz"),
+    },
+}
+
+EDGE_TTS_ALIASES = {
+    "rin": "lin",
+    "toby": "tobi",
+    "tavern": "tavern_clerk",
+    "char_gm": "gm",
+    "char_lin": "lin",
+    "char_rin": "lin",
+    "char_tobi": "tobi",
+    "char_toby": "tobi",
+    "char_tavern": "tavern_clerk",
+    "char_tavern_clerk": "tavern_clerk",
 }
 
 
@@ -261,16 +382,27 @@ def _preload_cosyvoice_client() -> None:
         logger.exception("CosyVoice preload failed")
 
 
-app.add_event_handler("startup", _preload_cosyvoice_client)
+app.on_event("startup")(_preload_cosyvoice_client)
 
 
 def _cosyvoice_speaker(req: TTSRequest) -> str:
     key = (req.speaker or req.voice or "gm").strip().lower()
-    return COSYVOICE_SPEAKERS.get(key, key if key.startswith("char_") else COSYVOICE_GM_SPEAKER)
+    if key in COSYVOICE_SPEAKERS:
+        return COSYVOICE_SPEAKERS[key]
+    if key.startswith(("char_", "aux_")):
+        return key
+    return COSYVOICE_GM_SPEAKER
 
 
 def _edge_speaker(req: TTSRequest) -> str:
-    return (req.speaker or req.voice or "gm").strip().lower()
+    key = (req.speaker or req.voice or "gm").strip().lower()
+    key = EDGE_TTS_ALIASES.get(key, key)
+    return key if key in EDGE_TTS_PROFILES else "gm"
+
+
+def _edge_tts_profile(speaker: str) -> dict[str, str]:
+    key = EDGE_TTS_ALIASES.get((speaker or "gm").strip().lower(), speaker or "gm")
+    return EDGE_TTS_PROFILES.get(key, EDGE_TTS_PROFILES["gm"])
 
 
 def _tts_model_stamp() -> dict[str, int | None]:
@@ -282,15 +414,38 @@ def _tts_model_stamp() -> dict[str, int | None]:
     return {"flow_size": stat.st_size, "flow_mtime_ns": stat.st_mtime_ns}
 
 
-def _tts_cache_key(req: TTSRequest, speaker: str, use_cosyvoice: bool) -> str:
+def _normalize_tts_cache_text(text: str) -> str:
+    normalized = str(text or "")
+    normalized = (
+        normalized
+        .replace("\u200b", "")
+        .replace("\ufeff", "")
+        .replace("“", '"')
+        .replace("”", '"')
+        .replace("‘", "'")
+        .replace("’", "'")
+    )
+    normalized = re.sub(r"\s+", " ", normalized).strip()
+    normalized = re.sub(r"\s+([,.!?;:，。！？；：])", r"\1", normalized)
+    normalized = re.sub(r"([\"'])\s+(.+?)\s+\1", r"\1\2\1", normalized)
+    return normalized
+
+
+def _cache_text(text: str) -> str:
+    return _normalize_tts_cache_text(text) if TTS_CACHE_NORMALIZE else str(text or "").strip()
+
+
+def _tts_cache_key(req: TTSRequest, speaker: str, provider: str | bool) -> str:
+    provider_name = "cosyvoice" if provider is True else "edge" if provider is False else str(provider)
     payload = {
-        "provider": "cosyvoice" if use_cosyvoice else "edge",
+        "provider": provider_name,
+        "synthesis_version": TTS_SYNTHESIS_VERSION,
         "speaker": speaker,
         "voice": req.voice or "",
-        "instructions": req.instructions or "",
-        "text": req.text.strip(),
+        "instructions": _cache_text(req.instructions or ""),
+        "text": _cache_text(req.text),
     }
-    if use_cosyvoice:
+    if provider_name == "cosyvoice":
         payload.update({
             "model_dir": str(COSYVOICE_MODEL_DIR.resolve()),
             "mode": COSYVOICE_MODE,
@@ -300,14 +455,88 @@ def _tts_cache_key(req: TTSRequest, speaker: str, use_cosyvoice: bool) -> str:
             "speed": COSYVOICE_SPEED,
             **_tts_model_stamp(),
         })
+    elif provider_name == "edge":
+        payload.update({
+            "edge_profile": _edge_tts_profile(speaker),
+        })
+    elif provider_name == "supertone":
+        voice_id = _supertone_direct_voice_id(req) or SUPERTONE_VOICE_IDS.get(speaker, SUPERTONE_DEFAULT_VOICE_ID)
+        payload.update({
+            "model": SUPERTONE_MODEL,
+            "language": SUPERTONE_LANGUAGE,
+            "style": SUPERTONE_STYLE,
+            "voice_id": voice_id,
+            "output_format": SUPERTONE_OUTPUT_FORMAT,
+            "settings": _supertone_voice_settings(req),
+        })
     raw = json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
     return hashlib.sha256(raw).hexdigest()[:32]
+
+
+def _warmup_cosyvoice_cache() -> None:
+    if TTS_PROVIDER != "cosyvoice" or not COSYVOICE_WARMUP:
+        return
+
+    def worker() -> None:
+        for speaker_key in COSYVOICE_WARMUP_SPEAKERS:
+            try:
+                req = TTSRequest(text=COSYVOICE_WARMUP_TEXT, speaker=speaker_key)
+                speaker = _cosyvoice_speaker(req)
+                filename = f"tts-{_tts_cache_key(req, speaker, True)}.wav"
+                out_path = AUDIO_DIR / filename
+                if out_path.exists():
+                    logger.info("CosyVoice warmup cache hit speaker=%s file=%s", speaker, filename)
+                    continue
+                logger.info("CosyVoice warmup start speaker=%s", speaker)
+                synthesize_cosyvoice(req, out_path)
+                logger.info("CosyVoice warmup done speaker=%s file=%s", speaker, filename)
+            except Exception:
+                logger.exception("CosyVoice warmup failed for speaker=%s", speaker_key)
+
+    threading.Thread(target=worker, name="cosyvoice-warmup", daemon=True).start()
+
+
+app.on_event("startup")(_warmup_cosyvoice_cache)
 
 
 def _cosyvoice3_text(text: str, instruction: str) -> str:
     if "<|endofprompt|>" in text:
         return text
     return f"{instruction}{text}"
+
+
+def _is_cosyvoice3_model() -> bool:
+    return (COSYVOICE_MODEL_DIR / "cosyvoice3.yaml").exists()
+
+
+def _spoken_unit_count(text: str) -> int:
+    return len(re.findall(r"[0-9A-Za-z가-힣]", str(text or "")))
+
+
+def _minimum_reasonable_tts_duration(text: str) -> float:
+    units = _spoken_unit_count(text)
+    return max(0.45, min(6.0, units * 0.028))
+
+
+def _cosyvoice_tts_text_variants(text: str) -> list[str]:
+    source = str(text or "").strip()
+    variants = [source]
+
+    # CosyVoice3 can occasionally terminate immediately on some Korean particle patterns.
+    # These variants are only for speech synthesis; the visible dialogue text stays unchanged.
+    normalized = re.sub(r"([가-힣]+)에서는", r"\1에서", source)
+    normalized = re.sub(r"([가-힣]+)에게서는", r"\1에게서", normalized)
+    normalized = re.sub(r"([가-힣]+)로서는", r"\1로서", normalized)
+    if normalized != source:
+        variants.append(normalized)
+
+    softer = normalized.replace(" 들립니다.", " 들려옵니다.")
+    softer = softer.replace(" 들립니다!", " 들려옵니다!")
+    softer = softer.replace(" 들립니다?", " 들려옵니까?")
+    if softer not in variants:
+        variants.append(softer)
+
+    return [item for index, item in enumerate(variants) if item and item not in variants[:index]]
 
 
 def _tensor_debug(value: Any) -> Any:
@@ -318,28 +547,128 @@ def _tensor_debug(value: Any) -> Any:
     return value
 
 
-async def _synthesize_edge_tts_async(text: str, voice: str, out_path: Path) -> None:
+async def _synthesize_edge_tts_async(text: str, profile: dict[str, str], out_path: Path) -> None:
     import edge_tts
 
     communicate = edge_tts.Communicate(
         text=text,
-        voice=voice,
+        voice=profile["voice"],
+        rate=profile["rate"],
+        pitch=profile["pitch"],
     )
     await communicate.save(str(out_path))
 
 
 def synthesize_edge_tts(req: TTSRequest, out_path: Path) -> str:
     key = _edge_speaker(req)
-    voice = EDGE_TTS_VOICES.get(key, EDGE_TTS_VOICES["gm"])
+    profile = _edge_tts_profile(key)
     text = req.text.strip()
 
     try:
-        asyncio.run(_synthesize_edge_tts_async(text, voice, out_path))
+        asyncio.run(_synthesize_edge_tts_async(text, profile, out_path))
     except Exception as exc:
         logger.exception("Edge TTS generation failed")
-        raise HTTPException(status_code=500, detail=f"Edge TTS 생성 실패({voice}): {exc}")
+        raise HTTPException(status_code=500, detail=f"Edge TTS 생성 실패({profile['voice']}): {exc}")
 
-    return voice
+    return key
+
+
+def _supertone_speaker_key(req: TTSRequest) -> str:
+    key = (req.speaker or "").strip().lower()
+    if not key:
+        voice_key = (req.voice or "").strip().lower()
+        if voice_key in SUPERTONE_VOICE_IDS or voice_key in SUPERTONE_SPEAKER_ALIASES:
+            key = voice_key
+    key = SUPERTONE_SPEAKER_ALIASES.get(key, key)
+    return key if key in SUPERTONE_VOICE_IDS else "gm"
+
+
+def _supertone_direct_voice_id(req: TTSRequest) -> str | None:
+    value = (req.voice or "").strip()
+    if not value:
+        return None
+
+    lowered = value.lower()
+    if lowered in OPENAI_TTS_VOICE_NAMES:
+        return None
+    if lowered in SUPERTONE_VOICE_IDS or lowered in SUPERTONE_SPEAKER_ALIASES:
+        return None
+    if re.fullmatch(r"[A-Za-z0-9_-]{10,}", value):
+        return value
+    return None
+
+
+def _supertone_voice_id(req: TTSRequest) -> str:
+    direct_voice_id = _supertone_direct_voice_id(req)
+    if direct_voice_id:
+        return direct_voice_id
+    speaker = _supertone_speaker_key(req)
+    voice_id = SUPERTONE_VOICE_IDS.get(speaker) or SUPERTONE_DEFAULT_VOICE_ID
+    if not voice_id:
+        raise HTTPException(status_code=500, detail="SUPERTONE_VOICE_ID is missing")
+    return voice_id
+
+
+def _supertone_voice_settings(req: TTSRequest) -> dict[str, float]:
+    settings = dict(SUPERTONE_DEFAULT_VOICE_SETTINGS)
+    hint = f"{req.instructions or ''} {req.text or ''}".lower()
+
+    if any(word in hint for word in ("속삭", "whisper")):
+        settings.update({"pitch_shift": -1, "pitch_variance": 0.75, "speed": 0.82, "text_guidance": 2.0})
+    elif any(word in hint for word in ("슬프", "체념", "울먹", "sad", "sorrow")):
+        settings.update({"pitch_variance": 0.9, "speed": 0.88, "text_guidance": 2.5})
+    elif any(word in hint for word in ("분노", "화난", "단호", "angry", "anger")):
+        settings.update({"pitch_shift": -1, "pitch_variance": 1.15, "speed": 0.98, "text_guidance": 2.4})
+    elif any(word in hint for word in ("긴장", "불길", "공포", "tense", "suspense")):
+        settings.update({"pitch_variance": 1.25, "speed": 0.92, "text_guidance": 2.0})
+    elif any(word in hint for word in ("긴박", "다급", "흥분", "excited", "urgent")):
+        settings.update({"pitch_shift": 1, "pitch_variance": 1.45, "speed": 1.12, "text_guidance": 2.2})
+
+    return settings
+
+
+def synthesize_supertone_tts(req: TTSRequest, out_path: Path) -> str:
+    if not SUPERTONE_API_KEY:
+        raise HTTPException(status_code=500, detail="SUPERTONE_API_KEY is missing in .env")
+
+    text = req.text.strip()
+    if len(text) > 300:
+        raise HTTPException(status_code=400, detail="Supertone TTS text must be 300 characters or less")
+
+    voice_id = _supertone_voice_id(req)
+    body = {
+        "text": text,
+        "language": SUPERTONE_LANGUAGE,
+        "model": SUPERTONE_MODEL,
+        "style": SUPERTONE_STYLE,
+        "output_format": SUPERTONE_OUTPUT_FORMAT,
+        "voice_settings": _supertone_voice_settings(req),
+    }
+    request = Request(
+        f"{SUPERTONE_BASE_URL}/text-to-speech/{voice_id}",
+        data=json.dumps(body, ensure_ascii=False).encode("utf-8"),
+        headers={
+            "Content-Type": "application/json",
+            "x-sup-api-key": SUPERTONE_API_KEY,
+        },
+        method="POST",
+    )
+
+    try:
+        with urlopen(request, timeout=120) as response:
+            out_path.write_bytes(response.read())
+    except HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")
+        logger.exception("Supertone TTS HTTP error voice_id=%s detail=%s", voice_id, detail)
+        raise HTTPException(status_code=500, detail=f"Supertone TTS failed({voice_id}): HTTP {exc.code} {detail}") from exc
+    except URLError as exc:
+        logger.exception("Supertone TTS network error voice_id=%s", voice_id)
+        raise HTTPException(status_code=500, detail=f"Supertone TTS network failed({voice_id}): {exc}") from exc
+    except Exception as exc:
+        logger.exception("Supertone TTS generation failed voice_id=%s", voice_id)
+        raise HTTPException(status_code=500, detail=f"Supertone TTS failed({voice_id}): {exc}") from exc
+
+    return _supertone_speaker_key(req)
 
 
 def synthesize_cosyvoice(req: TTSRequest, out_path: Path) -> str:
@@ -400,29 +729,72 @@ def synthesize_cosyvoice(req: TTSRequest, out_path: Path) -> str:
                 prompt_text = COSYVOICE_SFT_INSTRUCTION
                 if "<|endofprompt|>" not in prompt_text:
                     prompt_text = f"{prompt_text}<|endofprompt|>"
-                segments = model.frontend.text_normalize(
-                    text,
-                    split=True,
-                    text_frontend=COSYVOICE_TEXT_FRONTEND,
-                )
                 prompt_text_token, prompt_text_token_len = model.frontend._extract_text_token(prompt_text)
                 debug_segments = []
-                logger.info("CosyVoice sft prompt=%r segments=%r", prompt_text, segments)
-                for segment in segments:
-                    model_input = model.frontend.frontend_sft(segment, speaker)
-                    model_input["prompt_text"] = prompt_text_token
-                    model_input["prompt_text_len"] = prompt_text_token_len
-                    debug_segments.append({
-                        "text": segment,
-                        "text_token_len": int(model_input["text_len"].detach().cpu().item()),
-                        "text_tokens": _tensor_debug(model_input["text"]),
-                    })
-                    chunks = model.model.tts(**model_input, stream=False, speed=COSYVOICE_SPEED)
-                    for chunk in chunks:
-                        speech = chunk["tts_speech"].detach().cpu()
-                        if speech.dim() == 1:
-                            speech = speech.unsqueeze(0)
-                        speeches.append(speech)
+                min_duration = _minimum_reasonable_tts_duration(text)
+                best_speeches = []
+                best_duration = 0.0
+                best_debug_segments = []
+
+                for attempt_index, attempt_text in enumerate(_cosyvoice_tts_text_variants(text)):
+                    attempt_speeches = []
+                    attempt_debug_segments = []
+                    segments = model.frontend.text_normalize(
+                        attempt_text,
+                        split=True,
+                        text_frontend=COSYVOICE_TEXT_FRONTEND,
+                    )
+                    logger.info(
+                        "CosyVoice sft prompt=%r attempt=%s min_duration=%.2f text=%r segments=%r",
+                        prompt_text,
+                        attempt_index,
+                        min_duration,
+                        attempt_text,
+                        segments,
+                    )
+                    for segment in segments:
+                        synthesis_text = _cosyvoice3_text(segment, prompt_text) if _is_cosyvoice3_model() else segment
+                        model_input = model.frontend.frontend_sft(synthesis_text, speaker)
+                        if not _is_cosyvoice3_model():
+                            model_input["prompt_text"] = prompt_text_token
+                            model_input["prompt_text_len"] = prompt_text_token_len
+                        attempt_debug_segments.append({
+                            "text": segment,
+                            "synthesis_text": synthesis_text,
+                            "text_token_len": int(model_input["text_len"].detach().cpu().item()),
+                            "text_tokens": _tensor_debug(model_input["text"]),
+                        })
+                        chunks = model.model.tts(**model_input, stream=False, speed=COSYVOICE_SPEED)
+                        for chunk in chunks:
+                            speech = chunk["tts_speech"].detach().cpu()
+                            if speech.dim() == 1:
+                                speech = speech.unsqueeze(0)
+                            attempt_speeches.append(speech)
+
+                    if not attempt_speeches:
+                        continue
+
+                    attempt_audio = torch.cat(attempt_speeches, dim=-1).clamp(-1.0, 1.0)
+                    attempt_duration = float(attempt_audio.shape[-1]) / float(getattr(model, "sample_rate", 24000))
+                    if attempt_duration > best_duration:
+                        best_duration = attempt_duration
+                        best_speeches = attempt_speeches
+                        best_debug_segments = attempt_debug_segments
+                    if attempt_duration >= min_duration:
+                        speeches = attempt_speeches
+                        debug_segments = attempt_debug_segments
+                        break
+                    logger.warning(
+                        "CosyVoice generated too-short audio attempt=%s duration=%.2f min=%.2f speaker=%s text=%r",
+                        attempt_index,
+                        attempt_duration,
+                        min_duration,
+                        speaker,
+                        attempt_text,
+                    )
+                else:
+                    speeches = best_speeches
+                    debug_segments = best_debug_segments
             if not speeches:
                 raise RuntimeError("CosyVoice generated no audio.")
             audio = torch.cat(speeches, dim=-1).clamp(-1.0, 1.0)
@@ -501,9 +873,11 @@ def _prepare_cosyvoice_inputs(model: Any, req: TTSRequest, speaker: str) -> list
     )
     prepared = []
     for segment in segments:
-        model_input = model.frontend.frontend_sft(segment, speaker)
-        model_input["prompt_text"] = prompt_text_token
-        model_input["prompt_text_len"] = prompt_text_token_len
+        synthesis_text = _cosyvoice3_text(segment, prompt_text) if _is_cosyvoice3_model() else segment
+        model_input = model.frontend.frontend_sft(synthesis_text, speaker)
+        if not _is_cosyvoice3_model():
+            model_input["prompt_text"] = prompt_text_token
+            model_input["prompt_text_len"] = prompt_text_token_len
         prepared.append({"text": segment, "input": model_input})
     return prepared
 
@@ -644,6 +1018,37 @@ def _json_safe(value: Any) -> Any:
         except Exception:
             return value
     return value
+
+
+def _tts_provider() -> str:
+    if TTS_PROVIDER in {"cosyvoice", "edge", "supertone"}:
+        return TTS_PROVIDER
+    logger.warning("Unknown TTS_PROVIDER=%s; using edge", TTS_PROVIDER)
+    return "edge"
+
+
+def _tts_speaker(req: TTSRequest, provider: str) -> str:
+    if provider == "cosyvoice":
+        return _cosyvoice_speaker(req)
+    if provider == "supertone":
+        return _supertone_speaker_key(req)
+    return _edge_speaker(req)
+
+
+def _tts_extension(provider: str) -> str:
+    if provider == "cosyvoice":
+        return "wav"
+    if provider == "supertone":
+        return SUPERTONE_OUTPUT_FORMAT
+    return "mp3"
+
+
+def _synthesize_tts_provider(req: TTSRequest, provider: str, out_path: Path) -> str:
+    if provider == "cosyvoice":
+        return synthesize_cosyvoice(req, out_path)
+    if provider == "supertone":
+        return synthesize_supertone_tts(req, out_path)
+    return synthesize_edge_tts(req, out_path)
 
 
 def public_session(session_id: str) -> dict[str, Any]:
@@ -1309,37 +1714,38 @@ def tts(req: TTSRequest, user_id: str = Depends(get_user_id_from_token)) -> dict
     if not text:
         raise HTTPException(status_code=400, detail="text is empty")
 
-    use_cosyvoice = TTS_PROVIDER == "cosyvoice"
+    provider = _tts_provider()
+    use_cosyvoice = provider == "cosyvoice"
     logger.info("TTS request provider=%s speaker=%s text=%s repr=%r", TTS_PROVIDER, req.speaker or req.voice or "gm", text, text)
-    speaker = _cosyvoice_speaker(req) if use_cosyvoice else _edge_speaker(req)
-    extension = "wav" if use_cosyvoice else "mp3"
-    filename = f"tts-{_tts_cache_key(req, speaker, use_cosyvoice)}.{extension}"
+    speaker = _tts_speaker(req, provider)
+    extension = _tts_extension(provider)
+    filename = f"tts-{_tts_cache_key(req, speaker, provider)}.{extension}"
     out_path = AUDIO_DIR / filename
     if out_path.exists():
         return {
             "audio_url": f"/static/audio/{filename}",
             "voice": speaker,
+            "provider": provider,
             "cached": True,
         }
 
     fallback_provider = None
-    if use_cosyvoice:
-        try:
-            speaker = synthesize_cosyvoice(req, out_path)
-        except HTTPException:
-            if TTS_FALLBACK_PROVIDER != "edge":
-                logger.exception("CosyVoice TTS failed")
-                raise
-            logger.exception("CosyVoice TTS failed; falling back to Edge TTS")
-            fallback_provider = "edge"
-            filename = f"{uuid.uuid4()}.mp3"
-            out_path = AUDIO_DIR / filename
+    try:
+        speaker = _synthesize_tts_provider(req, provider, out_path)
+    except HTTPException:
+        if provider == "edge" or TTS_FALLBACK_PROVIDER != "edge":
+            logger.exception("%s TTS failed", provider)
+            raise
+        logger.exception("%s TTS failed; falling back to Edge TTS", provider)
+        fallback_provider = "edge"
+        speaker = _edge_speaker(req)
+        filename = f"tts-{_tts_cache_key(req, speaker, 'edge')}.mp3"
+        out_path = AUDIO_DIR / filename
+        if not out_path.exists():
             speaker = synthesize_edge_tts(req, out_path)
-    else:
-        speaker = synthesize_edge_tts(req, out_path)
-    response = {"audio_url": f"/static/audio/{filename}", "voice": speaker}
+    response = {"audio_url": f"/static/audio/{filename}", "voice": speaker, "provider": fallback_provider or provider}
     if fallback_provider:
-        response["provider"] = fallback_provider
+        response["fallback_from"] = provider
     if use_cosyvoice and not fallback_provider and COSYVOICE_DEBUG:
         response["debug_url"] = f"/static/audio_debug/{out_path.stem}.json"
         response["debug_float32_url"] = f"/static/audio_debug/{out_path.stem}.float32.npy"
@@ -1352,35 +1758,60 @@ def tts_stream(req: TTSRequest, user_id: str = Depends(get_user_id_from_token)) 
     if not text:
         raise HTTPException(status_code=400, detail="text is empty")
 
-    use_cosyvoice = TTS_PROVIDER == "cosyvoice"
-    speaker = _cosyvoice_speaker(req) if use_cosyvoice else _edge_speaker(req)
-    cache_key = _tts_cache_key(req, speaker, use_cosyvoice)
+    provider = _tts_provider()
+    use_cosyvoice = provider == "cosyvoice"
+    speaker = _tts_speaker(req, provider)
+    cache_key = _tts_cache_key(req, speaker, provider)
 
     def events():
         try:
+            event_provider = provider
+            event_speaker = speaker
             if use_cosyvoice:
-                for event in _iter_cosyvoice_stream_chunks(req, speaker, cache_key):
+                for event in _iter_cosyvoice_stream_chunks(req, event_speaker, cache_key):
                     yield _sse_pack(event.get("type", "chunk"), event)
                 return
 
-            filename = f"tts-{cache_key}.mp3"
+            extension = _tts_extension(provider)
+            filename = f"tts-{cache_key}.{extension}"
             out_path = AUDIO_DIR / filename
             was_cached = out_path.exists()
             if not was_cached:
-                synthesize_edge_tts(req, out_path)
-            yield _sse_pack("chunk", {
+                try:
+                    _synthesize_tts_provider(req, provider, out_path)
+                except HTTPException:
+                    if provider == "edge" or TTS_FALLBACK_PROVIDER != "edge":
+                        raise
+                    logger.exception("%s stream TTS failed; falling back to Edge TTS", provider)
+                    fallback_speaker = _edge_speaker(req)
+                    fallback_cache_key = _tts_cache_key(req, fallback_speaker, "edge")
+                    filename = f"tts-{fallback_cache_key}.mp3"
+                    out_path = AUDIO_DIR / filename
+                    was_cached = out_path.exists()
+                    if not was_cached:
+                        synthesize_edge_tts(req, out_path)
+                    event_speaker = fallback_speaker
+                    event_provider = "edge"
+            chunk = {
                 "type": "chunk",
                 "audio_url": f"/static/audio/{filename}",
-                "voice": speaker,
+                "voice": event_speaker,
+                "provider": event_provider,
                 "chunk_index": 0,
                 "cached": was_cached,
-            })
-            yield _sse_pack("final", {
+            }
+            final = {
                 "type": "final",
-                "voice": speaker,
+                "voice": event_speaker,
+                "provider": event_provider,
                 "chunk_count": 1,
                 "cached": was_cached,
-            })
+            }
+            if event_provider != provider:
+                chunk["fallback_from"] = provider
+                final["fallback_from"] = provider
+            yield _sse_pack("chunk", chunk)
+            yield _sse_pack("final", final)
         except HTTPException as exc:
             detail = exc.detail if isinstance(exc.detail, str) else str(exc.detail)
             yield _sse_pack("error", {"type": "error", "detail": detail})

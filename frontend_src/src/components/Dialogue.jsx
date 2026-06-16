@@ -31,7 +31,11 @@ const LOCATION_BGMS = [
   },
 ]
 const USE_BROWSER_TTS = false
+// CosyVoice stream chunks start quickly, but small chunks can make voices unstable.
+// Keep stable phrase-level wav playback as the default for more natural delivery.
 const USE_SERVER_TTS_STREAM = false
+const SERVER_TTS_STREAM_INITIAL_BUFFER = 2
+const SERVER_TTS_STREAM_MAX_INITIAL_WAIT_MS = 900
 
 const NPC_DIALOGUE_TEST_LINES = [
   { speaker: 'doctor', text: '린, 환자의 반응이 안정적입니다. 하지만 기억은 아직 흐릿한 것 같군요.' },
@@ -406,6 +410,7 @@ const playAudioUrl = async (data, spokenText, runId, options = {}) => {
   if (runId !== speechRunId) return
 
   const audio = new Audio(data.audio_url)
+  audio.preload = 'auto'
   const stopAudioVolume = applyMasterVolume(audio, 1)
   currentAudio = audio
 
@@ -432,11 +437,12 @@ const playAudioUrl = async (data, spokenText, runId, options = {}) => {
   }
 }
 
-async function playServerTtsStream(prepared, runId) {
+function createServerTtsStreamState(prepared) {
   const { segment, spokenText, fallbackDuration } = prepared
   const chunks = []
   let streamClosed = false
   let streamError = null
+  let firstChunkAt = 0
   let wake = null
   const controller = new AbortController()
 
@@ -464,6 +470,7 @@ async function playServerTtsStream(prepared, runId) {
     instructions: prepared.ttsInstructions,
   }, (eventName, payload) => {
     if (eventName === 'chunk' && payload?.audio_url) {
+      if (!firstChunkAt) firstChunkAt = performance.now()
       chunks.push(payload)
       notify()
     }
@@ -475,12 +482,40 @@ async function playServerTtsStream(prepared, runId) {
     notify()
   })
 
+  return {
+    segment,
+    spokenText,
+    fallbackDuration,
+    chunks,
+    controller,
+    producer,
+    waitForChunk,
+    get streamClosed() { return streamClosed },
+    get streamError() { return streamError },
+    get firstChunkAt() { return firstChunkAt },
+  }
+}
+
+async function playServerTtsStream(prepared, runId, state = null) {
+  const streamState = state || createServerTtsStreamState(prepared)
+  const { spokenText, fallbackDuration, chunks, controller, producer, waitForChunk } = streamState
+
   let playedChunks = 0
   let performanceStarted = false
 
-  while (runId === speechRunId && (!streamClosed || chunks.length)) {
+  while (runId === speechRunId && (!streamState.streamClosed || chunks.length)) {
     if (!chunks.length) {
-      if (streamError) throw streamError
+      if (streamState.streamError) throw streamState.streamError
+      await waitForChunk()
+      continue
+    }
+
+    if (
+      playedChunks === 0
+      && !streamState.streamClosed
+      && chunks.length < SERVER_TTS_STREAM_INITIAL_BUFFER
+      && (!streamState.firstChunkAt || performance.now() - streamState.firstChunkAt < SERVER_TTS_STREAM_MAX_INITIAL_WAIT_MS)
+    ) {
       await waitForChunk()
       continue
     }
@@ -499,7 +534,7 @@ async function playServerTtsStream(prepared, runId) {
   }
 
   await producer
-  if (streamError) throw streamError
+  if (streamState.streamError) throw streamState.streamError
   if (!playedChunks) {
     window.playLinPerformance?.(spokenText, 'talk', fallbackDuration)
     window.startLinFallbackLipSync?.(spokenText, fallbackDuration)
@@ -730,8 +765,12 @@ const mergeShortSpeechSegments = (segments) => {
     if (!text) return
 
     const previous = merged[merged.length - 1]
-    const shortText = Array.from(text).length < 8
-    if (previous && previous.speaker === segment.speaker && (shortText || Array.from(previous.text).length < 8)) {
+    const textLength = Array.from(text).length
+    const previousLength = previous ? Array.from(previous.text).length : 0
+    const shortText = textLength < TTS_MIN_CHARS_PER_REQUEST
+    const shortPrevious = previousLength < TTS_MIN_CHARS_PER_REQUEST
+    const mergeableLength = previousLength + textLength + 1 <= TTS_MAX_CHARS_PER_REQUEST
+    if (previous && previous.speaker === segment.speaker && mergeableLength && (shortText || shortPrevious)) {
       previous.text = `${previous.text} ${text}`.trim()
       return
     }
@@ -742,8 +781,9 @@ const mergeShortSpeechSegments = (segments) => {
   return merged
 }
 
-const TTS_MAX_CHARS_PER_REQUEST = 72
-const TTS_PREFETCH_AHEAD = 3
+const TTS_MIN_CHARS_PER_REQUEST = 24
+const TTS_MAX_CHARS_PER_REQUEST = 96
+const TTS_PREFETCH_AHEAD = 4
 
 const splitTextIntoTtsChunks = (text, maxChars = TTS_MAX_CHARS_PER_REQUEST) => {
   const source = String(text || '').trim()
@@ -752,17 +792,22 @@ const splitTextIntoTtsChunks = (text, maxChars = TTS_MAX_CHARS_PER_REQUEST) => {
 
   const chunks = []
   let start = 0
-  const breakChars = ['.', '!', '?', '。', '！', '？', ',', '，', ';', '；', ':', '：', ' ']
+  const sentenceBreakChars = ['.', '!', '?', '。', '！', '？']
+  const softBreakChars = [',', '，', ';', '；', ':', '：', ' ']
+
+  const findLastBreak = (value, marks) => marks.reduce((best, mark) => {
+    const index = value.lastIndexOf(mark)
+    return index > best ? index : best
+  }, -1)
 
   while (start < chars.length) {
     let end = Math.min(start + maxChars, chars.length)
     if (end < chars.length) {
       const windowText = chars.slice(start, end).join('')
-      let cut = -1
-      breakChars.forEach((mark) => {
-        const index = windowText.lastIndexOf(mark)
-        if (index > cut) cut = index
-      })
+      let cut = findLastBreak(windowText, sentenceBreakChars)
+      if (cut < Math.floor(maxChars * 0.45)) {
+        cut = findLastBreak(windowText, softBreakChars)
+      }
       if (cut >= Math.floor(maxChars * 0.45)) {
         end = start + cut + 1
       }
@@ -772,6 +817,17 @@ const splitTextIntoTtsChunks = (text, maxChars = TTS_MAX_CHARS_PER_REQUEST) => {
     if (chunk) chunks.push(chunk)
     start = end
     while (start < chars.length && /\s/.test(chars[start])) start += 1
+  }
+
+  if (chunks.length > 1) {
+    const last = chunks[chunks.length - 1]
+    const previous = chunks[chunks.length - 2]
+    if (
+      Array.from(last).length < TTS_MIN_CHARS_PER_REQUEST
+      && Array.from(previous).length + Array.from(last).length + 1 <= TTS_MAX_CHARS_PER_REQUEST + 12
+    ) {
+      chunks.splice(chunks.length - 2, 2, `${previous} ${last}`.trim())
+    }
   }
 
   return chunks
@@ -904,13 +960,18 @@ async function speakNpc(text, speaker = 'gm', options = {}) {
 
       const prepared = preparedSegments[index]
       const { segment, spokenText, cleanSegment, fallbackDuration } = prepared
-      _onGmSpeakChange?.(segment.speaker === 'gm')
-
-      options.onSegmentStart?.(segment)
-      revealedCount += 1
-      if (runId !== speechRunId) return
+      let segmentRevealed = false
+      const revealSegment = () => {
+        if (segmentRevealed || runId !== speechRunId) return
+        segmentRevealed = true
+        _onGmSpeakChange?.(segment.speaker === 'gm')
+        options.onSegmentStart?.(segment)
+        revealedCount += 1
+      }
 
       if (USE_BROWSER_TTS) {
+        revealSegment()
+        if (runId !== speechRunId) return
         try {
           await speakWithBrowserTts(cleanSegment, fallbackDuration)
 
@@ -933,8 +994,11 @@ async function speakNpc(text, speaker = 'gm', options = {}) {
         console.log('TTS RESPONSE:', data)
 
         if (runId !== speechRunId) return
+        revealSegment()
+        if (runId !== speechRunId) return
 
         const audio = new Audio(data.audio_url)
+        audio.preload = 'auto'
         const stopAudioVolume = applyMasterVolume(audio, 1)
         currentAudio = audio
 
@@ -962,6 +1026,8 @@ async function speakNpc(text, speaker = 'gm', options = {}) {
           currentAudio.pause()
           currentAudio = null
         }
+        revealSegment()
+        if (runId !== speechRunId) return
         try {
           await speakWithBrowserTts(cleanSegment, fallbackDuration)
           if (runId !== speechRunId) return
@@ -990,22 +1056,30 @@ async function speakNpc(text, speaker = 'gm', options = {}) {
   }
 }
 
-async function playPreparedTtsItem(prepared, ttsPromise, runId, options = {}) {
+async function playPreparedTtsItem(prepared, ttsPromise, runId, options = {}, ttsStream = null) {
   const { segment, spokenText, cleanSegment, fallbackDuration } = prepared
   if (runId !== speechRunId) return
 
-  _onGmSpeakChange?.(segment.speaker === 'gm')
-  options.onSegmentStart?.(segment)
-  if (runId !== speechRunId) return
+  let segmentRevealed = false
+  const revealSegment = () => {
+    if (segmentRevealed || runId !== speechRunId) return
+    segmentRevealed = true
+    _onGmSpeakChange?.(segment.speaker === 'gm')
+    options.onSegmentStart?.(segment)
+  }
 
   if (USE_BROWSER_TTS) {
+    revealSegment()
+    if (runId !== speechRunId) return
     await speakWithBrowserTts(cleanSegment, fallbackDuration)
     return
   }
 
   try {
-    if (USE_SERVER_TTS_STREAM && !ttsPromise) {
-      await playServerTtsStream(prepared, runId)
+    if (USE_SERVER_TTS_STREAM && (ttsStream || !ttsPromise)) {
+      revealSegment()
+      if (runId !== speechRunId) return
+      await playServerTtsStream(prepared, runId, ttsStream)
       return
     }
 
@@ -1014,6 +1088,8 @@ async function playPreparedTtsItem(prepared, ttsPromise, runId, options = {}) {
     if (runId !== speechRunId) return
 
     const data = ttsResult.data
+    revealSegment()
+    if (runId !== speechRunId) return
     await playAudioUrl(data, spokenText, runId)
   } catch (segmentErr) {
     console.warn('Streaming TTS segment error:', segment.speaker, segmentErr)
@@ -1022,6 +1098,8 @@ async function playPreparedTtsItem(prepared, ttsPromise, runId, options = {}) {
       currentAudio.pause()
       currentAudio = null
     }
+    revealSegment()
+    if (runId !== speechRunId) return
     try {
       await speakWithBrowserTts(cleanSegment, fallbackDuration)
     } catch (browserFallbackErr) {
@@ -1056,7 +1134,7 @@ function createStreamingTtsQueue(runId, options = {}) {
       }
 
       const item = items.shift()
-      await playPreparedTtsItem(item.prepared, item.ttsPromise, runId, options)
+      await playPreparedTtsItem(item.prepared, item.ttsPromise, runId, options, item.ttsStream)
       if (runId !== speechRunId) break
       await new Promise(resolve => setTimeout(resolve, 20))
     }
@@ -1076,10 +1154,14 @@ function createStreamingTtsQueue(runId, options = {}) {
       const pieces = splitLongTtsSegments(mergeShortSpeechSegments(normalizeStorySegments([normalized], normalized.text, normalized.speaker)))
       pieces.forEach((piece) => {
         const prepared = prepareTtsSegment(piece)
+        const ttsStream = !USE_BROWSER_TTS && USE_SERVER_TTS_STREAM
+          ? createServerTtsStreamState(prepared)
+          : null
         const ttsPromise = USE_BROWSER_TTS
+          || USE_SERVER_TTS_STREAM
           ? null
           : requestServerTts(prepared).catch(error => ({ ...prepared, error }))
-        items.push({ prepared, ttsPromise })
+        items.push({ prepared, ttsPromise, ttsStream })
       })
       notify()
     },
