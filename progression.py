@@ -229,29 +229,55 @@ def set_location(session_id: str, location: str) -> str:
     return location
 
 
+def _match_clue_flag(name: str) -> str | None:
+    """단서 이름 → 해금 플래그. 단서는 '도감'에 기록되지 인벤토리 아이템이 아니다."""
+    key = "".join((name or "").lower().split())
+    if not key:
+        return None
+    for clue_name, clue in CODEX_CLUES.items():
+        ck = "".join(clue_name.lower().split())
+        if len(ck) >= 2 and (ck == key or ck in key or key in ck):
+            return clue.get("unlock")
+    return None
+
+
 def give_item(session_id: str, item: str) -> dict:
-    """인벤토리에 아이템을 추가한다.
+    """진짜 인벤토리 아이템만 인벤토리에 넣는다.
 
-    GM이 준 자유 텍스트는 ITM_* ID로 해석해 저장하고(items_catalog),
-    해석되지 않으면(단서·유품 등) 원문 문자열을 그대로 넣는다.
-    반환: {"inventory", "item"(저장값), "display"(이름), "added"(중복이면 False)}
+    - ITM_* 로 해석되는 것(무기·장비·소모품 등) → 인벤토리에 추가.
+    - "단서/증거"(은폐된 명부 등) → 인벤토리가 아니라 '도감'에 기록(연결 플래그를 켠다).
+      절대 인벤토리 아이템으로 만들지 않는다.
+    - 그 외 미인식 문자열 → 무시(단서의 아이템화·잡템화 방지).
+    반환: {"inventory","item","display","added","kind": "item"|"clue"|"none"}
     """
-    resolved = items_catalog.resolve_item(item) or (item or "").strip()
-    if not resolved:
-        return {"inventory": _load_row(session_id)["inventory"],
-                "item": "", "display": "", "added": False}
+    name = (item or "").strip()
+    resolved = items_catalog.resolve_item(item)
 
-    inventory = _load_row(session_id)["inventory"]
-    items = inventory.get("items")
-    if not isinstance(items, list):
-        items = []
-    added = resolved not in items
-    if added:
-        items.append(resolved)
-    inventory["items"] = items
-    _save(session_id, "inventory", inventory)
-    return {"inventory": inventory, "item": resolved,
-            "display": items_catalog.display_name(resolved), "added": added}
+    # 1) 진짜 인벤토리 아이템
+    if resolved:
+        inventory = _load_row(session_id)["inventory"]
+        items = inventory.get("items")
+        if not isinstance(items, list):
+            items = []
+        added = resolved not in items
+        if added:
+            items.append(resolved)
+        inventory["items"] = items
+        _save(session_id, "inventory", inventory)
+        return {"inventory": inventory, "item": resolved,
+                "display": items_catalog.display_name(resolved), "added": added, "kind": "item"}
+
+    # 2) 단서 → 도감에만 기록(플래그). 인벤토리화 X
+    flag = _match_clue_flag(name)
+    if flag and flag in FLAGS:
+        prev = get_session_flags(session_id).get(flag)
+        set_flag(session_id, flag)
+        return {"inventory": _load_row(session_id)["inventory"], "item": name,
+                "display": name, "added": not prev, "kind": "clue"}
+
+    # 3) 미인식 문자열 → 인벤토리에 넣지 않음
+    return {"inventory": _load_row(session_id)["inventory"], "item": name,
+            "display": name, "added": False, "kind": "none"}
 
 
 def equip_item(session_id: str, item_id: str, slot: str | None = None) -> dict:

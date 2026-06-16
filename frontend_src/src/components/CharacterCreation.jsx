@@ -6,8 +6,13 @@ import { ITEMS } from '../items.js'
 function startItemNames(inventory) {
   if (!inventory) return ''
   const eq = inventory.equipment || {}
+  const seen = new Set()
   const names = []
-  const push = (ref) => { if (ref) names.push(ITEMS[ref]?.name || ref) }
+  const push = (ref) => {
+    if (!ref || seen.has(ref)) return   // 중복(장착무기가 가방에도 있는 등) 제거
+    seen.add(ref)
+    names.push(ITEMS[ref]?.name || ref)
+  }
   push(eq.weapon); push(eq.head); push(eq.body)
   ;(inventory.items || []).forEach(push)
   return names.join(', ')

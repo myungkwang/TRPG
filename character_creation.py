@@ -120,26 +120,21 @@ def build_character(answers: dict[str, str]) -> dict:
 
     stats = allocate_stats(primary_stat)
 
-    # 직업 선택 → ITM_* ID로 시작 지급. T1 유일무기는 자동 장착하되, 가방에도 둔다.
+    # 직업 선택 → ITM_* ID로 시작 지급. T1 유일무기는 자동 장착(가방엔 중복으로 안 넣음).
     kit = items_catalog.job_kit(job)
     weapon = kit.get("weapon")
     equipment = {"head": None, "body": None, "weapon": weapon}
-    bag = list(items_catalog.START_COMMON)
-    if weapon:
-        bag.append(weapon)                   # 기본(장착)무기도 인벤토리에 표시
-    # 장착 시연용: 어떤 직업이든 숏 소드 하나는 무조건 가방에
-    if "ITM_UNIQ_SHORTSWORD" not in bag:
-        bag.append("ITM_UNIQ_SHORTSWORD")
+    bag = list(items_catalog.START_COMMON)   # 적당한 소모품(등불·앰플 등) — 전부 실제 아이템
+    # 직업 장비: 머리/몸통은 자동 장착, 그 외(무기 슬롯 술식의수 등)는 가방
     for item_id in kit.get("items", []):
         slot = items_catalog.slot_of(item_id)
         if slot in ("head", "body") and equipment.get(slot) is None:
-            equipment[slot] = item_id        # 직업 장비(머리/몸통) 자동 장착
+            equipment[slot] = item_id
         else:
             bag.append(item_id)
-    # 도입 자유 답변('손에 들려 있던 것') — 유품 문자열로 가방에 남긴다.
-    start_item = (answers.get("item") or "").strip()
-    if start_item:
-        bag.append(start_item)
+    # 장착 시연용 여분 무기(이미 장착/보유 중이면 생략 — 중복 방지)
+    if weapon != "ITM_UNIQ_SHORTSWORD" and "ITM_UNIQ_SHORTSWORD" not in bag:
+        bag.append("ITM_UNIQ_SHORTSWORD")
 
     inventory = {
         "동화": 30, "은화": 0, "금화": 0, "영정": 1,

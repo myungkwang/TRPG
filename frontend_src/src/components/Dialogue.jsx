@@ -943,6 +943,9 @@ const stopSpeaking = () => {
     currentAudio = null
   }
   cancelBrowserSpeech()
+  // 인터럽트 시 아바타도 같이 정리: 입모양 리셋 + 제스처 모션 정지 → 깜빡/렉 방지
+  window.stopLinLipSync?.()
+  window.stopLinPerformance?.()
 }
 
 async function speakNpc(text, speaker = 'gm', options = {}) {
