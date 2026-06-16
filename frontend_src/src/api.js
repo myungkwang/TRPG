@@ -202,6 +202,15 @@ export async function apiMove(sessionId, location) {
   })
 }
 
+// 장비 슬롯(머리/몸통/무기)에 아이템 장착 → 갱신된 세션 반환
+export async function apiEquip(sessionId, itemId, slot = null) {
+  return fetchJson('/api/equip', {
+    method: 'POST',
+    headers: { ...JSON_HEADERS, ...authHeaders() },
+    body: JSON.stringify({ session_id: sessionId, item_id: itemId, slot }),
+  })
+}
+
 export async function apiStoryCurrent(sessionId) {
   return fetchJson(`/api/story/${sessionId}`, {
     headers: { ...authHeaders() },

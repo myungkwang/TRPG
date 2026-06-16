@@ -157,7 +157,8 @@ export default function ParallaxBackground({ image, fx, strength = 0.05, zoom = 
     return () => {
       cancelAnimationFrame(raf); ro.disconnect(); window.removeEventListener('pointermove', onMove)
       uniforms.uImage.value?.dispose?.(); uniforms.uDepth.value?.dispose?.()
-      pmat.map?.dispose?.(); pgeo.dispose(); pmat.dispose(); mat.dispose(); renderer.dispose()
+      pmat.map?.dispose?.(); pgeo.dispose(); pmat.dispose(); mat.dispose()
+      renderer.dispose(); renderer.forceContextLoss?.()   // GPU 컨텍스트 즉시 해제(누적 방지)
       if (renderer.domElement.parentNode === host) host.removeChild(renderer.domElement)
       ctx.current = null
     }

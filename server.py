@@ -78,6 +78,35 @@ def _save_depth(img_bytes: bytes, key: str) -> None:
             (GEN_DEPTH_DIR / f"{key}.png").write_bytes(r.read())
     except Exception:
         pass
+
+
+def _ensure_depth_service() -> None:
+    """깊이서비스(8189)가 안 떠 있으면 kohya venv 로 자동 기동한다(best-effort)."""
+    import subprocess, urllib.request
+    try:
+        urllib.request.urlopen(DEPTH_URL + "/", timeout=1)
+        return  # 이미 떠 있음
+    except Exception:
+        pass
+    # 깊이 추정용 파이썬: ComfyUI 내장(팀원도 보유, torch 있음) 우선 → kohya → env override
+    root = Path(__file__).resolve().parent
+    candidates = [
+        os.getenv("DEPTH_PYTHON"),
+        str(root.parent / "ComfyUI_windows_portable" / "python_embeded" / "python.exe"),
+        r"d:/ComfyUI_windows_portable/python_embeded/python.exe",
+        r"d:/kohya_ss/venv/Scripts/python.exe",
+    ]
+    py = next((p for p in candidates if p and os.path.exists(p)), None)
+    script = str(root / "depth_service.py")
+    if py and os.path.exists(script):
+        try:
+            flags = getattr(subprocess, "CREATE_NEW_CONSOLE", 0)
+            subprocess.Popen([py, script], cwd=str(Path(__file__).resolve().parent), creationflags=flags)
+            print("[server] 깊이서비스 자동 기동:", py, script, flush=True)
+        except Exception as e:
+            print("[server] 깊이서비스 기동 실패:", e, flush=True)
+
+
 AUDIO_DEBUG_DIR.mkdir(exist_ok=True)
 cosyvoice_client = None
 cosyvoice_lock = threading.Lock()
@@ -276,6 +305,11 @@ class Utf8JSONResponse(JSONResponse):
 
 
 app = FastAPI(title="증기와 비늘 Web Test", default_response_class=Utf8JSONResponse)
+
+
+@app.on_event("startup")
+def _on_startup() -> None:
+    _ensure_depth_service()   # 깊이서비스 자동 기동(2.5D용)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -293,6 +327,12 @@ class ChatRequest(BaseModel):
 class MoveRequest(BaseModel):
     session_id: str
     location: str
+
+
+class EquipRequest(BaseModel):
+    session_id: str
+    item_id: str
+    slot: str | None = None
 
 class StoryChoiceRequest(BaseModel):
     session_id: str
@@ -1573,6 +1613,19 @@ def move(
         "session": public_session(req.session_id),
         "story": story.current_scene(req.session_id),
     }
+
+
+@app.post("/api/equip")
+def equip(
+    req: EquipRequest,
+    user_id: str = Depends(get_user_id_from_token),
+) -> dict[str, Any]:
+    assert_session_owner(req.session_id, user_id)
+    try:
+        progression.equip_item(req.session_id, req.item_id, req.slot)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"session": public_session(req.session_id)}
 
 
 @app.get("/api/story/{session_id}")

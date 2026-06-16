@@ -82,4 +82,9 @@ docs/superpowers/
 *.pkl
 *.npy
 *.npz
+
+# ComfyUI portable (�ڵ�� ������ ���� ? git ������)
+ComfyUI_windows_portable/
+/ComfyUI/
+
 .gstack/

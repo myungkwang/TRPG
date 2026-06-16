@@ -4,6 +4,7 @@ import {
   CODEX_CHARACTERS, CODEX_ITEMS, CODEX_CLUES, CODEX_ENDINGS, REP_RANGE,
 } from '../data.js'
 import { categoryLabel, priceLabel } from '../items.js'
+import ItemModel3D from './ItemModel3D.jsx'
 
 const CATS = [
   { key: 'chars',   label: '인물' },
@@ -58,7 +59,7 @@ function ListSpread({ list, sel, setSel, kindLabel }) {
               className={'cx2-row' + (i === sel ? ' on' : '') + (it.got ? '' : ' locked')}
               onClick={() => setSel(i)}>
               <span className="cx2-rno">NO.{it.got ? it.no : '?????'}</span>
-              {it.got ? <span className="cx2-rname">{it.icon} {it.name}</span>
+              {it.got ? <span className="cx2-rname">{it.name}</span>
                       : <span className="cx2-rname dim">???</span>}
             </button>
           ))}
@@ -67,7 +68,11 @@ function ListSpread({ list, sel, setSel, kindLabel }) {
       <div className="cx2-page cx2-detail">
         {cur && cur.got ? (
           <>
-            <div className="cx2-dicon">{cur.icon}</div>
+            {cur.modelPath ? (
+              <ItemModel3D path={cur.modelPath} fallback={cur.icon} className="cx2-dmodel" />
+            ) : (
+              <div className="cx2-dicon">{cur.icon}</div>
+            )}
             <div className="cx2-dno">NO.{cur.no}</div>
             <div className="cx2-dname">{cur.name}</div>
             {cur.category && (

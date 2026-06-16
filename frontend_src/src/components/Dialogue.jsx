@@ -1648,89 +1648,106 @@ export default function Dialogue({
       const streamRunId = ++speechRunId
       const streamedSegments = []
       let receivedStreamSegment = false
-      let finalData = null
 
       holdChoicesRef.current = true
-      const streamingTts = createStreamingTtsQueue(streamRunId, {
-        onSegmentStart: (segment) => {
-          updateTavernCastMode(segment)
-          setActiveSpeaker(segment.speaker || 'gm')
-          setLog(prev => [...prev, { who: segment.speaker || 'gm', text: segment.text, speak: false }])
-        },
-      })
 
-      try {
-        finalData = await apiChatStream(session.id, text, (eventName, payload) => {
-          if (eventName === 'segment') {
-            const segment = payload.segment || {}
-            const normalized = {
-              role: segment.role || (segment.speaker === 'gm' ? 'gm' : 'npc'),
-              speaker: segment.speaker || 'gm',
-              text: String(segment.text || '').trim(),
-            }
-            if (!normalized.text) return
-
-            receivedStreamSegment = true
-            streamedSegments.push(normalized)
-            updateTavernCastMode(normalized)
-            streamingTts.enqueue(normalized)
-          }
-        })
-      } catch (streamErr) {
-        streamingTts.close()
-        if (receivedStreamSegment) throw streamErr
-
-        const data = await apiChat(session.id, text)
+      const revealResponse = (data, segments, streamed = false) => {
         onSessionChange?.(data.session)
         if (data.story) onStoryChange?.(data.story)
+
+        // GM이 이번 대화로 위치를 옮겼으면(세션 location 변경) 인트로/씬의 stage·story 고정을 풀어 새 배경 반영
         const newLoc = data.session?.location
         if (newLoc && newLoc !== prevLoc) {
           setStageLocation(null)
           if (story?.location && story.location !== newLoc) onStoryChange?.(null)
         }
-        push('gm', data.answer, {
-          speak: true,
-          segments: normalizeStorySegments(data.segments, data.answer, 'gm'),
+
+        const finalSegments = normalizeStorySegments(
+          segments || data.segments,
+          data.answer,
+          'gm',
+        )
+        const finalChoices = normalizeChoices(data.choices)
+        const reveal = {
+          answer: data.answer,
+          segments: finalSegments,
+          choices: finalChoices,
+        }
+
+        // 비고정 장소로 배경이 새로 '생성'될 예정이면 GM 대사+음성을 보류 → 생성 완료 후 함께 공개
+        const willGen = newLoc && !getLocationBackground(newLoc)
+          && !genBg[newLoc] && !bgTriedRef.current.has(newLoc)
+        if (willGen) {
+          pendingRevealRef.current = reveal
+          holdChoicesRef.current = false
+          return
+        }
+
+        storyChoicesRef.current = finalChoices
+        if (streamed && finalSegments.length) {
+          const streamingTts = createStreamingTtsQueue(streamRunId, {
+            onSegmentStart: (segment) => {
+              updateTavernCastMode(segment)
+              setActiveSpeaker(segment.speaker || 'gm')
+              setLog(prev => [...prev, { who: segment.speaker || 'gm', text: segment.text, speak: false }])
+            },
+          })
+          finalSegments.forEach(segment => {
+            updateTavernCastMode(segment)
+            streamingTts.enqueue(segment)
+          })
+          streamingTts.close()
+          streamingTts.done.catch(error => console.warn('Streaming TTS queue failed:', error))
+          if (onHistoryChange) {
+            onHistoryChange(prev => [...prev, {
+              role: 'assistant',
+              speaker: 'gm',
+              content: data.answer,
+              segments: finalSegments,
+              speak: false,
+            }])
+          }
+        } else {
+          push('gm', data.answer, {
+            speak: true,
+            segments: finalSegments,
+          })
+        }
+
+        holdChoicesRef.current = false
+        setChoices(storyChoicesRef.current)
+      }
+
+      let finalData = null
+      try {
+        finalData = await apiChatStream(session.id, text, (eventName, payload) => {
+          if (eventName !== 'segment') return
+          const segment = payload.segment || {}
+          const normalized = {
+            role: segment.role || (segment.speaker === 'gm' ? 'gm' : 'npc'),
+            speaker: segment.speaker || 'gm',
+            text: String(segment.text || '').trim(),
+          }
+          if (!normalized.text) return
+
+          receivedStreamSegment = true
+          streamedSegments.push(normalized)
         })
-        storyChoicesRef.current = normalizeChoices(data.choices)
+      } catch (streamErr) {
+        console.warn('Streaming chat failed; falling back to non-stream chat:', streamErr)
+      }
+
+      if (!finalData) {
+        finalData = await apiChat(session.id, text)
+        revealResponse(finalData, finalData.segments, false)
         return
       }
 
-      streamingTts.close()
-      streamingTts.done.catch(error => console.warn('Streaming TTS queue failed:', error))
-      holdChoicesRef.current = false
-
-      if (!finalData) throw new Error('스트리밍 응답이 완료되지 않았습니다.')
-
-      onSessionChange?.(finalData.session)
-      if (finalData.story) onStoryChange?.(finalData.story)
-      const newLoc = finalData.session?.location
-      if (newLoc && newLoc !== prevLoc) {
-        setStageLocation(null)
-        if (story?.location && story.location !== newLoc) onStoryChange?.(null)
-      }
-
-      const finalSegments = normalizeStorySegments(
+      revealResponse(
+        finalData,
         finalData.segments || streamedSegments,
-        finalData.answer,
-        'gm',
+        receivedStreamSegment,
       )
-      if (!receivedStreamSegment) {
-        push('gm', finalData.answer, {
-          speak: true,
-          segments: finalSegments,
-        })
-      } else if (onHistoryChange) {
-        onHistoryChange(prev => [...prev, {
-          role: 'assistant',
-          speaker: 'gm',
-          content: finalData.answer,
-          segments: finalSegments,
-          speak: false,
-        }])
-      }
-      storyChoicesRef.current = normalizeChoices(finalData.choices)
-      setChoices(storyChoicesRef.current)
     } catch (err) {
       holdChoicesRef.current = false
       push('gm', `오류: ${err.message}`, { speak: false })
@@ -1861,6 +1878,7 @@ export default function Dialogue({
   const [genBg, setGenBg] = useState({})
   const [bgLoading, setBgLoading] = useState(false)
   const bgTriedRef = useRef(new Set())
+  const pendingRevealRef = useRef(null)   // 배경 생성 중 보류한 GM 대사(생성 후 음성과 함께 공개)
   // 배경은 '실제 게임 위치'를 따른다. story.location(멈춰있는 인트로 씬)은 배경 결정에서 제외 —
   // 안 그러면 자유 이동해도 인트로 씬 위치(진료소)가 계속 덮어 AI 배경 생성이 안 됨.
   const curLoc = stageLocation || session?.location
@@ -1874,7 +1892,15 @@ export default function Dialogue({
     apiGenerateBackground(session.id, curLoc)
       .then(d => { if (d.url) setGenBg(p => ({ ...p, [curLoc]: d.url })) })
       .catch(() => {})
-      .finally(() => setBgLoading(false))
+      .finally(() => {
+        setBgLoading(false)
+        const pr = pendingRevealRef.current   // 보류해 둔 GM 대사를 이제 음성과 함께 공개
+        if (pr) {
+          pendingRevealRef.current = null
+          push('gm', pr.answer, { speak: true, segments: pr.segments })
+          storyChoicesRef.current = pr.choices
+        }
+      })
   }, [curLoc, session?.id])
   const locationBgm = getLocationBgm([
     sceneContext.storyId,
@@ -1915,7 +1941,13 @@ export default function Dialogue({
       style={locationBackground ? { '--location-bg': `url("${locationBackground}")` } : undefined}
     >
       {locationBackground && <ParallaxBackground image={locationBackground} fx={getFx(curLoc)} />}
-      {bgLoading && <div className="bg-gen-loading">새로운 장소의 풍경을 그리는 중…</div>}
+      {bgLoading && (
+        <div className="bg-gen-loading">
+          <div className="bg-gen-spinner" />
+          <div className="bg-gen-title">AI가 새 장소를 그리는 중…</div>
+          <div className="bg-gen-sub">잠시만 기다려 주세요</div>
+        </div>
+      )}
       <div className="bg-embers" />
 
       {judge && (
