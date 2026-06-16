@@ -16,9 +16,13 @@ finally {
   Pop-Location
 }
 
-New-Item -ItemType Directory -Force -Path (Join-Path $static 'assets') | Out-Null
-Copy-Item -LiteralPath (Join-Path $frontend 'dist\index.html') -Destination (Join-Path $static 'index.html') -Force
-Copy-Item -Path (Join-Path $frontend 'dist\assets\*') -Destination (Join-Path $static 'assets') -Force
+# frontend_src/vite.config 의 outDir 이 '../static' 이라, vite 가 index.html 과 assets 를
+# static/ 에 직접 빌드한다. 과거엔 여기서 frontend_src/dist 를 static 으로 복사했지만,
+# outDir 변경 후 dist 는 stale 가 되어 방금 빌드한 static/index.html 을 옛 해시로 덮어쓰는
+# 버그를 일으켰다. 그래서 복사 단계를 제거한다. (vite 가 직접 배포하므로 복사 불필요)
+if (-not (Test-Path (Join-Path $static 'index.html'))) {
+  throw "build did not produce static/index.html — check frontend_src/vite.config outDir (should be '../static')"
+}
 
 Write-Host "Frontend built and deployed to $static"
 Select-String -Path (Join-Path $static 'index.html') -Pattern 'assets/index-.*(js|css)'
