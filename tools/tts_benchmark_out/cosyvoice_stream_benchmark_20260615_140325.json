@@ -1,0 +1,134 @@
+{
+  "metadata": {
+    "created_at": "2026-06-15T14:03:06",
+    "project_root": "C:\\Users\\Chan\\Desktop\\2차_프로젝트\\TRPG_main",
+    "text": "영석 등불이 희미하게 깜빡이는 진료소. 당신은 기억을 잃은 채 눈을 뜬다. 의사가 낮은 목소리로 묻는다. 깨어났군요. 당신이 누군지 기억나는 게 있습니까?",
+    "text_chars": 86,
+    "requested_speaker": "gm",
+    "resolved_speaker": "aux_skt_voice_skt_m0001_serious",
+    "cosyvoice_model_dir": "C:\\Users\\Chan\\Desktop\\2차_프로젝트\\TRPG_main\\CosyVoice3_game_chars_epoch23_for_team\\eval_model",
+    "cosyvoice_mode": "sft",
+    "cosyvoice_llm_file": "llm.pt",
+    "cosyvoice_speed": 1.0,
+    "cosyvoice_fp16_env": "true",
+    "torch_version": "2.3.1+cu121",
+    "torch_cuda": true,
+    "torch_cuda_version": "12.1",
+    "gpu": "NVIDIA GeForce RTX 4070 Ti",
+    "model_load_sec": 166.4894951999995,
+    "repeat": 1,
+    "warmup": 0
+  },
+  "summary": {
+    "nonstream": {
+      "runs": 1,
+      "avg_first_chunk_sec": 9.256409300000087,
+      "avg_total_sec": 9.279642800000147,
+      "avg_audio_duration_sec": 10.84,
+      "avg_rtf": 0.8560556088561021,
+      "avg_chunk_count": 1.0
+    },
+    "stream": {
+      "runs": 1,
+      "avg_first_chunk_sec": 1.8528855000004114,
+      "avg_total_sec": 9.4957390999989,
+      "avg_audio_duration_sec": 10.84,
+      "avg_rtf": 0.8759906918818173,
+      "avg_chunk_count": 4.0
+    }
+  },
+  "comparison": {
+    "first_chunk_saved_sec": 7.403523799999675,
+    "total_delta_sec": 0.21609629999875324
+  },
+  "results": [
+    {
+      "label": "nonstream_1",
+      "stream": false,
+      "total_sec": 9.279642800000147,
+      "rtf": 0.8560556088561021,
+      "sample_rate": 24000,
+      "normalized_segments": [
+        "영석 등불이 희미하게 깜빡이는 진료소. 당신은 기억을 잃은 채 눈을 뜬다. 의사가 낮은 목소리로 묻는다. 깨어났군요. 당신이 누군지 기억나는 게 있습니까?"
+      ],
+      "wav_path": "C:\\Users\\Chan\\Desktop\\2차_프로젝트\\TRPG_main\\tools\\tts_benchmark_out\\nonstream_1.wav",
+      "chunk_count": 1,
+      "first_chunk_sec": 9.256409300000087,
+      "audio_duration_sec": 10.84,
+      "min_chunk_audio_sec": 10.84,
+      "max_chunk_audio_sec": 10.84,
+      "chunks": [
+        {
+          "global_chunk_index": 0,
+          "segment_index": 0,
+          "segment_text": "영석 등불이 희미하게 깜빡이는 진료소. 당신은 기억을 잃은 채 눈을 뜬다. 의사가 낮은 목소리로 묻는다. 깨어났군요. 당신이 누군지 기억나는 게 있습니까?",
+          "segment_wall_sec": 9.256406100001186,
+          "wall_sec": 9.256409300000087,
+          "local_chunk_index": 0,
+          "samples": 260160,
+          "audio_sec": 10.84
+        }
+      ],
+      "warmup": false
+    },
+    {
+      "label": "stream_1",
+      "stream": true,
+      "total_sec": 9.4957390999989,
+      "rtf": 0.8759906918818173,
+      "sample_rate": 24000,
+      "normalized_segments": [
+        "영석 등불이 희미하게 깜빡이는 진료소. 당신은 기억을 잃은 채 눈을 뜬다. 의사가 낮은 목소리로 묻는다. 깨어났군요. 당신이 누군지 기억나는 게 있습니까?"
+      ],
+      "wav_path": "C:\\Users\\Chan\\Desktop\\2차_프로젝트\\TRPG_main\\tools\\tts_benchmark_out\\stream_1.wav",
+      "chunk_count": 4,
+      "first_chunk_sec": 1.8528855000004114,
+      "audio_duration_sec": 10.84,
+      "min_chunk_audio_sec": 0.84,
+      "max_chunk_audio_sec": 4.0,
+      "chunks": [
+        {
+          "global_chunk_index": 0,
+          "segment_index": 0,
+          "segment_text": "영석 등불이 희미하게 깜빡이는 진료소. 당신은 기억을 잃은 채 눈을 뜬다. 의사가 낮은 목소리로 묻는다. 깨어났군요. 당신이 누군지 기억나는 게 있습니까?",
+          "segment_wall_sec": 1.8528834999997343,
+          "wall_sec": 1.8528855000004114,
+          "local_chunk_index": 0,
+          "samples": 20160,
+          "audio_sec": 0.84
+        },
+        {
+          "global_chunk_index": 1,
+          "segment_index": 0,
+          "segment_text": "영석 등불이 희미하게 깜빡이는 진료소. 당신은 기억을 잃은 채 눈을 뜬다. 의사가 낮은 목소리로 묻는다. 깨어났군요. 당신이 누군지 기억나는 게 있습니까?",
+          "segment_wall_sec": 4.042284899998776,
+          "wall_sec": 4.0422868999994535,
+          "local_chunk_index": 1,
+          "samples": 48000,
+          "audio_sec": 2.0
+        },
+        {
+          "global_chunk_index": 2,
+          "segment_index": 0,
+          "segment_text": "영석 등불이 희미하게 깜빡이는 진료소. 당신은 기억을 잃은 채 눈을 뜬다. 의사가 낮은 목소리로 묻는다. 깨어났군요. 당신이 누군지 기억나는 게 있습니까?",
+          "segment_wall_sec": 7.103146699999343,
+          "wall_sec": 7.10314870000002,
+          "local_chunk_index": 2,
+          "samples": 96000,
+          "audio_sec": 4.0
+        },
+        {
+          "global_chunk_index": 3,
+          "segment_index": 0,
+          "segment_text": "영석 등불이 희미하게 깜빡이는 진료소. 당신은 기억을 잃은 채 눈을 뜬다. 의사가 낮은 목소리로 묻는다. 깨어났군요. 당신이 누군지 기억나는 게 있습니까?",
+          "segment_wall_sec": 9.47383809999883,
+          "wall_sec": 9.473840099999506,
+          "local_chunk_index": 3,
+          "samples": 96000,
+          "audio_sec": 4.0
+        }
+      ],
+      "warmup": false
+    }
+  ]
+}

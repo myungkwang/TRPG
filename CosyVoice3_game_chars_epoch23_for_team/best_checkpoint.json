@@ -1,0 +1,46 @@
+{
+  "run_name": "game_chars_12h",
+  "model": "flow",
+  "selected_epoch": 35,
+  "selected_score": 0.342825,
+  "source_checkpoint": "C:\\Users\\Chan\\Desktop\\2차_프로젝트\\steamscale_repaired\\external\\finetune_runs\\game_chars_12h\\exp\\cosyvoice3\\flow\\torch_ddp\\epoch_35_whole.pt",
+  "copied_checkpoint": "C:\\Users\\Chan\\Desktop\\2차_프로젝트\\steamscale_repaired\\external\\finetune_runs\\game_chars_12h\\best\\flow_best_whole.pt",
+  "score_rule": {
+    "speaker_cosine": 0.5,
+    "duration_error_ratio": 0.2,
+    "mcd_db": 0.15,
+    "f0_corr": 0.1,
+    "rtf": 0.05,
+    "cer": 0.05,
+    "wer": 0.05
+  },
+  "best_row": {
+    "status": "ok",
+    "epoch": 35,
+    "score": 0.342825,
+    "checkpoint": "C:\\Users\\Chan\\Desktop\\2차_프로젝트\\steamscale_repaired\\external\\finetune_runs\\game_chars_12h\\exp\\cosyvoice3\\flow\\torch_ddp\\epoch_35_whole.pt",
+    "eval_dir": "C:\\Users\\Chan\\Desktop\\2차_프로젝트\\steamscale_repaired\\external\\finetune_runs\\game_chars_12h\\eval_all\\flow\\epoch_035",
+    "report_html": "C:\\Users\\Chan\\Desktop\\2차_프로젝트\\steamscale_repaired\\external\\finetune_runs\\game_chars_12h\\eval_all\\flow\\epoch_035\\report.html",
+    "report_md": "C:\\Users\\Chan\\Desktop\\2차_프로젝트\\steamscale_repaired\\external\\finetune_runs\\game_chars_12h\\eval_all\\flow\\epoch_035\\report.md",
+    "speaker_cosine": 0.502624,
+    "duration_error_ratio": 1.309848,
+    "mcd_db": 624.150272,
+    "f0_corr": 0.134724,
+    "f0_rmse_hz": 153.292141,
+    "rtf": 0.608937,
+    "cer": null,
+    "wer": null,
+    "score_components": "{\"duration_error_ratio\": 0.0, \"f0_corr\": 0.567362, \"mcd_db\": 0.0, \"rtf\": 0.695531, \"speaker_cosine\": 0.502624}",
+    "rank": 1
+  },
+  "artifacts": {
+    "best_checkpoint": "C:\\Users\\Chan\\Desktop\\2차_프로젝트\\steamscale_repaired\\external\\finetune_runs\\game_chars_12h\\best\\flow_best_whole.pt",
+    "best_summary_json": "C:\\Users\\Chan\\Desktop\\2차_프로젝트\\steamscale_repaired\\external\\finetune_runs\\game_chars_12h\\best\\summary.json",
+    "best_metrics_csv": "C:\\Users\\Chan\\Desktop\\2차_프로젝트\\steamscale_repaired\\external\\finetune_runs\\game_chars_12h\\best\\metrics.csv",
+    "best_report_md": "C:\\Users\\Chan\\Desktop\\2차_프로젝트\\steamscale_repaired\\external\\finetune_runs\\game_chars_12h\\best\\report.md",
+    "best_report_html": "C:\\Users\\Chan\\Desktop\\2차_프로젝트\\steamscale_repaired\\external\\finetune_runs\\game_chars_12h\\best\\report.html",
+    "scoreboard_csv": "C:\\Users\\Chan\\Desktop\\2차_프로젝트\\steamscale_repaired\\external\\finetune_runs\\game_chars_12h\\best\\scoreboard.csv",
+    "scoreboard_md": "C:\\Users\\Chan\\Desktop\\2차_프로젝트\\steamscale_repaired\\external\\finetune_runs\\game_chars_12h\\best\\scoreboard.md",
+    "scoreboard_html": "C:\\Users\\Chan\\Desktop\\2차_프로젝트\\steamscale_repaired\\external\\finetune_runs\\game_chars_12h\\best\\scoreboard.html"
+  }
+}
