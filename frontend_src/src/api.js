@@ -119,6 +119,78 @@ export async function apiChat(sessionId, message) {
   })
 }
 
+export async function apiChatStream(sessionId, message, onEvent) {
+  const response = await fetch('/api/chat/stream', {
+    method: 'POST',
+    headers: {
+      ...JSON_HEADERS,
+      ...authHeaders(),
+    },
+    body: JSON.stringify({ session_id: sessionId, message }),
+  })
+
+  if (response.status === 401) {
+    localStorage.removeItem('access_token')
+    localStorage.removeItem('user')
+    localStorage.removeItem('persona_session_id')
+    throw new Error('로그인이 필요합니다.')
+  }
+
+  if (!response.ok || !response.body) {
+    const text = await response.text()
+    let data = null
+    try {
+      data = text ? JSON.parse(text) : null
+    } catch {
+      data = { detail: text }
+    }
+    throw new Error(data?.detail || '스트리밍 대화 요청 실패')
+  }
+
+  const decoder = new TextDecoder()
+  const reader = response.body.getReader()
+  let buffer = ''
+  let finalData = null
+
+  const dispatchBlock = (block) => {
+    const lines = String(block || '').split(/\r?\n/)
+    let eventName = 'message'
+    const dataLines = []
+
+    lines.forEach((line) => {
+      if (line.startsWith('event:')) {
+        eventName = line.slice(6).trim() || 'message'
+      } else if (line.startsWith('data:')) {
+        dataLines.push(line.slice(5).trimStart())
+      }
+    })
+
+    if (!dataLines.length) return
+    const payload = JSON.parse(dataLines.join('\n'))
+    if (eventName === 'error') throw new Error(payload?.detail || '스트리밍 대화 오류')
+    if (eventName === 'final') finalData = payload
+    onEvent?.(eventName, payload)
+  }
+
+  while (true) {
+    const { value, done } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+
+    let splitAt = buffer.indexOf('\n\n')
+    while (splitAt >= 0) {
+      const block = buffer.slice(0, splitAt)
+      buffer = buffer.slice(splitAt + 2)
+      dispatchBlock(block)
+      splitAt = buffer.indexOf('\n\n')
+    }
+  }
+
+  buffer += decoder.decode()
+  if (buffer.trim()) dispatchBlock(buffer)
+  return finalData
+}
+
 export async function apiMove(sessionId, location) {
   return fetchJson('/api/move', {
     method: 'POST',
@@ -194,6 +266,83 @@ export async function apiTTS(text, options = {}) {
     },
     body: JSON.stringify(body),
   })
+}
+
+export async function apiTTSStream(text, options = {}, onEvent, fetchOptions = {}) {
+  const body = typeof options === 'string'
+    ? { text, voice: options }
+    : { text, ...options }
+
+  const response = await fetch('/api/tts/stream', {
+    method: 'POST',
+    headers: {
+      ...JSON_HEADERS,
+      ...authHeaders(),
+    },
+    body: JSON.stringify(body),
+    signal: fetchOptions.signal,
+  })
+
+  if (response.status === 401) {
+    localStorage.removeItem('access_token')
+    localStorage.removeItem('user')
+    localStorage.removeItem('persona_session_id')
+    throw new Error('濡쒓렇?몄씠 ?꾩슂?⑸땲??')
+  }
+
+  if (!response.ok || !response.body) {
+    const raw = await response.text()
+    let data = null
+    try {
+      data = raw ? JSON.parse(raw) : null
+    } catch {
+      data = { detail: raw }
+    }
+    throw new Error(data?.detail || 'TTS stream request failed')
+  }
+
+  const decoder = new TextDecoder()
+  const reader = response.body.getReader()
+  let buffer = ''
+  let finalData = null
+
+  const dispatchBlock = (block) => {
+    const lines = String(block || '').split(/\r?\n/)
+    let eventName = 'message'
+    const dataLines = []
+
+    lines.forEach((line) => {
+      if (line.startsWith('event:')) {
+        eventName = line.slice(6).trim() || 'message'
+      } else if (line.startsWith('data:')) {
+        dataLines.push(line.slice(5).trimStart())
+      }
+    })
+
+    if (!dataLines.length) return
+    const payload = JSON.parse(dataLines.join('\n'))
+    if (eventName === 'error') throw new Error(payload?.detail || 'TTS stream error')
+    if (eventName === 'final') finalData = payload
+    onEvent?.(eventName, payload)
+  }
+
+  while (true) {
+    const { value, done } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+
+    let splitAt = buffer.indexOf('\n\n')
+    while (splitAt >= 0) {
+      const block = buffer.slice(0, splitAt)
+      buffer = buffer.slice(splitAt + 2)
+      dispatchBlock(block)
+      splitAt = buffer.indexOf('\n\n')
+    }
+  }
+
+  buffer += decoder.decode()
+  if (buffer.trim()) dispatchBlock(buffer)
+  return finalData
 }
 
 export async function apiLockEnding(sessionId) {
