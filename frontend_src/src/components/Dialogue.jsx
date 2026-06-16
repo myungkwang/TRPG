@@ -1614,29 +1614,29 @@ export default function Dialogue({
             />
           </div>
         )}
-
-        {gmSpeaking && (
-          <div className="gm-face-popup">
-            <Character3D
-              key="gm-popup"
-              modelPath={CHARACTER_MODELS[0].modelPath}
-              modelRotation={CHARACTER_MODELS[0].modelRotation}
-              modelScale={CHARACTER_MODELS[0].modelScale}
-              modelOffset={CHARACTER_MODELS[0].modelOffset}
-              animations={CHARACTER_MODELS[0].animations}
-              motionIntensity={CHARACTER_MODELS[0].motionIntensity}
-              cameraPosition={[0, 160, 420]}
-              cameraTarget={[0, 160, 0]}
-              cameraFov={25}
-            />
-          </div>
-        )}
       </div>
 
       <div className="chat-section">
-        <div className="chat-topbar">
-          <span>{stageLocation || session?.location || '대화'}</span>
+        <div className="sp-panel sp-avatar">
+          {gmSpeaking && (
+            <div className="gm-face-popup">
+              <Character3D
+                key="gm-popup"
+                modelPath={CHARACTER_MODELS[0].modelPath}
+                modelRotation={CHARACTER_MODELS[0].modelRotation}
+                modelScale={CHARACTER_MODELS[0].modelScale}
+                modelOffset={CHARACTER_MODELS[0].modelOffset}
+                animations={CHARACTER_MODELS[0].animations}
+                motionIntensity={CHARACTER_MODELS[0].motionIntensity}
+                cameraPosition={[0, 160, 420]}
+                cameraTarget={[0, 160, 0]}
+                cameraFov={25}
+              />
+            </div>
+          )}
         </div>
+
+        <div className="sp-panel sp-dialogue">
         <div className="chatlog" ref={logRef}>
           {log.map((m, i) => {
             const sp = getSpeakerPresentation(m.who)
@@ -1652,7 +1652,20 @@ export default function Dialogue({
             )
           })}
         </div>
+          <div className="inputbar">
+            <input
+              value={input}
+              disabled={sending || bgLoading || !session?.id}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && send()}
+              placeholder={bgLoading ? 'AI가 새 장소를 그리는 중… 잠시만 기다려 주세요'
+                : (session?.id ? '메시지를 입력하세요' : '타이틀에서 게임을 시작해 주세요')}
+            />
+            <button className="send" onClick={send} disabled={sending || bgLoading || !session?.id}>▶</button>
+          </div>
+        </div>
 
+        <div className="sp-panel sp-choices">
         {choiceMode && choicesCollapsed && (
           <div className="choice-minibar">
             <button type="button" className="choice-restore" onClick={() => setChoicesCollapsed(false)}>선택지 펼치기</button>
@@ -1706,16 +1719,6 @@ export default function Dialogue({
           </div>
         )}
 
-        <div className="inputbar">
-          <input
-            value={input}
-            disabled={sending || bgLoading || !session?.id}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && send()}
-            placeholder={bgLoading ? 'AI가 새 장소를 그리는 중… 잠시만 기다려 주세요'
-              : (session?.id ? '메시지를 입력하세요' : '타이틀에서 게임을 시작해 주세요')}
-          />
-          <button className="send" onClick={send} disabled={sending || bgLoading || !session?.id}>▶</button>
         </div>
       </div>
     </div>
