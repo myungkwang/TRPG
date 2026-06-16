@@ -88,7 +88,10 @@ JOB_KITS: dict[str, dict] = {
 }
 
 # 직업 무관 공통 시작 아이템(가방).
-START_COMMON: list[str] = ["ITM_LANTERN", "ITM_HP_AMPLE_LOW"]
+START_COMMON: list[str] = [
+    "ITM_LANTERN", "ITM_ROPE",
+    "ITM_HP_AMPLE_LOW", "ITM_HP_AMPLE_HIGH", "ITM_MP_AMPLE_LOW",
+]
 
 # 이벤트 노드 통과 시 자동 지급(스토리에 맞게 튜닝 가능).
 EVENT_ITEM_REWARDS: dict[str, list[str]] = {

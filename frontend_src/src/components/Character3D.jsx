@@ -1258,6 +1258,16 @@ export default function Character3D({
     window.startLinLipSync = startAudioLipSync
     window.startLinFallbackLipSync = startFallbackLipSync
     window.stopLinLipSync = stopAudioLipSync
+    // TTS 인터럽트 시: 진행 중이던 제스처(퍼포먼스) 모션을 멈추고 중립 자세로 복귀.
+    // (안 하면 음성이 끊겨도 아바타가 계속 움직이다 튀어 깜빡거림/렉처럼 보임)
+    window.stopLinPerformance = () => {
+      clearMotionQueue()
+      resetMotionBonesToBasePose()
+      if (model) {
+        if (model.userData.basePosition) model.position.copy(model.userData.basePosition)
+        if (model.userData.baseRotation) model.rotation.copy(model.userData.baseRotation)
+      }
+    }
     window.__debugLinMorph = () => {
       console.log('morphMeshes:', morphMeshes.length)
       morphMeshes.forEach((mesh) => console.log(mesh.name, mesh.morphTargetDictionary, mesh.morphTargetInfluences))
@@ -1364,6 +1374,7 @@ export default function Character3D({
       if (window.startLinLipSync === startAudioLipSync) delete window.startLinLipSync
       if (window.startLinFallbackLipSync === startFallbackLipSync) delete window.startLinFallbackLipSync
       if (window.stopLinLipSync === stopAudioLipSync) delete window.stopLinLipSync
+      if (window.stopLinPerformance) delete window.stopLinPerformance
       if (window.__debugLinMorph) delete window.__debugLinMorph
       if (window.__testMorph) delete window.__testMorph
       stopAudioLipSync()
