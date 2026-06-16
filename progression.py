@@ -7,6 +7,7 @@ AI GM은 도구(set_flag/visit_event/give_item)를 통해 여기 함수를 호�
 from __future__ import annotations
 
 import json
+import items_catalog
 from db import get_conn
 
 # 진행 플래그 (8_플래그마스터). AI GM이 set_flag 도구로 켠다.
@@ -192,7 +193,14 @@ def visit_event(session_id: str, node_id: str) -> dict:
     if changed:
         _save(session_id, "relations", relations)
 
-    return {"relations_changed": changed}
+    # 아이템: 이벤트 노드에 정해진 보상을 자동 지급한다.
+    items_added: list[str] = []
+    for item_id in items_catalog.EVENT_ITEM_REWARDS.get(node_id, []):
+        res = give_item(session_id, item_id)
+        if res.get("added"):
+            items_added.append(items_catalog.display_name(res["item"]))
+
+    return {"relations_changed": changed, "items_added": items_added}
 
 
 def unlocked_clues(session_id: str) -> list[dict]:
@@ -222,13 +230,44 @@ def set_location(session_id: str, location: str) -> str:
 
 
 def give_item(session_id: str, item: str) -> dict:
-    """인벤토리에 아이템을 추가하고, 갱신된 inventory를 돌려준다."""
+    """인벤토리에 아이템을 추가한다.
+
+    GM이 준 자유 텍스트는 ITM_* ID로 해석해 저장하고(items_catalog),
+    해석되지 않으면(단서·유품 등) 원문 문자열을 그대로 넣는다.
+    반환: {"inventory", "item"(저장값), "display"(이름), "added"(중복이면 False)}
+    """
+    resolved = items_catalog.resolve_item(item) or (item or "").strip()
+    if not resolved:
+        return {"inventory": _load_row(session_id)["inventory"],
+                "item": "", "display": "", "added": False}
+
     inventory = _load_row(session_id)["inventory"]
     items = inventory.get("items")
     if not isinstance(items, list):
         items = []
-    if item not in items:
-        items.append(item)
+    added = resolved not in items
+    if added:
+        items.append(resolved)
     inventory["items"] = items
+    _save(session_id, "inventory", inventory)
+    return {"inventory": inventory, "item": resolved,
+            "display": items_catalog.display_name(resolved), "added": added}
+
+
+def equip_item(session_id: str, item_id: str, slot: str | None = None) -> dict:
+    """장비 슬롯(머리/몸통/무기)에 아이템을 장착한다. 갱신된 inventory를 돌려준다.
+
+    슬롯을 안 주면 items_catalog에서 해당 아이템의 슬롯을 찾는다.
+    장착하려는 아이템은 보유(items)하고 있거나 이미 장착 중이어야 한다.
+    """
+    slot = slot or items_catalog.slot_of(item_id)
+    if slot not in ("head", "body", "weapon"):
+        raise ValueError(f"not an equippable item: {item_id}")
+    inventory = _load_row(session_id)["inventory"]
+    equipment = inventory.get("equipment")
+    if not isinstance(equipment, dict):
+        equipment = {"head": None, "body": None, "weapon": None}
+    equipment[slot] = item_id
+    inventory["equipment"] = equipment
     _save(session_id, "inventory", inventory)
     return inventory

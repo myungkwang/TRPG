@@ -1,15 +1,43 @@
 from __future__ import annotations
 
+import base64
+import json
 import os
+import random
+import time
+import urllib.parse
+import urllib.request
+import uuid as _uuid
+from pathlib import Path
 from openai import OpenAI
 from dotenv import load_dotenv
 
-load_dotenv()
+BASE_DIR = Path(__file__).resolve().parent
+ENV_PATH = BASE_DIR / ".env"
 
-client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
-LLM_MODEL = os.getenv("LLM_MODEL", "gpt-4o-mini")
-IMAGE_MODEL = os.getenv("IMAGE_MODEL", "gpt-image-1")
+client: OpenAI | None = None
+_client_api_key: str | None = None
+
+
+def _load_runtime_env() -> None:
+    load_dotenv(ENV_PATH, override=True)
+
+
+def _env(name: str, default: str) -> str:
+    _load_runtime_env()
+    return os.getenv(name, default)
+
+
+def _require_client() -> OpenAI:
+    global client, _client_api_key
+    _load_runtime_env()
+    api_key = (os.getenv("OPENAI_API_KEY") or "").strip()
+    if not api_key:
+        raise RuntimeError(f"OPENAI_API_KEY is missing in {ENV_PATH}")
+    if client is None or api_key != _client_api_key:
+        client = OpenAI(api_key=api_key)
+        _client_api_key = api_key
+    return client
 # 이미지 생성기 선택: static(기본·생성안함, 고정이미지만) | comfyui(로컬GPU) | openai(클라우드)
 #   기본 static → 별도 설치/키 없이 바로 돌아감(엔딩은 미리 만든 고정 이미지 사용).
 IMAGE_PROVIDER = os.getenv("IMAGE_PROVIDER", "static").lower()
@@ -25,7 +53,7 @@ COMFY_LORA_STRENGTH = float(os.getenv("COMFY_LORA_STRENGTH", "0.9"))
 
 def _image_openai(prompt: str, size: str) -> bytes:
     """OpenAI 이미지. 모델마다 응답 형태가 달라(b64_json 또는 url) 둘 다 처리한다."""
-    response = client.images.generate(model=IMAGE_MODEL, prompt=prompt, size=size, n=1)
+    response = _require_client().images.generate(model=_env("IMAGE_MODEL", "gpt-image-1"), prompt=prompt, size=size, n=1)
     item = response.data[0]
     b64 = getattr(item, "b64_json", None)
     if b64:
@@ -117,16 +145,28 @@ def generate_image(prompt: str, size: str = "1024x1024", negative: str | None = 
 
 
 def embed_text(text: str) -> list[float]:
-    response = client.embeddings.create(model=EMBEDDING_MODEL, input=text)
+    response = _require_client().embeddings.create(model=_env("EMBEDDING_MODEL", "text-embedding-3-small"), input=text)
     return response.data[0].embedding
 
 def chat(messages: list[dict], temperature: float = 0.8) -> str:
-    response = client.chat.completions.create(
-        model=LLM_MODEL,
+    response = _require_client().chat.completions.create(
+        model=_env("LLM_MODEL", "gpt-4o-mini"),
         messages=messages,
         temperature=temperature,
     )
     return response.choices[0].message.content or ""
+
+
+def chat_stream(messages: list[dict], tools: list[dict] | None = None, temperature: float = 0.8):
+    request = {
+        "model": _env("LLM_MODEL", "gpt-4o-mini"),
+        "messages": messages,
+        "temperature": temperature,
+        "stream": True,
+    }
+    if tools:
+        request["tools"] = tools
+    return _require_client().chat.completions.create(**request)
 
 
 def chat_with_tools(messages: list[dict], tools: list[dict], temperature: float = 0.8):
@@ -134,8 +174,8 @@ def chat_with_tools(messages: list[dict], tools: list[dict], temperature: float 
 
     반환값의 .tool_calls 가 있으면 모델이 도구를 부른 것이고, 없으면 .content 가 최종 서술.
     """
-    response = client.chat.completions.create(
-        model=LLM_MODEL,
+    response = _require_client().chat.completions.create(
+        model=_env("LLM_MODEL", "gpt-4o-mini"),
         messages=messages,
         tools=tools,
         temperature=temperature,

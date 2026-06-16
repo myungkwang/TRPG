@@ -4,13 +4,15 @@ import json
 import os
 import re
 import uuid
+from types import SimpleNamespace
 from db import get_conn
 import dialogue
-from llm import chat, chat_with_tools
+from llm import chat, chat_stream, chat_with_tools
 from rag import retrieve_context
 from game_logic import perform_roll, infer_check
 from personas import PERSONA_CONTEXT
 import progression
+import items_catalog
 import endings
 import codex
 import reflection
@@ -247,14 +249,20 @@ def _execute_tool(session_id: str, session: dict, tool_call) -> dict:
         payload = {"ok": True, "event": args.get("node_id")}
         if res["relations_changed"]:
             payload["relations_changed"] = res["relations_changed"]  # 이벤트로 오른 호감도
+        if res.get("items_added"):
+            payload["items_added"] = res["items_added"]              # 이벤트로 받은 아이템(이름)
         return _with_ending(session_id, payload)
 
     if name == "give_item":
         item = args.get("item", "").strip()
         if not item:
             return {"error": "item is empty"}
-        progression.give_item(session_id, item)
-        return _with_ending(session_id, {"ok": True, "item": item})
+        res = progression.give_item(session_id, item)
+        return _with_ending(session_id, {
+            "ok": True,
+            "item": res.get("display") or item,
+            "already_had": not res.get("added", True),
+        })
 
     if name == "set_location":
         try:
@@ -281,8 +289,10 @@ def _with_ending(session_id: str, result: dict) -> dict:
 
 
 # 안전망: GM이 set_location을 빠뜨려도, 플레이어가 이동을 명시하면 서버가 장소를 갱신한다.
-_MOVE_HINTS = ("간다", "향한다", "들어간다", "들어선다", "도착", "이동", "들른다", "들려",
-               "찾아간다", "올라간다", "내려간다", "로 간다", "에 간다", "으로 간다")
+_MOVE_HINTS = ("간다", "갈래", "갈게", "갈까", "갈란다", "가자", "가요", "가볼", "가보", "가겠",
+               "가야", "가서", "가신", "가는", "향한", "향해", "향하", "들어가", "들어선",
+               "도착", "이동", "들른", "들러", "찾아가", "올라가", "내려가", "떠난", "떠나",
+               "출발", "나선", "로 가", "으로 가", "에 가")
 _KNOWN_LOCS = ["재끝 마을 광장", "마을 광장", "광장", "진료소", "여관", "주점", "주막",
                "대장간", "풀무간", "정제소", "갱도 심부", "갱도", "광산", "봉우리",
                "산기슭 오두막", "오두막", "주둔소", "암시장", "교단 성소", "교단", "폐광"]
@@ -296,6 +306,264 @@ def _detect_move_target(text: str) -> str | None:
         if loc in text:
             return loc
     return None
+
+
+_STREAM_CHOICE_HEADER = re.compile(r"\[\s*선택지\s*\]", re.IGNORECASE)
+_STREAM_SENTENCE_ENDS = ".!?。！？…"
+_STREAM_TRAILING_QUOTES = "\"'”’)]}»"
+
+
+def _tool_call_from_raw(raw: dict) -> SimpleNamespace:
+    function = raw.get("function") or {}
+    return SimpleNamespace(
+        id=raw.get("id") or "",
+        function=SimpleNamespace(
+            name=function.get("name") or "",
+            arguments=function.get("arguments") or "{}",
+        ),
+    )
+
+
+def _stream_boundary_index(buffer: str) -> int | None:
+    source = buffer or ""
+    newline = source.find("\n")
+    if newline >= 0 and newline + 1 < len(source):
+        return newline + 1
+
+    for index, char in enumerate(source):
+        if char not in _STREAM_SENTENCE_ENDS:
+            continue
+        end = index + 1
+        while end < len(source) and source[end] in _STREAM_TRAILING_QUOTES:
+            end += 1
+        if end >= len(source) or source[end].isspace():
+            return end
+    return None
+
+
+def _segments_from_stream_piece(piece: str) -> list[dict]:
+    segments = []
+    for segment in dialogue.split_segments(piece):
+        text = (segment.get("text") or "").strip()
+        if not text:
+            continue
+        speaker = segment.get("speaker") or ("gm" if segment.get("role") == "gm" else "gm")
+        segments.append({
+            "role": segment.get("role") or ("gm" if speaker == "gm" else "npc"),
+            "speaker": speaker,
+            "text": text,
+        })
+    return segments
+
+
+def _drain_stream_segments(buffer: str, final: bool = False) -> tuple[list[dict], str]:
+    pending = buffer or ""
+    drained: list[dict] = []
+
+    while pending.strip():
+        boundary = len(pending) if final else _stream_boundary_index(pending)
+        if boundary is None:
+            break
+        piece = pending[:boundary].strip()
+        pending = pending[boundary:].lstrip()
+        if piece:
+            drained.extend(_segments_from_stream_piece(piece))
+        if final:
+            break
+
+    return drained, pending
+
+
+def _finalize_gm_answer(session_id: str, user_input: str, answer: str, contexts: list, tool_log: list) -> dict:
+    if os.getenv("GM_DEBUG") and tool_log:
+        for t in tool_log:
+            print(f"   쨌 [?꾧뎄] {t['tool']}({t['args']}) ??{t['result']}", flush=True)
+
+    if not any(t.get("tool") == "set_location" for t in tool_log):
+        moved = _detect_move_target(user_input)
+        if moved:
+            try:
+                progression.set_location(session_id, moved)
+            except Exception:
+                pass
+
+    body, choice_texts = split_choices(answer)
+    choices = []
+    for t in choice_texts:
+        required, stat, dc = infer_check(t)
+        choices.append({"text": t, "judge": bool(required), "stat": stat, "dc": dc})
+
+    save_event(session_id, "user", user_input, {})
+    save_event(session_id, "assistant", body,
+               {"contexts": contexts, "tools": tool_log, "choices": choices})
+    reflection.dispatch(session_id, user_input, body)
+    return {"answer": body, "choices": choices}
+
+
+def gm_reply_stream(session_id: str, user_input: str):
+    session = load_session(session_id)
+    contexts = retrieve_context(user_input, limit=5)
+
+    context_text = "\n\n".join(
+        f"[異쒖쿂:{c['document_title']} / {c['section_title']} / ?좎궗??{c['similarity']:.3f}]\n{c['content']}"
+        for c in contexts
+    )
+
+    state_text = json.dumps(
+        {
+            "location": session["location"],
+            "hp": session["hp"],
+            "mp": session["mp"],
+            "stamina": session["stamina"],
+            "stats": {
+                "??": session["str"],
+                "誘쇱꺽": session["dex"],
+                "吏??": session["int_stat"],
+                "留ㅻ젰": session["cha"],
+            },
+            "talent_grade": session["talent_grade"],
+            "job": session["job"],
+            "inventory": _humanize_inventory(session["inventory"]),
+            "flags": session["flags"],
+            "relations": session["relations"],
+        },
+        ensure_ascii=False,
+        default=str,
+    )
+
+    messages: list = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "system", "content": PERSONA_CONTEXT},
+        {"role": "system", "content": f"?꾩옱 ?몄뀡 ?곹깭:\n{state_text}"},
+        {"role": "system", "content": f"RAG 而⑦뀓?ㅽ듃:\n{context_text}"},
+        *recent_history(session_id),
+        {"role": "user", "content": user_input},
+    ]
+
+    tool_log: list = []
+    answer_parts: list[str] = []
+    body_buffer = ""
+    choices_started = False
+    emitted_segments: list[dict] = []
+
+    for _ in range(MAX_TOOL_ROUNDS):
+        tool_calls: dict[int, dict] = {}
+        call_content_parts: list[str] = []
+
+        for chunk in chat_stream(messages, TOOLS):
+            if not getattr(chunk, "choices", None):
+                continue
+            delta = chunk.choices[0].delta
+
+            for tool_delta in getattr(delta, "tool_calls", None) or []:
+                index = int(getattr(tool_delta, "index", 0) or 0)
+                raw = tool_calls.setdefault(index, {
+                    "id": "",
+                    "type": "function",
+                    "function": {"name": "", "arguments": ""},
+                })
+                if getattr(tool_delta, "id", None):
+                    raw["id"] = tool_delta.id
+                if getattr(tool_delta, "type", None):
+                    raw["type"] = tool_delta.type
+                function = getattr(tool_delta, "function", None)
+                if function:
+                    if getattr(function, "name", None):
+                        raw["function"]["name"] += function.name
+                    if getattr(function, "arguments", None):
+                        raw["function"]["arguments"] += function.arguments
+
+            content = getattr(delta, "content", None) or ""
+            if not content:
+                continue
+            call_content_parts.append(content)
+            answer_parts.append(content)
+
+            if choices_started:
+                continue
+            body_buffer += content
+            choice_match = _STREAM_CHOICE_HEADER.search(body_buffer)
+            if choice_match:
+                body_buffer = body_buffer[:choice_match.start()]
+                choices_started = True
+
+            segments, body_buffer = _drain_stream_segments(body_buffer)
+            for segment in segments:
+                emitted_segments.append(segment)
+                yield {"type": "segment", "segment": segment}
+
+        ordered_tool_calls = [tool_calls[i] for i in sorted(tool_calls)]
+        if not ordered_tool_calls:
+            break
+
+        messages.append({
+            "role": "assistant",
+            "content": "".join(call_content_parts) or None,
+            "tool_calls": ordered_tool_calls,
+        })
+        for raw in ordered_tool_calls:
+            if not raw.get("id"):
+                raw["id"] = f"call_{len(tool_log)}"
+            result = _execute_tool(session_id, session, _tool_call_from_raw(raw))
+            tool_log.append({
+                "tool": raw["function"]["name"],
+                "args": raw["function"]["arguments"],
+                "result": result,
+            })
+            messages.append({
+                "role": "tool",
+                "tool_call_id": raw["id"],
+                "content": json.dumps(result, ensure_ascii=False),
+            })
+    else:
+        for chunk in chat_stream(messages):
+            if not getattr(chunk, "choices", None):
+                continue
+            delta = chunk.choices[0].delta
+            content = getattr(delta, "content", None) or ""
+            if not content:
+                continue
+            answer_parts.append(content)
+            if choices_started:
+                continue
+            body_buffer += content
+            choice_match = _STREAM_CHOICE_HEADER.search(body_buffer)
+            if choice_match:
+                body_buffer = body_buffer[:choice_match.start()]
+                choices_started = True
+            segments, body_buffer = _drain_stream_segments(body_buffer)
+            for segment in segments:
+                emitted_segments.append(segment)
+                yield {"type": "segment", "segment": segment}
+
+    for segment in _drain_stream_segments(body_buffer, final=True)[0]:
+        emitted_segments.append(segment)
+        yield {"type": "segment", "segment": segment}
+
+    answer = "".join(answer_parts)
+    result = _finalize_gm_answer(session_id, user_input, answer, contexts, tool_log)
+    yield {
+        "type": "final",
+        "answer": result["answer"],
+        "choices": result["choices"],
+        "segments": emitted_segments or dialogue.split_segments(result["answer"]),
+    }
+
+
+def _humanize_inventory(inventory) -> dict:
+    """ITM_* ID가 섞인 인벤토리를 GM이 읽기 쉬운 이름으로 바꿔 준다(상태 전달용)."""
+    inv = progression.as_dict(inventory)
+    out = dict(inv)
+    items = inv.get("items")
+    if isinstance(items, list):
+        out["items"] = [items_catalog.display_name(it) for it in items]
+    equip = inv.get("equipment")
+    if isinstance(equip, dict):
+        out["equipment"] = {
+            slot: (items_catalog.display_name(v) if v else None)
+            for slot, v in equip.items()
+        }
+    return out
 
 
 def gm_reply(session_id: str, user_input: str) -> dict:
@@ -321,7 +589,7 @@ def gm_reply(session_id: str, user_input: str) -> dict:
             },
             "talent_grade": session["talent_grade"],
             "job": session["job"],
-            "inventory": session["inventory"],
+            "inventory": _humanize_inventory(session["inventory"]),
             "flags": session["flags"],
             "relations": session["relations"],
         },

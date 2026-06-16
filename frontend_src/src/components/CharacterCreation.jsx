@@ -1,5 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { apiCharacterConfirm, apiCharacterPreview, apiCharacterQuestions } from '../api.js'
+import { ITEMS } from '../items.js'
+
+// 시작 소지품: 장착 무기 + 가방. ITM_* ID는 이름으로, 미등록 항목은 그대로(유품 등).
+function startItemNames(inventory) {
+  if (!inventory) return ''
+  const eq = inventory.equipment || {}
+  const names = []
+  const push = (ref) => { if (ref) names.push(ITEMS[ref]?.name || ref) }
+  push(eq.weapon); push(eq.head); push(eq.body)
+  ;(inventory.items || []).forEach(push)
+  return names.join(', ')
+}
 
 const STAT_LABEL = {
   str: '힘',
@@ -198,7 +210,7 @@ export default function CharacterCreation({ session, onDone, onCancel }) {
                   <div className="summary-row"><span>위치</span><b>{preview.location}</b></div>
                   <div className="summary-items">
                     <span>시작 소지품</span>
-                    <p>{preview.inventory?.items?.join(', ')}</p>
+                    <p>{startItemNames(preview.inventory)}</p>
                   </div>
                 </div>
               )}

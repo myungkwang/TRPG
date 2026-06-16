@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import json
+import items_catalog
 from db import get_conn
 
 # --- 능력치 (데이터시트 1_능력치판정) ---
@@ -37,15 +38,8 @@ ESSENCE_TO_TALENT = {
     "무감하다": "무감자",    # TAL_NONE  일반인
 }
 
-# 직업 5종 + 시작 장비 (3_직업, 5_아이템의 T1 유일무기)
-JOB_START_EQUIP = {
-    "증기 갑주병": ["숏 소드(T1)", "중갑"],
-    "변경 탐사꾼": ["대거(T1)", "투척물"],
-    "메카닉": ["크로우해머(T1)", "기계도구"],
-    "영석 인파이터": ["기계 건틀릿(T1)"],
-    "영석 연금술사": ["리볼버(T1)", "영정 총"],
-}
-JOBS = list(JOB_START_EQUIP)
+# 직업 5종 + 시작 장비는 items_catalog.JOB_KITS(ITM_* ID 기반)가 정본.
+JOBS = list(items_catalog.JOB_KITS)
 
 # 도입 종료 후 향하는 시작 장소 (9_이벤트씬 EVT_INTRO_END)
 START_LOCATION = "재끝 진료소"
@@ -121,20 +115,36 @@ def build_character(answers: dict[str, str]) -> dict:
     primary_stat = SENSE_TO_STAT[answers["sense"]]
     talent = ESSENCE_TO_TALENT[answers["talent"]]
     job = answers["job"]
-    if job not in JOB_START_EQUIP:
+    if job not in items_catalog.JOB_KITS:
         raise ValueError(f"unknown job: {job}")
 
     stats = allocate_stats(primary_stat)
 
-    items = ["d12 주사위"]
-    items += JOB_START_EQUIP[job]
+    # 직업 선택 → ITM_* ID로 시작 지급. T1 유일무기는 자동 장착하되, 가방에도 둔다.
+    kit = items_catalog.job_kit(job)
+    weapon = kit.get("weapon")
+    equipment = {"head": None, "body": None, "weapon": weapon}
+    bag = list(items_catalog.START_COMMON)
+    if weapon:
+        bag.append(weapon)                   # 기본(장착)무기도 인벤토리에 표시
+    # 장착 시연용: 어떤 직업이든 숏 소드 하나는 무조건 가방에
+    if "ITM_UNIQ_SHORTSWORD" not in bag:
+        bag.append("ITM_UNIQ_SHORTSWORD")
+    for item_id in kit.get("items", []):
+        slot = items_catalog.slot_of(item_id)
+        if slot in ("head", "body") and equipment.get(slot) is None:
+            equipment[slot] = item_id        # 직업 장비(머리/몸통) 자동 장착
+        else:
+            bag.append(item_id)
+    # 도입 자유 답변('손에 들려 있던 것') — 유품 문자열로 가방에 남긴다.
     start_item = (answers.get("item") or "").strip()
     if start_item:
-        items.append(start_item)
+        bag.append(start_item)
 
     inventory = {
         "동화": 30, "은화": 0, "금화": 0, "영정": 1,
-        "items": items,
+        "items": bag,
+        "equipment": equipment,
     }
 
     return {
