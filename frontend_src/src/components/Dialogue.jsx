@@ -1,8 +1,9 @@
 ﻿import React, { useEffect, useRef, useState } from 'react'
 import { SPEAKERS, FLAVOR_CHOICE, CHOICES } from '../data.js'
 import D12 from './D12.jsx'
-import Character3D from './Character3D.jsx'
+import Character3D, { detectEmotion } from './Character3D.jsx'
 import ParallaxBackground from './ParallaxBackground.jsx'
+import EvalPanel from './EvalPanel.jsx'
 import { apiChat, apiChatStream, apiTTS, apiTTSStream, apiDebugEnding, apiStoryChoice, apiGenerateBackground } from '../api.js'
 import { PERSONAS, getPersona } from '../personas.js'
 import { applyBgmVolume, applyMasterVolume, applySpeechVolume } from '../audioSettings.js'
@@ -210,12 +211,12 @@ const TAVERN_LIN_SCENES = new Set([
   'lin_trust_trial',
 ])
 
-const CHARACTER_MODELS = [
+export const CHARACTER_MODELS = [
   {
     speaker: 'gm',
     personaId: 'gm',
     name: SPEAKERS.gm?.name || 'GM',
-    modelPath: '/static/models/GM_V3/GM_v3_17.glb',
+    modelPath: '/static/models/GM_v3_17.glb',
     modelScale: 0.75,
     modelOffset: [0, -130, 0],
     animations: {
@@ -228,58 +229,63 @@ const CHARACTER_MODELS = [
     speaker: 'lin',
     personaId: 'lin',
     name: PERSONAS.lin.name,
-    modelPath: '/static/models/Lin/Lin_ack_shrtleg_decntarm.glb',
+    modelPath: '/static/models/Lin_09_TextureFixed.glb',
     modelScale: 0.82,
     modelOffset: [0, -120, 0],
     preferEmbeddedAnimations: true,
     motionIntensity: 0.9,
+    lipGain: 1.1,   // Lin은 viseme 셰이프가 약해 입 강도를 키운다(GM 대비 oo/ee/oh가 작음)
   },
   {
     speaker: 'gail',
     personaId: 'gail',
     name: PERSONAS.gail.name,
-    modelPath: '/static/models/Gail/Gail_07_textureShading_01.glb',
+    modelPath: '/static/models/Gail_17_textureFixed.glb',
     modelScale: 0.90,
     modelOffset: [0, 0, 0],
     framingScale: 0.82,
     animations: NPC_ANIMS,
     disableProceduralMotion: true,
+    attachTeethToHead: true,   // 가일은 별도 이빨 메시(Low_Teeth*)를 head본에 attach → 얼굴 따라감
   },
   {
     speaker: 'marta',
     personaId: 'marta',
     name: PERSONAS.marta.name,
-    modelPath: '/static/models/Marta/Marta_01.glb',
+    modelPath: '/static/models/Marta_13_FinFixed.glb',
     modelScale: 0.75,
     modelOffset: [0, 40, 0],
     animations: NPC_ANIMS,
     disableProceduralMotion: true,
+    attachTeethToHead: true,   // 마르타는 별도 이빨 메시를 head본에 attach → 얼굴 따라감
   },
   {
     speaker: 'tobi',
     personaId: 'tobi',
     name: PERSONAS.tobi.name,
-    modelPath: '/static/models/Tobi/Tobi_01.glb',
+    modelPath: '/static/models/Tobi_13.glb',
     modelScale: 0.75,
     modelOffset: [0, 40, 0],
     animations: NPC_ANIMS,
     disableProceduralMotion: true,
+    attachTeethToHead: true,   // 토비는 별도 이빨 메시를 head본에 attach → 얼굴 따라감
   },
   {
     speaker: 'doctor',
     personaId: 'doctor',
     name: PERSONAS.doctor.name,
-    modelPath: '/static/models/Doctor/Doctor_04_tracksDevided.glb',
+    modelPath: '/static/models/Doctor_09_textureFixed.glb',
     modelScale: 0.75,
-    modelOffset: [0, -120, 0],
+    modelOffset: [0, 40, 0],
     preferEmbeddedAnimations: true,
     motionIntensity: 0.45,
+    attachTeethToHead: true,   // 의사도 별도 이빨 메시를 head본에 attach → 얼굴 따라감
   },
   {
     speaker: 'kargas',
     personaId: 'kargas',
     name: PERSONAS.kargas.name,
-    modelPath: '/static/models/카르가스/Kargas_18.glb',
+    modelPath: '/static/models/Kargas_18.glb',
     modelScale: 0.6,
     modelOffset: [0, 80, 0],
   },
@@ -287,7 +293,7 @@ const CHARACTER_MODELS = [
     speaker: 'miner',
     personaId: 'miner',
     name: PERSONAS.miner.name,
-    modelPath: '/static/models/광부/광부.glb',
+    modelPath: '/static/models/광부.glb',
     modelScale: 0.22,
     modelOffset: [0, 70, 0],
     motionIntensity: 0.55,
@@ -296,7 +302,7 @@ const CHARACTER_MODELS = [
     speaker: 'tavern_clerk',
     personaId: 'tavern_clerk',
     name: PERSONAS.tavern_clerk.name,
-    modelPath: '/static/models/점원/Waitress_01.glb',
+    modelPath: '/static/models/Waitress_01.glb',
     modelScale: 0.80,
     modelOffset: [0, 40, 0],
     animations: NPC_ANIMS,
@@ -308,7 +314,7 @@ const CHARACTER_MODELS = [
     speaker: 'shapekey_test',
     personaId: 'gm',
     name: '입모양 테스트',
-    modelPath: '/static/models/GM_V3/GM_v3_17.glb',
+    modelPath: '/static/models/GM_v3_17.glb',
     modelScale: 0.75,
     modelOffset: [0, -130, 0],
     preferEmbeddedAnimations: true,
@@ -545,6 +551,9 @@ const getTtsInstructions = (persona, emotion) => {
   return `${base} ${extra}`.trim()
 }
 
+// 감정 기반 애니 제외 대상: 카르가스·광부는 발화해도 항상 'talk' 모션만.
+const EMOTION_ANIM_EXCLUDED = new Set(['kargas', 'miner'])
+
 // 텍스트에서 인라인 톤 지시문 (괄호/대괄호) 추출.
 // 반환: { cleanText: 지시문 제거된 발화 텍스트, toneHint: 지시문들을 합친 문자열 }
 const extractToneHint = (text) => {
@@ -563,6 +572,11 @@ let currentAudio = null
 let currentUtterance = null
 let speechRunId = 0
 let _onGmSpeakChange = null
+// GM 팝업 카메라 값은 모듈 상수로 고정한다. 인라인 배열로 넘기면 매 렌더 새 참조가 되어
+// Character3D effect(deps: cameraPosition/cameraTarget)가 재실행 → 모델이 매번 재로드되고
+// 립싱크 상태/등록이 날아가 "두 번째 발화부터 입이 멈추는" 버그가 난다.
+const GM_POPUP_CAMERA_POS = [0, 160, 420]
+const GM_POPUP_CAMERA_TARGET = [0, 160, 0]
 
 const estimateSpeechDuration = (text) => {
   const length = Array.from(String(text || '')).length
@@ -577,10 +591,17 @@ const prepareTtsSegment = (segment) => {
     ? `${getTtsInstructions(persona)} ${toneHint}`.trim()
     : getTtsInstructions(persona)
 
+  // 지시어(톤힌트) 우선, 없으면 발화 텍스트에서 감정 추론 → 애니 emotion 키.
+  // 카르가스·광부는 제외(항상 talk).
+  const emotion = EMOTION_ANIM_EXCLUDED.has(segment.speaker)
+    ? 'talk'
+    : detectEmotion(toneHint || spokenText)
+
   return {
     segment,
     persona,
     spokenText,
+    emotion,
     cleanSegment: { ...segment, text: spokenText },
     ttsInstructions,
     fallbackDuration: estimateSpeechDuration(spokenText),
@@ -606,7 +627,7 @@ const playAudioUrl = async (data, spokenText, runId, options = {}) => {
 
   audio.onplay = () => {
     if (options.startPerformance !== false) {
-      window.playLinPerformance?.(spokenText, data.emotion || 'talk', audio.duration)
+      window.playLinPerformance?.(spokenText, options.emotion || data.emotion || 'talk', audio.duration)
     }
     window.startLinLipSync?.(audio, spokenText)
   }
@@ -713,6 +734,7 @@ async function playServerTtsStream(prepared, runId, state = null) {
     const chunk = chunks.shift()
     await playAudioUrl(chunk, spokenText, runId, {
       startPerformance: !performanceStarted,
+      emotion: prepared.emotion,
     })
     performanceStarted = true
     playedChunks += 1
@@ -726,7 +748,7 @@ async function playServerTtsStream(prepared, runId, state = null) {
   await producer
   if (streamState.streamError) throw streamState.streamError
   if (!playedChunks) {
-    window.playLinPerformance?.(spokenText, 'talk', fallbackDuration)
+    window.playLinPerformance?.(spokenText, prepared.emotion || 'talk', fallbackDuration)
     window.startLinFallbackLipSync?.(spokenText, fallbackDuration)
     await new Promise(resolve => setTimeout(resolve, fallbackDuration * 1000))
     window.stopLinLipSync?.()
@@ -816,8 +838,11 @@ const speakWithBrowserTts = (segment, fallbackDuration) => new Promise((resolve,
     resolve()
   }
 
+  const browserEmotion = EMOTION_ANIM_EXCLUDED.has(segment.speaker)
+    ? 'talk'
+    : detectEmotion(segment.text)
   utterance.onstart = () => {
-    window.playLinPerformance?.(segment.text, 'talk', fallbackDuration)
+    window.playLinPerformance?.(segment.text, browserEmotion, fallbackDuration)
     window.startLinFallbackLipSync?.(segment.text, fallbackDuration)
   }
   utterance.onend = done
@@ -1125,6 +1150,9 @@ const stopSpeaking = () => {
     currentAudio = null
   }
   cancelBrowserSpeech()
+  // 인터럽트 시 아바타도 같이 정리: 입모양 리셋 + 제스처 모션 정지 → 깜빡/렉 방지
+  window.stopLinLipSync?.()
+  window.stopLinPerformance?.()
 }
 
 async function speakNpc(text, speaker = 'gm', options = {}) {
@@ -1193,7 +1221,7 @@ async function speakNpc(text, speaker = 'gm', options = {}) {
         currentAudio = audio
 
         audio.onplay = () => {
-          window.playLinPerformance?.(spokenText, data.emotion, audio.duration)
+          window.playLinPerformance?.(spokenText, prepared.emotion || data.emotion || 'talk', audio.duration)
           window.startLinLipSync?.(audio, spokenText)
         }
 
@@ -1226,7 +1254,7 @@ async function speakNpc(text, speaker = 'gm', options = {}) {
         } catch (browserFallbackErr) {
           console.warn('Browser TTS fallback failed:', segment.speaker, browserFallbackErr)
         }
-        window.playLinPerformance?.(spokenText, 'talk', fallbackDuration)
+        window.playLinPerformance?.(spokenText, prepared.emotion || 'talk', fallbackDuration)
         window.startLinFallbackLipSync?.(spokenText, fallbackDuration)
         await new Promise(resolve => setTimeout(resolve, fallbackDuration * 1000))
         window.stopLinLipSync?.()
@@ -1280,7 +1308,7 @@ async function playPreparedTtsItem(prepared, ttsPromise, runId, options = {}, tt
     const data = ttsResult.data
     revealSegment()
     if (runId !== speechRunId) return
-    await playAudioUrl(data, spokenText, runId)
+    await playAudioUrl(data, spokenText, runId, { emotion: prepared.emotion })
   } catch (segmentErr) {
     console.warn('Streaming TTS segment error:', segment.speaker, segmentErr)
     window.stopLinLipSync?.()
@@ -1294,7 +1322,7 @@ async function playPreparedTtsItem(prepared, ttsPromise, runId, options = {}, tt
       await speakWithBrowserTts(cleanSegment, fallbackDuration)
     } catch (browserFallbackErr) {
       console.warn('Browser TTS fallback failed:', segment.speaker, browserFallbackErr)
-      window.playLinPerformance?.(spokenText, 'talk', fallbackDuration)
+      window.playLinPerformance?.(spokenText, prepared.emotion || 'talk', fallbackDuration)
       window.startLinFallbackLipSync?.(spokenText, fallbackDuration)
       await new Promise(resolve => setTimeout(resolve, fallbackDuration * 1000))
       window.stopLinLipSync?.()
@@ -1389,6 +1417,14 @@ export default function Dialogue({
   const [gmSpeaking, setGmSpeaking] = useState(false)
   const [inspectMode, setInspectMode] = useState(false)
   const [inspectIndex, setInspectIndex] = useState(0)
+  const [evalOpen, setEvalOpen] = useState(false)   // 정량검사 패널(모델검사 옆 버튼)
+  // 캐릭터 GLB를 미리 받아 둔다(특히 31MB 가일 등). 발화 시점엔 이미 브라우저 캐시에 있어
+  // "첫 발화에서 모델 로드가 늦어 입이 안 움직이는" 레이스를 줄인다.
+  useEffect(() => {
+    CHARACTER_MODELS.forEach((m) => {
+      if (m.modelPath) fetch(m.modelPath).catch(() => {})
+    })
+  }, [])
   // 모델검사 패널 위치(px). null이면 CSS 기본(우측 도킹). 드래그로 이동 가능.
   const [inspectPanelPos, setInspectPanelPos] = useState(null)
   const inspectDragRef = useRef(null)
@@ -1929,6 +1965,9 @@ export default function Dialogue({
         setChoices(storyChoicesRef.current)
       }
 
+      // 1:1 대화 상대: 화면 속 NPC(activeSpeaker)가 GM이 아니면 focus로 보내 GM 가로채기를 막는다.
+      const focusNpc = activeSpeaker && activeSpeaker !== 'gm' ? activeSpeaker : null
+
       let finalData = null
       try {
         finalData = await apiChatStream(session.id, text, (eventName, payload) => {
@@ -1943,13 +1982,13 @@ export default function Dialogue({
 
           receivedStreamSegment = true
           streamedSegments.push(normalized)
-        })
+        }, focusNpc)
       } catch (streamErr) {
         console.warn('Streaming chat failed; falling back to non-stream chat:', streamErr)
       }
 
       if (!finalData) {
-        finalData = await apiChat(session.id, text)
+        finalData = await apiChat(session.id, text, focusNpc)
         revealResponse(finalData, finalData.segments, false)
         return
       }
@@ -2319,7 +2358,12 @@ export default function Dialogue({
             title="NPC 모델을 하나씩 불러와 팔 꺾임을 점검 ([ ] 이동, G 제스처, Esc 종료)">
             {inspectMode ? '검사종료' : '모델검사'}
           </button>
+          <button onClick={() => setEvalOpen(true)}
+            title="NPC별 대화품질(G-Eval)·발음(CER)·립싱크를 측정해 그래프로 표시">
+            정량검사
+          </button>
         </div>
+        {evalOpen && <EvalPanel onClose={() => setEvalOpen(false)} />}
         {inspectMode ? (
           <div className="char-center inspect-stage" data-speaker={inspectCharacter.speaker}>
             <Character3D
@@ -2371,6 +2415,9 @@ export default function Dialogue({
                 >
                   <Character3D
                     modelPath={character.modelPath}
+                    lipGain={character.lipGain}
+                    hideTeeth={character.hideTeeth}
+                    attachTeethToHead={character.attachTeethToHead}
                     modelRotation={character.modelRotation}
                     modelScale={character.modelScale}
                     modelOffset={character.modelOffset}
@@ -2399,6 +2446,9 @@ export default function Dialogue({
                 >
                   <Character3D
                     modelPath={character.modelPath}
+                    lipGain={character.lipGain}
+                    hideTeeth={character.hideTeeth}
+                    attachTeethToHead={character.attachTeethToHead}
                     modelRotation={character.modelRotation}
                     modelScale={character.modelScale}
                     modelOffset={character.modelOffset}
@@ -2421,7 +2471,11 @@ export default function Dialogue({
           >
             <Character3D
               key={stageNpcCharacter.speaker}
+              registerGlobalControls={activeSpeaker === stageNpcCharacter.speaker}
               modelPath={stageNpcCharacter.modelPath}
+              lipGain={stageNpcCharacter.lipGain}
+              hideTeeth={stageNpcCharacter.hideTeeth}
+              attachTeethToHead={stageNpcCharacter.attachTeethToHead}
               modelRotation={stageNpcCharacter.modelRotation}
               modelScale={stageNpcCharacter.modelScale}
               modelOffset={stageNpcCharacter.modelOffset}
@@ -2476,14 +2530,18 @@ export default function Dialogue({
           <div className={`gm-face-popup${gmSpeaking || activeSpeaker === 'gm' ? ' speaking' : ''}`}>
             <Character3D
               key="gm-popup"
+              registerGlobalControls={gmSpeaking || activeSpeaker === 'gm'}
               modelPath={gmCharacter.modelPath}
+              lipGain={gmCharacter.lipGain}
+              hideTeeth={gmCharacter.hideTeeth}
+              attachTeethToHead={gmCharacter.attachTeethToHead}
               modelRotation={gmCharacter.modelRotation}
               modelScale={gmCharacter.modelScale}
               modelOffset={gmCharacter.modelOffset}
               animations={gmCharacter.animations}
               motionIntensity={gmSpeaking || activeSpeaker === 'gm' ? gmCharacter.motionIntensity : 0.18}
-              cameraPosition={[0, 160, 420]}
-              cameraTarget={[0, 160, 0]}
+              cameraPosition={GM_POPUP_CAMERA_POS}
+              cameraTarget={GM_POPUP_CAMERA_TARGET}
               cameraFov={25}
             />
           </div>

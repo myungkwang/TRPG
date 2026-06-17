@@ -252,7 +252,7 @@ const MOTION_EMOTION_KEYWORDS = [
   { anim: 'sigh', keywords: ['relief', 'sad', 'sigh', '한숨', '안도', '슬픔', '피곤', '유감', '실망', '지쳤', '긴장'] },
   { anim: 'cocky', keywords: ['cocky', '비웃', '능청', '거만', '도발', '자신만만', '하찮'] },
 ]
-function detectEmotion(text) {
+export function detectEmotion(text) {
   const s = String(text || '').toLowerCase()
   if (EMOTION_ALIASES[s]) return EMOTION_ALIASES[s]
   for (const item of MOTION_EMOTION_KEYWORDS) {
@@ -348,8 +348,15 @@ export default function Character3D({
   cameraFov = 50,
   framingOffsetY = 0,
   framingScale = 1,
+  registerGlobalControls = false,
+  lipGain = 1,
+  hideTeeth = false,
+  attachTeethToHead = false,  // 별도 이빨 메시를 head본에 reparent → 얼굴 움직임 따라감(의사·가일)
+  apiRef = null,            // [평가용] 이 인스턴스의 lip-sync API를 외부에 노출(정량검사 립싱크 측정)
+  onModelReady = null,      // [평가용] 모델 로드 완료 콜백
 }) {
   const hostRef = useRef(null)
+  const lipApiRef = useRef(null)
   const [status, setStatus] = useState('Loading 3D model...')
 
   useEffect(() => {
@@ -478,12 +485,54 @@ export default function Character3D({
       morphMeshes.forEach((mesh) => mesh.morphTargetInfluences.fill(0))
     }
 
+    // 코드가 쓰는 표준 viseme 이름 ↔ 실제 모델 shape key 이름의 차이를 흡수한다.
+    // - viseme_PP(양순음 입 다묾)는 모든 모델에서 mbp_viseme 로 들어가 있다.
+    // - Lin 모델의 'ㅗ/오'는 Blender 중복명 때문에 oh_viseme.001 로 들어가 있다.
+    // 후보를 앞에서부터 찾아 처음 존재하는 이름 하나에만 적용한다.
+    const MORPH_ALIASES = {
+      viseme_PP: ['viseme_PP', 'mbp_viseme'],
+      oh_viseme: ['oh_viseme', 'oh_viseme.001'],
+    }
     const setMorph = (name, value) => {
+      const candidates = MORPH_ALIASES[name] || [name]
       morphMeshes.forEach((mesh) => {
-        const index = mesh.morphTargetDictionary?.[name]
-        if (index !== undefined) mesh.morphTargetInfluences[index] = THREE.MathUtils.clamp(value, 0, 1)
+        const dict = mesh.morphTargetDictionary
+        if (!dict) return
+        for (const n of candidates) {
+          const index = dict[n]
+          if (index !== undefined) {
+            mesh.morphTargetInfluences[index] = THREE.MathUtils.clamp(value, 0, 1)
+            break
+          }
+        }
       })
     }
+
+    // [평가용·립싱크 §5-B 실측] 실제로 모델에 적용된 입 morph 값을 읽는다.
+    //   shape key가 없는 모델(setMorph가 no-op)은 항상 0 → 오디오와 상관이 안 잡힘 → 점수 낮음.
+    const MOUTH_MORPH_NAMES = [
+      'JawOpen', 'jawOpen', 'aa_viseme', 'eh_viseme', 'ee_viseme',
+      'oh_viseme', 'oo_viseme', 'eu_viseme', 'uh_viseme', 'sh_viseme',
+      'viseme_PP', 'mbp_viseme',
+    ]
+    const modelHasMouthShapeKey = () => morphMeshes.some((mesh) => {
+      const dict = mesh.morphTargetDictionary
+      return dict && MOUTH_MORPH_NAMES.some((n) => dict[n] !== undefined)
+    })
+    const readAppliedMouth = () => {
+      let v = 0
+      morphMeshes.forEach((mesh) => {
+        const dict = mesh.morphTargetDictionary
+        if (!dict) return
+        for (const n of MOUTH_MORPH_NAMES) {
+          const idx = dict[n]
+          if (idx !== undefined) v = Math.max(v, mesh.morphTargetInfluences[idx] || 0)
+        }
+      })
+      return v
+    }
+    let lipRecording = false
+    let lipRecordBuf = []
 
     const resetLipState = () => {
       lipMorphState = {
@@ -498,7 +547,6 @@ export default function Character3D({
         uh_viseme: 0,
         sh_viseme: 0,
         viseme_PP: 0,
-        mbp_viseme: 0,
         mouthClose: 0,
         mouthPucker: 0,
         mouthFunnel: 0,
@@ -569,17 +617,29 @@ export default function Character3D({
       lastLipClock = 0
       resetLipState()
       resetMorphs()
-      if (audioSource) { try { audioSource.disconnect() } catch {} }
-      if (analyser) { try { analyser.disconnect() } catch {} }
-      if (audioContext) { audioContext.close().catch(() => {}) }
-      audioSource = null
-      analyser = null
-      audioContext = null
+      // 이 발화의 소스 노드만 분리한다. AudioContext/analyser는 닫지 않고 다음 발화에서 재사용한다.
+      // (발화마다 new AudioContext + close 하면 두 번째 컨텍스트가 suspended/한도 문제로
+      //  analyser 데이터를 못 받아 "두 번째 TTS부터 입이 안 움직이는" 버그가 났다.)
+      if (audioSource) { try { audioSource.disconnect() } catch {} ; audioSource = null }
+    }
+
+    // AudioContext와 analyser를 인스턴스당 1개만 만들어 발화 간 재사용한다.
+    // 매 발화 직전 호출해 suspended 상태면 resume 한다(자동재생 정책 대응).
+    const ensureAudioGraph = () => {
+      if (!audioContext) {
+        const Ctor = window.AudioContext || window.webkitAudioContext
+        audioContext = new Ctor()
+        analyser = audioContext.createAnalyser()
+        analyser.fftSize = 1024
+        analyser.smoothingTimeConstant = 0.72
+        analyser.connect(audioContext.destination)
+      }
+      if (audioContext.state === 'suspended') audioContext.resume().catch(() => {})
     }
 
     const startFallbackLipSync = (text = '', duration = 1.8) => {
       stopAudioLipSync()
-      if (morphMeshes.length === 0) return
+      // morphMeshes가 아직 비어 있어도(모델 로드 중) 시작한다. 로드되면 루프가 이어받는다.
 
       const seconds = Math.max(0.8, Number.isFinite(duration) ? duration : Array.from(String(text || '')).length * 0.08)
       const startedAt = performance.now()
@@ -610,13 +670,12 @@ export default function Character3D({
         const lipTargets = closureTargets(closeAmt)
         const jaw = Math.min(0.48, mouth * 1.15) * openGate
         lipTargets.JawOpen = jaw
-        lipTargets.jawOpen = jaw
 
         Object.keys(smoothedVisemes).forEach((name) => {
           const targetWeight = visemeWeights[name] || 0
           const factor = targetWeight > smoothedVisemes[name] ? 0.34 : 0.22
           smoothedVisemes[name] += (targetWeight - smoothedVisemes[name]) * factor
-          const vowel = Math.min(0.72, (0.26 + mouth * 0.8) * smoothedVisemes[name]) * openGate
+          const vowel = Math.min(lipGain > 1 ? 0.95 : 0.72, (0.26 + mouth * 0.8) * smoothedVisemes[name] * lipGain) * openGate
           if (vowel > 0.02) lipTargets[name] = vowel
         })
         applyAuxShapes(lipTargets, openGate)
@@ -630,21 +689,44 @@ export default function Character3D({
 
     const startAudioLipSync = (audio, text = '') => {
       stopAudioLipSync()
-      if (!audio || morphMeshes.length === 0) return
+      // 모델 GLB가 아직 로드 중이어도(morphMeshes 비어도) 포기하지 않는다.
+      // analyser+RAF 루프는 시작해 두고, morphMeshes가 채워지는 순간부터 입이 이어붙는다.
+      // (GM 팝업처럼 발화 시점에 18MB 모델을 막 로드하는 경우의 레이스 대응)
+      if (!audio) return
 
       const fallbackDuration = Math.max(1, Array.from(String(text || '')).length * 0.08)
-      audioContext = new AudioContext()
-      audioSource = audioContext.createMediaElementSource(audio)
-      analyser = audioContext.createAnalyser()
-      analyser.fftSize = 1024
-      analyser.smoothingTimeConstant = 0.72
+      ensureAudioGraph()
+      try {
+        audioSource = audioContext.createMediaElementSource(audio)
+      } catch {
+        // 같은 audio 요소로 이미 소스를 만든 경우 등. 분석은 못 하지만 오디오 재생엔 영향 없음.
+        return
+      }
       audioSource.connect(analyser)
-      analyser.connect(audioContext.destination)
 
       visemeTimeline = makeVisemeTimeline(text, Number.isFinite(audio.duration) ? audio.duration : fallbackDuration)
       const timeData = new Uint8Array(analyser.fftSize)
       const freqData = new Uint8Array(analyser.frequencyBinCount)
       lastLipClock = audioContext.currentTime
+
+      // [평가용·립싱크 §5-B] window.__LIPSYNC_LOG__=true 일 때만 프레임별 입벌림 값을 기록한다.
+      // window.__lipsyncDump('이름') 로 {fps, frames:[{t,mouth}]} JSON 을 내려받아 lipsync_eval.py 에 넣는다.
+      if (typeof window !== 'undefined' && window.__LIPSYNC_LOG__) {
+        window.__lipsyncFrames = []
+        if (!window.__lipsyncDump) {
+          window.__lipsyncDump = (name = 'lipsync') => {
+            const frames = window.__lipsyncFrames || []
+            const span = frames.length > 1 ? frames[frames.length - 1].t - frames[0].t : 0
+            const fps = span > 0 ? (frames.length - 1) / span : 30
+            const blob = new Blob([JSON.stringify({ name, fps, frames }, null, 2)], { type: 'application/json' })
+            const a = document.createElement('a')
+            a.href = URL.createObjectURL(blob)
+            a.download = `${name}.json`
+            a.click()
+            return { name, fps, frames: frames.length }
+          }
+        }
+      }
 
       const update = () => {
         if (!audio || audio.paused || audio.ended) return
@@ -672,6 +754,10 @@ export default function Character3D({
         const dt = THREE.MathUtils.clamp(now - lastLipClock, 0, 0.05)
         lastLipClock = now
 
+        if (typeof window !== 'undefined' && window.__LIPSYNC_LOG__ && window.__lipsyncFrames) {
+          window.__lipsyncFrames.push({ t: +audio.currentTime.toFixed(4), mouth: +mouth.toFixed(4) })
+        }
+
         if (mouth > 0.045 && visemeTimeline.length) {
           const spokenRate = 5.6 + mouth * 3.2
           speechCarry += dt * spokenRate * (0.55 + mouth * 0.45)
@@ -680,8 +766,10 @@ export default function Character3D({
 
           if (audio.duration && Number.isFinite(audio.duration)) {
             const expectedCursor = (audio.currentTime / audio.duration) * Math.max(0, visemeTimeline.length - 1)
-            if (speechCursor < expectedCursor - 4) speechCursor += (expectedCursor - speechCursor) * 0.22
-            if (speechCursor > expectedCursor + 6) speechCursor = expectedCursor + 6
+            // 매 프레임 오디오 재생 위치 쪽으로 끌어당겨 긴 문장에서 누적 드리프트를 막는다.
+            // (예전엔 ±4~6 프레임 벗어날 때만 약하게 보정해, 긴 대사 후반부가 오디오와 어긋났다.)
+            speechCursor += (expectedCursor - speechCursor) * 0.25
+            if (Math.abs(speechCursor - expectedCursor) > 4) speechCursor = expectedCursor
           }
 
           speechCursor = THREE.MathUtils.clamp(speechCursor, 0, Math.max(0, visemeTimeline.length - 1))
@@ -696,15 +784,16 @@ export default function Character3D({
         const openGate = 1 - closeAmt
         const lipTargets = closureTargets(closeAmt)
         if (mouth > 0.045) {
+          // 턱 개방은 lipGain 영향을 받지 않는다(원래 강도 유지). lipGain은 모음/입술 모양에만 적용.
           const jaw = Math.min(0.55, 0.08 + mouth * 0.5) * openGate
           lipTargets.JawOpen = jaw
-          lipTargets.jawOpen = jaw
 
           Object.keys(smoothedVisemes).forEach((name) => {
             const targetWeight = visemeWeights[name] || 0
             const factor = targetWeight > smoothedVisemes[name] ? 0.34 : 0.22
             smoothedVisemes[name] += (targetWeight - smoothedVisemes[name]) * factor
-            const vowel = Math.min(0.9, (0.3 + mouth * 0.7) * smoothedVisemes[name]) * openGate
+            // 모델별 입 강도 보정(lipGain): viseme 셰이프가 약한 모델(예: Lin)을 키운다. GM/기본=1.
+            const vowel = Math.min(lipGain > 1 ? 1.0 : 0.9, (0.3 + mouth * 0.7) * smoothedVisemes[name] * lipGain) * openGate
             if (vowel > 0.02) lipTargets[name] = vowel
           })
           applyAuxShapes(lipTargets, openGate)
@@ -714,6 +803,14 @@ export default function Character3D({
           })
         }
         applyStableLipMorphs(lipTargets)
+        // [평가용] 오디오 입벌림 vs 실제 적용된 입 morph를 함께 기록(립싱크 실측).
+        if (lipRecording) {
+          lipRecordBuf.push({
+            t: +audio.currentTime.toFixed(4),
+            audioMouth: +mouth.toFixed(4),
+            renderedMouth: +readAppliedMouth().toFixed(4),
+          })
+        }
         lipRaf = requestAnimationFrame(update)
       }
       update()
@@ -1210,6 +1307,24 @@ export default function Character3D({
         normalizeModel(modelRoot)
         collectMorphMeshes(modelRoot)
         collectMotionBones(modelRoot)
+        // 이빨이 별도 메시인 모델(Gail/Lin: Low_Teeth*)은 hideTeeth로 그 메시만 숨긴다.
+        // (단일 본체 메시에 이빨이 합쳐진 모델은 코드로 분리 불가 — 모델 수정 필요)
+        if (hideTeeth) {
+          modelRoot.traverse((obj) => {
+            if (obj.isMesh && /teeth|tooth/i.test(obj.name || '')) obj.visible = false
+          })
+        }
+        // 별도 이빨 메시(일반 Mesh)는 skinning 안 돼 head본 회전을 안 따라간다.
+        // head본에 reparent(attach)하면 얼굴 움직임을 그대로 따라간다.
+        if (attachTeethToHead && motionBones.head) {
+          const head = motionBones.head
+          const teeth = []
+          modelRoot.traverse((obj) => {
+            // SkinnedMesh는 스켈레톤이 이미 구동하므로 제외, 일반 Mesh만 attach
+            if (obj.isMesh && !obj.isSkinnedMesh && /teeth|tooth/i.test(obj.name || '')) teeth.push(obj)
+          })
+          teeth.forEach((mesh) => head.attach(mesh)) // 월드 트랜스폼 보존하며 head본 자식으로 이동
+        }
         model.visible = false // Keep hidden until the idle pose is applied (prevents a T-pose flash).
         scene.add(model)
         frameObject(model)
@@ -1230,6 +1345,7 @@ export default function Character3D({
         }
 
         await loadAnimations()
+        if (!disposed) onModelReady?.()
       })
       .catch(() => setSafeStatus('3D model load failed'))
 
@@ -1255,9 +1371,29 @@ export default function Character3D({
     // clips, so the model inspector can reproduce the "arm bending" symptom on demand.
     window.playLinProcedural = (text, emotion, duration) =>
       startProceduralMotion(text || 'talk', { emotion, duration })
-    window.startLinLipSync = startAudioLipSync
-    window.startLinFallbackLipSync = startFallbackLipSync
-    window.stopLinLipSync = stopAudioLipSync
+    // TTS 인터럽트 시: 진행 중이던 제스처(퍼포먼스) 모션을 멈추고 중립 자세로 복귀.
+    // (안 하면 음성이 끊겨도 아바타가 계속 움직이다 튀어 깜빡거림/렉처럼 보임)
+    const stopPerformance = () => {
+      clearMotionQueue()
+      resetMotionBonesToBasePose()
+      if (model) {
+        if (model.userData.basePosition) model.position.copy(model.userData.basePosition)
+        if (model.userData.baseRotation) model.rotation.copy(model.userData.baseRotation)
+      }
+    }
+    // [평가용] 립싱크 실측 녹화 제어.
+    const beginLipRecord = () => { lipRecordBuf = []; lipRecording = true }
+    const endLipRecord = () => {
+      lipRecording = false
+      return { frames: lipRecordBuf.slice(), hasShapeKey: modelHasMouthShapeKey() }
+    }
+    // 전역 lip-sync 등록은 아래 별도 effect가 registerGlobalControls(발화 주체)일 때만 한다.
+    // 여기서는 이 인스턴스의 lip-sync 함수만 ref로 보관한다(여러 인스턴스가 window.* 를 가로채는 레이스 방지).
+    lipApiRef.current = {
+      startAudioLipSync, startFallbackLipSync, stopAudioLipSync,
+      stopPerformance, beginLipRecord, endLipRecord,
+    }
+    if (apiRef) apiRef.current = lipApiRef.current
     window.__debugLinMorph = () => {
       console.log('morphMeshes:', morphMeshes.length)
       morphMeshes.forEach((mesh) => console.log(mesh.name, mesh.morphTargetDictionary, mesh.morphTargetInfluences))
@@ -1361,12 +1497,13 @@ export default function Character3D({
       if (window.playLinEmotion) delete window.playLinEmotion
       if (window.playLinPerformance) delete window.playLinPerformance
       if (window.playLinProcedural) delete window.playLinProcedural
-      if (window.startLinLipSync === startAudioLipSync) delete window.startLinLipSync
-      if (window.startLinFallbackLipSync === startFallbackLipSync) delete window.startLinFallbackLipSync
-      if (window.stopLinLipSync === stopAudioLipSync) delete window.stopLinLipSync
+      lipApiRef.current = null
+      if (apiRef) apiRef.current = null
       if (window.__debugLinMorph) delete window.__debugLinMorph
       if (window.__testMorph) delete window.__testMorph
       stopAudioLipSync()
+      // 공유 AudioContext는 stopAudioLipSync가 닫지 않으므로 언마운트에서 정리한다.
+      if (audioContext) { try { audioContext.close() } catch {} ; audioContext = null; analyser = null }
       controls?.dispose()
       // 모델의 지오메트리/머티리얼/텍스처까지 해제 (GPU 메모리·텍스처 누수 방지)
       modelRoot?.traverse((obj) => {
@@ -1402,6 +1539,27 @@ export default function Character3D({
     framingOffsetY,
     framingScale,
   ])
+
+  // 전역 lip-sync(window.startLinLipSync 등)는 '발화 주체'인 인스턴스만 소유한다.
+  // 과거엔 마운트되는 모든 Character3D가 무조건 window.* 를 덮어써서, 마지막에 마운트된
+  // 모델이 lip-sync를 가로채고 정작 말하는 모델(GM 팝업 등)의 입은 안 움직였다.
+  // registerGlobalControls=true 인 인스턴스만 등록하게 해 그 레이스를 없앤다.
+  useEffect(() => {
+    if (!registerGlobalControls) return undefined
+    const api = lipApiRef.current
+    if (!api) return undefined
+    window.startLinLipSync = api.startAudioLipSync
+    window.startLinFallbackLipSync = api.startFallbackLipSync
+    window.stopLinLipSync = api.stopAudioLipSync
+    window.stopLinPerformance = api.stopPerformance
+    return () => {
+      if (window.startLinLipSync === api.startAudioLipSync) delete window.startLinLipSync
+      if (window.startLinFallbackLipSync === api.startFallbackLipSync) delete window.startLinFallbackLipSync
+      if (window.stopLinLipSync === api.stopAudioLipSync) delete window.stopLinLipSync
+      if (window.stopLinPerformance === api.stopPerformance) delete window.stopLinPerformance
+      api.stopAudioLipSync?.()
+    }
+  }, [registerGlobalControls, modelPath])
 
   return (
     <div className="character3d">

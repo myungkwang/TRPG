@@ -1,0 +1,9 @@
+# 평가 하네스 전용 의존성 (제품 deps 와 분리). pip install -r eval/requirements.txt
+openai-whisper>=20231117
+jiwer>=3.0.0
+librosa>=0.10.0
+scipy>=1.10.0
+numpy>=1.24.0
+soundfile>=0.12.0
+# openai 는 제품에도 이미 있음(채점관 gpt-4o 호출용). 없으면 주석 해제.
+# openai>=1.0.0

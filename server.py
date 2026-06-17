@@ -37,6 +37,7 @@ import codex
 import dialogue
 import character_creation
 import story
+import eval_service
 from auth import (
     validate_signup,
     hash_password,
@@ -61,6 +62,8 @@ AUDIO_DEBUG_DIR = STATIC_DIR / "audio_debug"
 AUDIO_DIR.mkdir(exist_ok=True)
 ENDING_DIR = STATIC_DIR / "endings"
 ENDING_DIR.mkdir(exist_ok=True)
+EVAL_OUT_DIR = STATIC_DIR / "eval"          # NPC별 정량검사 결과(차트 PNG·음성) 출력
+EVAL_OUT_DIR.mkdir(exist_ok=True)
 GEN_BG_DIR = STATIC_DIR / "backgrounds" / "gen"   # AI가 즉석 생성한 배경 캐시
 GEN_BG_DIR.mkdir(parents=True, exist_ok=True)
 GEN_DEPTH_DIR = GEN_BG_DIR / "depth"              # 그 배경들의 깊이맵(2.5D 패럴랙스용)
@@ -141,7 +144,7 @@ COSYVOICE_TEXT_FRONTEND = os.getenv("COSYVOICE_TEXT_FRONTEND", "false").strip().
 COSYVOICE_SEED = int(os.getenv("COSYVOICE_SEED", "1986"))
 COSYVOICE_PRELOAD = os.getenv("COSYVOICE_PRELOAD", "true").strip().lower() in {"1", "true", "yes", "on"}
 COSYVOICE_DEBUG = os.getenv("COSYVOICE_DEBUG", "false").strip().lower() in {"1", "true", "yes", "on"}
-COSYVOICE_GM_SPEAKER = os.getenv("COSYVOICE_GM_SPEAKER", "aux_skt_voice_skt_m0001_serious").strip() or "aux_skt_voice_skt_m0001_serious"
+COSYVOICE_GM_SPEAKER = os.getenv("COSYVOICE_GM_SPEAKER", "char_gm").strip() or "char_gm"
 COSYVOICE_WARMUP = os.getenv("COSYVOICE_WARMUP", "true").strip().lower() in {"1", "true", "yes", "on"}
 COSYVOICE_WARMUP_TEXT = os.getenv("COSYVOICE_WARMUP_TEXT", "네, 준비되었습니다.").strip() or "네, 준비되었습니다."
 COSYVOICE_WARMUP_SPEAKERS = [
@@ -158,24 +161,27 @@ except ValueError:
 COSYVOICE_SPEED = max(0.75, min(1.35, COSYVOICE_SPEED))
 
 COSYVOICE_SPEAKERS = {
+    # 값(value)은 반드시 모델 spk2info.pt 에 실제 존재하는 화자 ID 여야 한다.
+    # eval_model 보유 화자: char_doctor/char_gail/char_gm/char_kargas/char_marta/
+    #   char_miner/char_nurse/char_rin/char_tavern_clerk/char_toby (린=char_rin, 토비=char_toby)
     "doctor": "char_doctor",
     "gm": COSYVOICE_GM_SPEAKER,
     "gail": "char_gail",
     "kargas": "char_kargas",
     "marta": "char_marta",
-    "lin": "char_lin",
-    "rin": "char_lin",
-    "tobi": "char_tobi",
-    "toby": "char_tobi",
+    "lin": "char_rin",
+    "rin": "char_rin",
+    "tobi": "char_toby",
+    "toby": "char_toby",
     "nurse": "char_nurse",
     "miner": "char_miner",
     "tavern": "char_tavern_clerk",
     "tavern_clerk": "char_tavern_clerk",
     "char_gm": "char_gm",
-    "char_rin": "char_lin",
-    "char_toby": "char_tobi",
-    "char_lin": "char_lin",
-    "char_tobi": "char_tobi",
+    "char_rin": "char_rin",
+    "char_toby": "char_toby",
+    "char_lin": "char_rin",
+    "char_tobi": "char_toby",
 }
 
 TTS_PROVIDER = os.getenv("TTS_PROVIDER", "edge").strip().lower()
@@ -325,6 +331,8 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 class ChatRequest(BaseModel):
     session_id: str
     message: str
+    # 1:1 대화 상대 NPC speaker id(프론트 activeSpeaker). 있으면 GM이 그 NPC 대사를 가로채지 않는다.
+    focus_npc: str | None = None
 
 
 class MoveRequest(BaseModel):
@@ -1538,14 +1546,15 @@ def chat(
 
     assert_session_owner(req.session_id, user_id)
 
-    result = gm_reply(req.session_id, message)
+    focus_npc = req.focus_npc if req.focus_npc and req.focus_npc != "gm" else None
+    result = gm_reply(req.session_id, message, focus_npc)
     answer = result["answer"]
     choices = result.get("choices", [])
 
     return {
         "answer": answer,
         "choices": choices,
-        "segments": dialogue.split_segments(answer),
+        "segments": dialogue.split_segments(answer, focus_npc),
         "session": public_session(req.session_id),
         "story": story.current_scene(req.session_id),
     }
@@ -1568,10 +1577,19 @@ def chat_stream(
 
     assert_session_owner(req.session_id, user_id)
 
+    focus_npc = req.focus_npc if req.focus_npc and req.focus_npc != "gm" else None
+
     def events():
+        # TTFB(가이드 §2-1): 요청~첫 응답 청크 시각차. 평가 하네스(eval/metrics_system.py)가 로그를 집계한다.
+        import time as _time
+        t_start = _time.time()
+        first_emitted = False
         try:
-            for event in gm_reply_stream(req.session_id, message):
+            for event in gm_reply_stream(req.session_id, message, focus_npc):
                 event_type = event.get("type", "message")
+                if not first_emitted:
+                    first_emitted = True
+                    logger.info("TTFB session=%s ttfb_sec=%.3f", req.session_id, _time.time() - t_start)
                 if event_type == "final":
                     event["session"] = public_session(req.session_id)
                     event["story"] = story.current_scene(req.session_id)
@@ -1993,3 +2011,154 @@ def me(user_id: str = Depends(get_user_id_from_token)):
         "name": row[2],
         "email": row[3],
     }
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# NPC별 정량검사 (게임 내 '정량검사' 버튼) — 백그라운드 잡으로 게임을 멈추지 않는다.
+# 대상: GM·린·의사·가일·마르타·토비. 각 NPC: G-Eval(GPT-4o) + CER(Whisper) + 립싱크 프록시 + 차트 PNG.
+# ──────────────────────────────────────────────────────────────────────────
+
+EVAL_JOBS: dict[str, dict[str, Any]] = {}
+EVAL_WHISPER_MODEL = os.getenv("EVAL_WHISPER_MODEL", "large-v3").strip() or "large-v3"
+EVAL_JUDGE_MODEL = os.getenv("EVAL_JUDGE_MODEL", "gpt-4o").strip() or "gpt-4o"
+EVAL_JUDGE_REPEAT = int(os.getenv("EVAL_JUDGE_REPEAT", "3") or "3")
+
+
+def _eval_completion_rate() -> dict[str, Any]:
+    try:
+        with get_conn() as conn:
+            total = conn.execute(
+                "SELECT count(*) FROM game_sessions WHERE user_id IS NOT NULL"
+            ).fetchone()[0]
+            completed = conn.execute(
+                "SELECT count(*) FROM game_sessions WHERE user_id IS NOT NULL AND ending IS NOT NULL"
+            ).fetchone()[0]
+    except Exception as exc:  # noqa: BLE001
+        return {"error": str(exc)}
+    rate = round(100.0 * completed / total, 1) if total else None
+    return {"total_sessions": total, "completed": completed, "rate_pct": rate, "target_pct": 80}
+
+
+def _eval_worker(job_id: str) -> None:
+    job = EVAL_JOBS[job_id]
+    try:
+        import llm
+        from openai import OpenAI
+        import whisper
+
+        job["stage"] = "loading_whisper"
+        whisper_model = whisper.load_model(EVAL_WHISPER_MODEL)
+        judge = OpenAI()
+        provider = _tts_provider()
+        ext = _tts_extension(provider)
+        out_dir = EVAL_OUT_DIR / job_id
+        out_dir.mkdir(parents=True, exist_ok=True)
+
+        npcs = eval_service.NPC_EVAL_LIST
+        job["total"] = len(npcs)
+        results: list[dict[str, Any]] = []
+
+        for index, npc in enumerate(npcs):
+            job["stage"] = "evaluating"
+            job["current"] = npc["name"]
+            job["progress"] = index
+
+            # 1) 인물 대사 생성
+            line = eval_service.generate_npc_line(llm.chat, npc["persona"])
+            # 2) 대화 품질 (GPT-4o)
+            g_eval = eval_service.g_eval_line(judge, EVAL_JUDGE_MODEL, npc["persona"], line, EVAL_JUDGE_REPEAT)
+            # 3) TTS 합성 → CER (립싱크는 브라우저에서 실제 3D 모델로 측정 → /api/eval/lipsync)
+            wav_path = out_dir / f"{npc['key']}.{ext}"
+            _synthesize_tts_provider(TTSRequest(text=line, speaker=npc["voice"]), provider, wav_path)
+            speech = eval_service.cer_score(whisper_model, str(wav_path), line)
+
+            results.append({
+                "key": npc["key"], "name": npc["name"], "label": npc["label"],
+                "voice": npc["voice"], "line": line,
+                "g_eval": g_eval, "speech": speech,
+                "lipsync": {"status": "pending_client"},   # 클라이언트 실측 대기
+                "audio_url": f"/static/eval/{job_id}/{wav_path.name}",
+            })
+            job["results"] = results
+
+        job["stage"] = "rendering_charts"
+        charts = eval_service.render_charts(results, out_dir)
+        job["charts"] = {k: f"/static/eval/{job_id}/{v}" for k, v in charts.items()}
+        job["summary"] = eval_service.summarize(results)
+        job["completion"] = _eval_completion_rate()
+        job["progress"] = len(npcs)
+        job["stage"] = "done"
+        job["status"] = "done"
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("NPC eval job failed")
+        job["status"] = "error"
+        job["error"] = str(exc)
+
+
+@app.post("/api/eval/run")
+def eval_run(user_id: str = Depends(get_user_id_from_token)) -> dict[str, Any]:
+    job_id = str(uuid.uuid4())
+    EVAL_JOBS[job_id] = {
+        "status": "running",
+        "stage": "start",
+        "progress": 0,
+        "total": len(eval_service.NPC_EVAL_LIST),
+        "current": None,
+        "results": [],
+        "charts": {},
+        "summary": None,
+        "completion": None,
+        "error": None,
+    }
+    threading.Thread(target=_eval_worker, args=(job_id,), name=f"npc-eval-{job_id[:8]}", daemon=True).start()
+    return {"job_id": job_id}
+
+
+@app.get("/api/eval/status/{job_id}")
+def eval_status(job_id: str, user_id: str = Depends(get_user_id_from_token)) -> dict[str, Any]:
+    job = EVAL_JOBS.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="eval job not found")
+    return job
+
+
+class EvalLipsyncRequest(BaseModel):
+    job_id: str
+    results: list[dict[str, Any]]   # [{key, correlation, lag_ms, has_shapekey, frames}]
+
+
+@app.post("/api/eval/lipsync")
+def eval_lipsync(req: EvalLipsyncRequest, user_id: str = Depends(get_user_id_from_token)) -> dict[str, Any]:
+    """브라우저가 실제 3D 모델 입 morph로 측정한 립싱크 결과를 받아 잡에 병합하고 차트를 그린다."""
+    job = EVAL_JOBS.get(req.job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="eval job not found")
+
+    by_key = {r["key"]: r for r in job.get("results", [])}
+    for item in req.results:
+        target = by_key.get(item.get("key"))
+        if target is None:
+            continue
+        corr = item.get("correlation")
+        lag = item.get("lag_ms")
+        has_key = item.get("has_shapekey", True)
+        target["lipsync"] = {
+            "correlation": corr,
+            "lag_ms": lag,
+            "has_shapekey": has_key,
+            "frames": item.get("frames"),
+            "pass": bool(
+                has_key
+                and isinstance(corr, (int, float)) and corr >= 0.7
+                and isinstance(lag, (int, float)) and abs(lag) <= 100.0
+            ),
+        }
+
+    out_dir = EVAL_OUT_DIR / req.job_id
+    try:
+        chart = eval_service.render_lipsync_chart(job["results"], out_dir)
+        job.setdefault("charts", {})["lipsync"] = f"/static/eval/{req.job_id}/{chart}"
+    except Exception:
+        logger.exception("lipsync chart render failed")
+    job["summary"] = eval_service.summarize(job["results"])
+    return {"ok": True, "charts": job.get("charts", {}), "summary": job["summary"]}

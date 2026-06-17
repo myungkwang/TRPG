@@ -108,25 +108,25 @@ export async function apiLoadSession(sessionId) {
   })
 }
 
-export async function apiChat(sessionId, message) {
+export async function apiChat(sessionId, message, focusNpc = null) {
   return fetchJson('/api/chat', {
     method: 'POST',
     headers: {
       ...JSON_HEADERS,
       ...authHeaders(),
     },
-    body: JSON.stringify({ session_id: sessionId, message }),
+    body: JSON.stringify({ session_id: sessionId, message, focus_npc: focusNpc }),
   })
 }
 
-export async function apiChatStream(sessionId, message, onEvent) {
+export async function apiChatStream(sessionId, message, onEvent, focusNpc = null) {
   const response = await fetch('/api/chat/stream', {
     method: 'POST',
     headers: {
       ...JSON_HEADERS,
       ...authHeaders(),
     },
-    body: JSON.stringify({ session_id: sessionId, message }),
+    body: JSON.stringify({ session_id: sessionId, message, focus_npc: focusNpc }),
   })
 
   if (response.status === 401) {
@@ -356,5 +356,29 @@ export async function apiLockEnding(sessionId) {
 export async function apiGetEnding(sessionId) {
   return fetchJson(`/api/ending/${sessionId}`, {
     headers: { ...authHeaders() },
+  })
+}
+
+// NPC별 정량검사 — 백그라운드 잡 시작 → job_id 반환
+export async function apiEvalRun() {
+  return fetchJson('/api/eval/run', {
+    method: 'POST',
+    headers: { ...authHeaders() },
+  })
+}
+
+// 정량검사 진행 상태/부분결과 폴링
+export async function apiEvalStatus(jobId) {
+  return fetchJson(`/api/eval/status/${jobId}`, {
+    headers: { ...authHeaders() },
+  })
+}
+
+// 브라우저에서 실제 3D 모델로 측정한 립싱크 결과를 서버에 올려 차트/요약 갱신
+export async function apiEvalLipsync(jobId, results) {
+  return fetchJson('/api/eval/lipsync', {
+    method: 'POST',
+    headers: { ...JSON_HEADERS, ...authHeaders() },
+    body: JSON.stringify({ job_id: jobId, results }),
   })
 }
