@@ -5,7 +5,7 @@ import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 
-const DEFAULT_MODEL_PATH = '/static/models/GM_Base_WithShapeKeys_04.glb'
+const DEFAULT_MODEL_PATH = '/static/models/Game Master/GM_Base_WithShapeKeys_04.glb'
 const DEFAULT_MODEL_ROTATION = [0, 0, 0]
 const DEFAULT_MODEL_SCALE = 1
 const DEFAULT_MODEL_OFFSET = [0, 0, 0]
