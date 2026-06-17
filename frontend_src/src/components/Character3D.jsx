@@ -412,10 +412,9 @@ export default function Character3D({
       oh_viseme: 0,
       oo_viseme: 0,
       viseme_PP: 0,
-      mouthFrimlyClose: 0,
+      mouthClose: 0,
       mouthPucker: 0,
-      mouthNarrow: 0,
-      mouthWideOpen: 0,
+      mouthFunnel: 0,
       mouthSmile_L: 0,
       mouthSmile_R: 0,
     }
@@ -548,10 +547,9 @@ export default function Character3D({
         uh_viseme: 0,
         sh_viseme: 0,
         viseme_PP: 0,
-        mouthFrimlyClose: 0,
+        mouthClose: 0,
         mouthPucker: 0,
-        mouthNarrow: 0,
-        mouthWideOpen: 0,
+        mouthFunnel: 0,
         mouthSmile_L: 0,
         mouthSmile_R: 0,
       }
@@ -567,7 +565,7 @@ export default function Character3D({
       }
     }
 
-    const CLOSURE_KEYS = new Set(['viseme_PP', 'mbp_viseme', 'mouthFrimlyClose'])
+    const CLOSURE_KEYS = new Set(['viseme_PP', 'mbp_viseme', 'mouthClose'])
     const applyStableLipMorphs = (targets, amount = 1) => {
       Object.keys(lipMorphState).forEach((name) => {
         const targetValue = (targets[name] || 0) * amount
@@ -583,35 +581,30 @@ export default function Character3D({
       })
     }
 
-    // 양순음 폐쇄 강도를 입 다묾 shape(viseme_PP/mbp_viseme/mouthFrimlyClose)로 변환한다.
-    // 모델마다 폐쇄 shape 이름이 다르므로(GM_v3_17·의사·린·토비는 mouthFrimlyClose 보유) 호환 위해 모두 세팅한다.
-    // setMorph는 없는 키엔 no-op이므로 가일·마르타(=mouthFrimlyClose 없음)는 mbp_viseme로만 닫혀도 안전하다.
+    // 양순음 폐쇄 강도를 입 다묾 shape(viseme_PP/mbp_viseme/mouthClose)로 변환한다.
+    // 모델마다 폐쇄 shape 이름이 다르므로(GM_v3_17은 mbp_viseme) 호환 위해 모두 세팅한다.
     const closureTargets = (closeAmt) => {
       const t = {}
       if (closeAmt > 0.01) {
         t.viseme_PP = closeAmt
         t.mbp_viseme = closeAmt
-        t.mouthFrimlyClose = closeAmt * 0.9
+        t.mouthClose = closeAmt * 0.9
       }
       return t
     }
 
-    // 모음 가중치에서 입술의 둥글림(pucker/narrow)·좌우당김(smile)·강세 벌림(wideOpen)을 파생해 자연스러움을 더한다.
-    // mouthPucker·mouthSmile_L/R은 6명 모두 보유, mouthNarrow·mouthWideOpen은 GM만 보유(나머진 no-op).
+    // 모음 가중치에서 입술의 둥글림(pucker/funnel)·좌우당김(smile)을 파생해 자연스러움을 더한다.
     const applyAuxShapes = (targets, gate = 1) => {
       const oo = targets.oo_viseme || 0
       const oh = targets.oh_viseme || 0
       const ee = targets.ee_viseme || 0
       const eh = targets.eh_viseme || 0
-      const aa = targets.aa_viseme || 0
       const pucker = Math.min(0.72, oo * 1.0 + oh * 0.55) * gate
-      const narrow = Math.min(0.55, oh * 0.7 + oo * 0.35) * gate          // ㅗ·ㅜ 오므림(funnel 역할) → mouthNarrow
+      const funnel = Math.min(0.55, oh * 0.7 + oo * 0.35) * gate
       const smile = Math.min(0.5, ee * 1.0 + eh * 0.45) * gate
-      const wide = Math.min(0.45, Math.max(0, aa - 0.45) * 1.4) * gate     // 큰 ㅏ 강세 입벌림 → mouthWideOpen
       if (pucker > 0.02) targets.mouthPucker = pucker
-      if (narrow > 0.02) targets.mouthNarrow = narrow
+      if (funnel > 0.02) targets.mouthFunnel = funnel
       if (smile > 0.02) { targets.mouthSmile_L = smile; targets.mouthSmile_R = smile }
-      if (wide > 0.02) targets.mouthWideOpen = wide
     }
 
     const stopAudioLipSync = () => {
@@ -1314,11 +1307,19 @@ export default function Character3D({
         normalizeModel(modelRoot)
         collectMorphMeshes(modelRoot)
         collectMotionBones(modelRoot)
-        // 이빨이 별도 메시인 모델(Gail/Lin: Low_Teeth*)은 hideTeeth로 그 메시만 숨긴다.
-        // (단일 본체 메시에 이빨이 합쳐진 모델은 코드로 분리 불가 — 모델 수정 필요)
+        // 이름이 teeth/tooth인 별도 메시(Gail/Lin: Low_Teeth*) + 머티리얼명이 inner-mouth
+        // (Teeth / Teeth Flesh / Mouth Inside)인 서브메시(GM_v3_27: 본체 메시가 material별로
+        // primitive 분리됨)를 함께 숨긴다. GM_v3_27의 'Teeth Flesh'(적갈색)는 스킨 웨이트 불량으로
+        // idle 애니가 적용되면 입 앞으로 튀어나와 '갈색 공'처럼 보였다. 입모양은 morph로 구동하므로
+        // 안쪽 입 메시는 숨겨도 무방하다.
         if (hideTeeth) {
+          const isInnerMouth = (obj) => {
+            if (/teeth|tooth/i.test(obj.name || '')) return true
+            const mat = obj.material?.name || ''
+            return /^teeth/i.test(mat) || /mouth\s*inside/i.test(mat)
+          }
           modelRoot.traverse((obj) => {
-            if (obj.isMesh && /teeth|tooth/i.test(obj.name || '')) obj.visible = false
+            if (obj.isMesh && isInnerMouth(obj)) obj.visible = false
           })
         }
         // 별도 이빨 메시(일반 Mesh)는 skinning 안 돼 head본 회전을 안 따라간다.
