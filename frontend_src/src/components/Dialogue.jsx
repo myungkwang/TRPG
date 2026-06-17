@@ -9,6 +9,112 @@ import { PERSONAS, getPersona } from '../personas.js'
 import { applyBgmVolume, applyMasterVolume, applySpeechVolume } from '../audioSettings.js'
 import { loadSettings, subscribeSettings } from '../settings.js'
 
+const CHAT_SIZE_KEY = 'trpg_chat_section_size'
+const DEFAULT_CHAT_SIZE = { stacked: 42, split: 40 }
+const CHAT_SIZE_LIMITS = {
+  stacked: { min: 28, max: 66 },
+  split: { min: 30, max: 58 },
+}
+const PANEL_SIZE_KEY = 'trpg_chat_panel_sizes'
+const DEFAULT_PANEL_SIZES = {
+  stacked: { choices: 25.4, avatar: 24.6 },
+  split: { avatar: 30, choices: 30 },
+}
+const PANEL_SIZE_LIMITS = {
+  stacked: {
+    choices: { min: 16, max: 42 },
+    avatar: { min: 16, max: 42 },
+    dialogueMin: 28,
+  },
+  split: {
+    avatar: { min: 18, max: 45 },
+    choices: { min: 18, max: 42 },
+    dialogueMin: 24,
+  },
+}
+
+function clampNumber(value, min, max) {
+  return Math.min(max, Math.max(min, value))
+}
+
+function normalizeChatSize(raw) {
+  return {
+    stacked: clampNumber(Number(raw?.stacked ?? DEFAULT_CHAT_SIZE.stacked), CHAT_SIZE_LIMITS.stacked.min, CHAT_SIZE_LIMITS.stacked.max),
+    split: clampNumber(Number(raw?.split ?? DEFAULT_CHAT_SIZE.split), CHAT_SIZE_LIMITS.split.min, CHAT_SIZE_LIMITS.split.max),
+  }
+}
+
+function loadChatSize() {
+  try {
+    return normalizeChatSize(JSON.parse(localStorage.getItem(CHAT_SIZE_KEY) || '{}'))
+  } catch {
+    return DEFAULT_CHAT_SIZE
+  }
+}
+
+function saveChatSize(next) {
+  try {
+    localStorage.setItem(CHAT_SIZE_KEY, JSON.stringify(normalizeChatSize(next)))
+  } catch {
+    // Ignore storage failures; resizing should still work for the current screen.
+  }
+}
+
+function normalizePanelMode(raw, mode) {
+  const defaults = DEFAULT_PANEL_SIZES[mode]
+  const limits = PANEL_SIZE_LIMITS[mode]
+  const result = {}
+  for (const key of Object.keys(defaults)) {
+    result[key] = clampNumber(Number(raw?.[key] ?? defaults[key]), limits[key].min, limits[key].max)
+  }
+
+  const keys = Object.keys(defaults)
+  const maxOuter = 100 - limits.dialogueMin
+  const outerTotal = keys.reduce((sum, key) => sum + result[key], 0)
+  if (outerTotal > maxOuter) {
+    const minTotal = keys.reduce((sum, key) => sum + limits[key].min, 0)
+    const flexibleTotal = Math.max(1, outerTotal - minTotal)
+    const targetFlexible = Math.max(0, maxOuter - minTotal)
+    for (const key of keys) {
+      const flexible = result[key] - limits[key].min
+      result[key] = Math.round((limits[key].min + (flexible / flexibleTotal) * targetFlexible) * 10) / 10
+    }
+  }
+
+  return result
+}
+
+function normalizePanelSizes(raw) {
+  return {
+    stacked: normalizePanelMode(raw?.stacked, 'stacked'),
+    split: normalizePanelMode(raw?.split, 'split'),
+  }
+}
+
+function clampPanelModeValue(current, mode, key, value) {
+  const limits = PANEL_SIZE_LIMITS[mode]
+  const otherKey = Object.keys(current).find(candidate => candidate !== key)
+  const otherValue = current[otherKey]
+  const maxByDialogue = 100 - limits.dialogueMin - otherValue
+  return Math.round(clampNumber(value, limits[key].min, Math.min(limits[key].max, maxByDialogue)) * 10) / 10
+}
+
+function loadPanelSizes() {
+  try {
+    return normalizePanelSizes(JSON.parse(localStorage.getItem(PANEL_SIZE_KEY) || '{}'))
+  } catch {
+    return DEFAULT_PANEL_SIZES
+  }
+}
+
+function savePanelSizes(next) {
+  try {
+    localStorage.setItem(PANEL_SIZE_KEY, JSON.stringify(normalizePanelSizes(next)))
+  } catch {
+    // Keep resizing usable even when storage is unavailable.
+  }
+}
+
 const LOCATION_BGMS = [
   {
     aliases: ['카르가스전투', '카르가스', '봉우리', 'boss'],
@@ -335,6 +441,15 @@ const getLastNpcSpeaker = (log) => {
   return lastNpc?.who || CHARACTER_MODELS[0].speaker
 }
 
+const getLastStageNpcSpeaker = (log) => {
+  const lastNpc = [...log].reverse().find(m => (
+    m.who !== 'player'
+    && m.who !== 'gm'
+    && CHARACTER_MODELS.some(c => c.speaker === m.who)
+  ))
+  return lastNpc?.who || null
+}
+
 const getCharacter = (speaker) => CHARACTER_MODELS.find(c => c.speaker === speaker) || CHARACTER_MODELS[0]
 
 const getPersonaForSpeaker = (speaker) => {
@@ -342,17 +457,92 @@ const getPersonaForSpeaker = (speaker) => {
   return getPersona(character.personaId) || getPersona(speaker) || PERSONAS.doctor
 }
 
+const SPEAKER_UI_PALETTE = {
+  gm: {
+    nameColor: '#f3c47d',
+    borderColor: '#9a6230',
+    bubbleBg: 'linear-gradient(180deg,rgba(47,29,14,.9),rgba(15,10,7,.96))',
+    glow: 'rgba(205,134,62,.38)',
+  },
+  player: {
+    nameColor: '#f0c879',
+    borderColor: '#b47735',
+    bubbleBg: 'linear-gradient(180deg,rgba(51,31,12,.9),rgba(15,10,7,.97))',
+    glow: 'rgba(230,158,74,.42)',
+  },
+  doctor: {
+    nameColor: '#7ee4d7',
+    borderColor: '#3c9d91',
+    bubbleBg: 'linear-gradient(180deg,rgba(16,45,42,.88),rgba(7,19,18,.96))',
+    glow: 'rgba(69,206,190,.36)',
+  },
+  lin: {
+    nameColor: '#ff91b3',
+    borderColor: '#b34a6a',
+    bubbleBg: 'linear-gradient(180deg,rgba(54,17,31,.9),rgba(18,8,13,.97))',
+    glow: 'rgba(222,80,124,.38)',
+  },
+  gail: {
+    nameColor: '#f0b15e',
+    borderColor: '#a56a2f',
+    bubbleBg: 'linear-gradient(180deg,rgba(53,34,15,.9),rgba(18,12,7,.97))',
+    glow: 'rgba(213,133,49,.36)',
+  },
+  marta: {
+    nameColor: '#a9dfbc',
+    borderColor: '#5b9a70',
+    bubbleBg: 'linear-gradient(180deg,rgba(21,44,30,.88),rgba(8,18,13,.97))',
+    glow: 'rgba(112,203,139,.34)',
+  },
+  tobi: {
+    nameColor: '#ffd36c',
+    borderColor: '#b78930',
+    bubbleBg: 'linear-gradient(180deg,rgba(58,42,12,.9),rgba(19,14,6,.97))',
+    glow: 'rgba(245,190,64,.38)',
+  },
+  kargas: {
+    nameColor: '#b6c5ff',
+    borderColor: '#6f7eb3',
+    bubbleBg: 'linear-gradient(180deg,rgba(24,29,51,.9),rgba(8,10,18,.98))',
+    glow: 'rgba(120,145,235,.35)',
+  },
+  miner: {
+    nameColor: '#d2b27c',
+    borderColor: '#8c6d3b',
+    bubbleBg: 'linear-gradient(180deg,rgba(44,35,18,.88),rgba(15,12,7,.97))',
+    glow: 'rgba(174,132,62,.32)',
+  },
+  nurse: {
+    nameColor: '#9de4e0',
+    borderColor: '#5e9f9c',
+    bubbleBg: 'linear-gradient(180deg,rgba(21,46,45,.88),rgba(8,18,18,.97))',
+    glow: 'rgba(111,211,205,.34)',
+  },
+  tavern_clerk: {
+    nameColor: '#e4aa83',
+    borderColor: '#a56f50',
+    bubbleBg: 'linear-gradient(180deg,rgba(50,31,23,.88),rgba(17,11,9,.97))',
+    glow: 'rgba(218,143,96,.34)',
+  },
+}
+
 const getSpeakerPresentation = (speaker) => {
-  if (speaker === 'player') return SPEAKERS.player
-  if (speaker === 'gm') return SPEAKERS.gm
+  if (speaker === 'player') {
+    return { ...SPEAKERS.player, ...(SPEAKER_UI_PALETTE.player || {}) }
+  }
+  if (speaker === 'gm') {
+    return { ...SPEAKERS.gm, ...(SPEAKER_UI_PALETTE.gm || {}) }
+  }
 
   const persona = getPersonaForSpeaker(speaker)
+  const palette = SPEAKER_UI_PALETTE[speaker] || SPEAKER_UI_PALETTE[persona?.id] || {}
   return {
     name: persona?.name || SPEAKERS[speaker]?.name || speaker,
     color: persona?.color || SPEAKERS[speaker]?.color || '#7d858d',
     tint: persona?.color
       ? `${persona.color}2e`
       : (SPEAKERS[speaker]?.tint || 'rgba(125,133,141,0.16)'),
+    ...palette,
   }
 }
 
@@ -1217,6 +1407,7 @@ export default function Dialogue({
   const [choiceMode, setChoiceMode] = useState(false)
   const [choicesCollapsed, setChoicesCollapsed] = useState(false)
   const [activeSpeaker, setActiveSpeaker] = useState(() => getLastNpcSpeaker(toUiLog(history)))
+  const [stageNpcSpeaker, setStageNpcSpeaker] = useState(() => getLastStageNpcSpeaker(toUiLog(history)))
   const [stageLocation, setStageLocation] = useState(null)
   const [judge, setJudge] = useState(null)
   const [judgeResult, setJudgeResult] = useState(null)
@@ -1275,6 +1466,12 @@ export default function Dialogue({
     location: stageLocation || story?.location || session?.location || '',
   }
   const isTavernLinScene = TAVERN_LIN_SCENES.has(story?.id)
+  const rememberStageNpc = (speaker) => {
+    if (!speaker || speaker === 'gm' || speaker === 'player') return
+    if (CHARACTER_MODELS.some(c => c.speaker === speaker)) {
+      setStageNpcSpeaker(speaker)
+    }
+  }
 
   const setTavernMode = (mode) => {
     tavernCastModeRef.current = mode
@@ -1394,6 +1591,11 @@ export default function Dialogue({
     if (value <= 8) return { key: 'normal', label: 'Normal', className: 'normal' }
     return { key: 'good', label: 'Good', className: 'success' }
   }
+
+  useEffect(() => {
+    rememberStageNpc(activeSpeaker)
+  }, [activeSpeaker])
+
   useEffect(() => {
     const last = history?.[history.length - 1]
     const speaker = last?.role === 'assistant' ? (last.speaker || 'gm') : 'player'
@@ -1403,6 +1605,8 @@ export default function Dialogue({
       const previousLog = toUiLog(history.slice(0, -1))
       setLog(previousLog)
       setActiveSpeaker(getLastNpcSpeaker(previousLog))
+      const previousStageNpc = getLastStageNpcSpeaker(previousLog)
+      if (previousStageNpc) setStageNpcSpeaker(previousStageNpc)
       spokenRef.current.add(key)
       holdChoicesRef.current = true
       setChoices([])
@@ -1413,9 +1617,12 @@ export default function Dialogue({
             onSegmentStart: (segment) => {
               updateTavernCastMode(segment)
               setActiveSpeaker(segment.speaker)
+              rememberStageNpc(segment.speaker)
               setLog(prev => [...prev, { who: segment.speaker, text: segment.text, speak: false }])
             },
             onFallback: (segments) => {
+              const fallbackStageNpc = getLastStageNpcSpeaker(segments.map(segment => ({ who: segment.speaker })))
+              if (fallbackStageNpc) setStageNpcSpeaker(fallbackStageNpc)
               setLog(prev => [
                 ...prev,
                 ...segments.map(segment => ({ who: segment.speaker, text: segment.text, speak: false })),
@@ -1438,6 +1645,8 @@ export default function Dialogue({
     const next = toUiLog(history)
     setLog(next)
     setActiveSpeaker(getLastNpcSpeaker(next))
+    const nextStageNpc = getLastStageNpcSpeaker(next)
+    if (nextStageNpc) setStageNpcSpeaker(nextStageNpc)
   }, [history])
 
   useEffect(() => {
@@ -1459,6 +1668,7 @@ export default function Dialogue({
   const push = (who, text, options = {}) => {
     if (who !== 'player' && CHARACTER_MODELS.some(c => c.speaker === who)) {
       setActiveSpeaker(who)
+      rememberStageNpc(who)
     }
 
     if (onHistoryChange) {
@@ -1479,6 +1689,7 @@ export default function Dialogue({
           segments: options.segments,
           onSegmentStart: (segment) => {
             setActiveSpeaker(segment.speaker)
+            rememberStageNpc(segment.speaker)
             setLog(l => [...l, { who: segment.speaker, text: segment.text, speak: false }])
           },
           onFallback: (segments) => {
@@ -1892,6 +2103,8 @@ export default function Dialogue({
   }
 
   const activeCharacter = CHARACTER_MODELS.find(c => c.speaker === activeSpeaker) || CHARACTER_MODELS[0]
+  const gmCharacter = CHARACTER_MODELS.find(c => c.speaker === 'gm') || CHARACTER_MODELS[0]
+  const stageNpcCharacter = CHARACTER_MODELS.find(c => c.speaker === stageNpcSpeaker)
   const inspectCharacter = CHARACTER_MODELS[inspectIndex] || CHARACTER_MODELS[0]
   const npcTestCharacters = NPC_TEST_SPEAKERS
     .map(speaker => CHARACTER_MODELS.find(c => c.speaker === speaker))
@@ -1913,6 +2126,106 @@ export default function Dialogue({
   useEffect(() => subscribeSettings(setAppSettings), [])
   const layoutMode = appSettings.layout === 'split' ? 'split' : 'stacked'
   const splitLayout = layoutMode === 'split'
+  const [chatSize, setChatSize] = useState(() => loadChatSize())
+  const [panelSizes, setPanelSizes] = useState(() => loadPanelSizes())
+
+  const resetChatSize = () => {
+    setChatSize(DEFAULT_CHAT_SIZE)
+    saveChatSize(DEFAULT_CHAT_SIZE)
+  }
+
+  const resetPanelSizes = () => {
+    const next = normalizePanelSizes(DEFAULT_PANEL_SIZES)
+    setPanelSizes(next)
+    savePanelSizes(next)
+  }
+
+  const startChatResize = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+
+    const mode = splitLayout && window.innerWidth > 900 ? 'split' : 'stacked'
+    const startX = e.clientX
+    const startY = e.clientY
+    const startValue = chatSize[mode]
+    const limits = CHAT_SIZE_LIMITS[mode]
+    let nextSize = chatSize
+
+    document.body.classList.add('resizing-chat')
+
+    const onMove = (ev) => {
+      const delta = mode === 'split'
+        ? ((startX - ev.clientX) / Math.max(1, window.innerWidth)) * 100
+        : ((startY - ev.clientY) / Math.max(1, window.innerHeight)) * 100
+      const value = Math.round(clampNumber(startValue + delta, limits.min, limits.max) * 10) / 10
+      nextSize = normalizeChatSize({ ...nextSize, [mode]: value })
+      setChatSize(nextSize)
+    }
+
+    const onUp = () => {
+      document.body.classList.remove('resizing-chat')
+      saveChatSize(nextSize)
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointercancel', onUp)
+    }
+
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+    window.addEventListener('pointercancel', onUp)
+  }
+
+  const startPanelResize = (boundary, e) => {
+    e.preventDefault()
+    e.stopPropagation()
+
+    const section = e.currentTarget.closest('.chat-section')
+    const rect = section?.getBoundingClientRect()
+    const flexDirection = section ? window.getComputedStyle(section).flexDirection : (splitLayout ? 'column' : 'row')
+    const mode = flexDirection.includes('column') ? 'split' : 'stacked'
+    const mainSize = Math.max(1, mode === 'split' ? (rect?.height || window.innerHeight) : (rect?.width || window.innerWidth))
+    const startX = e.clientX
+    const startY = e.clientY
+    const startSizes = panelSizes
+    const startModeSizes = startSizes[mode]
+    let nextSizes = startSizes
+
+    document.body.classList.add('resizing-panel', mode === 'split' ? 'resizing-panel-vertical' : 'resizing-panel-horizontal')
+
+    const onMove = (ev) => {
+      const delta = mode === 'split'
+        ? ((ev.clientY - startY) / mainSize) * 100
+        : ((ev.clientX - startX) / mainSize) * 100
+      const nextModeSizes = { ...startModeSizes }
+
+      if (mode === 'stacked') {
+        if (boundary === 'choices-dialogue') {
+          nextModeSizes.choices = clampPanelModeValue(startModeSizes, mode, 'choices', startModeSizes.choices + delta)
+        } else {
+          nextModeSizes.avatar = clampPanelModeValue(startModeSizes, mode, 'avatar', startModeSizes.avatar - delta)
+        }
+      } else if (boundary === 'dialogue-avatar') {
+        nextModeSizes.avatar = clampPanelModeValue(startModeSizes, mode, 'avatar', startModeSizes.avatar + delta)
+      } else {
+        nextModeSizes.choices = clampPanelModeValue(startModeSizes, mode, 'choices', startModeSizes.choices - delta)
+      }
+
+      nextSizes = normalizePanelSizes({ ...startSizes, [mode]: nextModeSizes })
+      setPanelSizes(nextSizes)
+    }
+
+    const onUp = () => {
+      document.body.classList.remove('resizing-panel', 'resizing-panel-vertical', 'resizing-panel-horizontal')
+      savePanelSizes(nextSizes)
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointercancel', onUp)
+    }
+
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+    window.addEventListener('pointercancel', onUp)
+  }
 
   // 배경: 핵심 장소=고정 이미지, 그 외=AI 즉석 생성(+gen 깊이맵으로 2.5D)
   const [genBg, setGenBg] = useState({})
@@ -1923,6 +2236,10 @@ export default function Dialogue({
   // 안 그러면 자유 이동해도 인트로 씬 위치(진료소)가 계속 덮어 AI 배경 생성이 안 됨.
   const curLoc = stageLocation || session?.location
   const locationBackground = getLocationBackground(curLoc) || (curLoc ? genBg[curLoc] : null) || null
+  const missionTitle = story?.title || story?.objective || story?.name || curLoc || '잃어버린 단서를 추적한다'
+  const missionPlace = curLoc || '현재 위치 미상'
+  const companionName = gmCharacter.name || SPEAKERS.gm?.name || 'GM'
+  const companionRole = gmSpeaking || activeSpeaker === 'gm' ? '서술자 · 세계 안내자' : '상황을 관찰하는 동행자'
   useEffect(() => {
     if (!curLoc || !session?.id) return
     if (getLocationBackground(curLoc)) return            // 고정 배경 있으면 생성 안 함
@@ -1975,10 +2292,20 @@ export default function Dialogue({
     }
   }, [locationBgm?.path, locationBgm?.volume])
 
+  const dialogueStyle = {
+    '--chat-stacked-height': `${chatSize.stacked}vh`,
+    '--chat-split-width': `${chatSize.split}%`,
+    '--panel-stacked-choices': `${panelSizes.stacked.choices}%`,
+    '--panel-stacked-avatar': `${panelSizes.stacked.avatar}%`,
+    '--panel-split-avatar': `${panelSizes.split.avatar}%`,
+    '--panel-split-choices': `${panelSizes.split.choices}%`,
+    ...(locationBackground ? { '--location-bg': `url("${locationBackground}")` } : {}),
+  }
+
   return (
     <div
       className={`dialogue layout-${layoutMode}${splitLayout ? ' layout-split' : ''}${locationBackground ? ' has-location-bg' : ''}`}
-      style={locationBackground ? { '--location-bg': `url("${locationBackground}")` } : undefined}
+      style={dialogueStyle}
     >
       {locationBackground && <ParallaxBackground image={locationBackground} fx={getFx(curLoc)} />}
       {bgLoading && (
@@ -2139,63 +2466,128 @@ export default function Dialogue({
               )
             })}
           </div>
-        ) : activeSpeaker !== 'gm' && (
-          <div className="char-center" data-speaker={activeCharacter.speaker}>
+        ) : stageNpcCharacter && (
+          <div
+            className={`char-center persistent-npc${activeSpeaker === stageNpcCharacter.speaker ? ' active' : ''}`}
+            data-speaker={stageNpcCharacter.speaker}
+          >
             <Character3D
-              key={activeCharacter.speaker}
-              registerGlobalControls={true}
-              modelPath={activeCharacter.modelPath}
-              lipGain={activeCharacter.lipGain}
-              hideTeeth={activeCharacter.hideTeeth}
-              attachTeethToHead={activeCharacter.attachTeethToHead}
-              modelRotation={activeCharacter.modelRotation}
-              modelScale={activeCharacter.modelScale}
-              modelOffset={activeCharacter.modelOffset}
-              framingOffsetY={activeCharacter.framingOffsetY}
-              framingScale={activeCharacter.framingScale}
-              preferEmbeddedAnimations={activeCharacter.preferEmbeddedAnimations}
-              animations={activeCharacter.animations}
-              disableProceduralMotion={activeCharacter.disableProceduralMotion}
-              motionIntensity={activeCharacter.motionIntensity}
+              key={stageNpcCharacter.speaker}
+              registerGlobalControls={activeSpeaker === stageNpcCharacter.speaker}
+              modelPath={stageNpcCharacter.modelPath}
+              lipGain={stageNpcCharacter.lipGain}
+              hideTeeth={stageNpcCharacter.hideTeeth}
+              attachTeethToHead={stageNpcCharacter.attachTeethToHead}
+              modelRotation={stageNpcCharacter.modelRotation}
+              modelScale={stageNpcCharacter.modelScale}
+              modelOffset={stageNpcCharacter.modelOffset}
+              framingOffsetY={stageNpcCharacter.framingOffsetY}
+              framingScale={stageNpcCharacter.framingScale}
+              preferEmbeddedAnimations={stageNpcCharacter.preferEmbeddedAnimations}
+              animations={stageNpcCharacter.animations}
+              disableProceduralMotion={stageNpcCharacter.disableProceduralMotion}
+              motionIntensity={activeSpeaker === stageNpcCharacter.speaker ? stageNpcCharacter.motionIntensity : 0.18}
             />
           </div>
         )}
       </div>
 
       <div className="chat-section">
-        <div className="sp-panel sp-avatar">
-          {gmSpeaking && (
-            <div className="gm-face-popup">
-              <Character3D
-                key="gm-popup"
-                registerGlobalControls={true}
-                hideTeeth={CHARACTER_MODELS[0].hideTeeth}
-                modelPath={CHARACTER_MODELS[0].modelPath}
-                modelRotation={CHARACTER_MODELS[0].modelRotation}
-                modelScale={CHARACTER_MODELS[0].modelScale}
-                modelOffset={CHARACTER_MODELS[0].modelOffset}
-                animations={CHARACTER_MODELS[0].animations}
-                motionIntensity={CHARACTER_MODELS[0].motionIntensity}
-                cameraPosition={GM_POPUP_CAMERA_POS}
-                cameraTarget={GM_POPUP_CAMERA_TARGET}
-                cameraFov={25}
-              />
-            </div>
-          )}
+        <button
+          type="button"
+          className="chat-resize-handle"
+          onPointerDown={startChatResize}
+          onDoubleClick={resetChatSize}
+          aria-label={splitLayout ? '대화창 너비 조절' : '대화창 높이 조절'}
+          title={splitLayout ? '드래그: 대화창 너비 조절 / 더블클릭: 초기화' : '드래그: 대화창 높이 조절 / 더블클릭: 초기화'}
+        >
+          <span />
+        </button>
+        <div className="chat-deco" aria-hidden="true">
+          <div className="steam-stack stack-left">
+            <span />
+            <span />
+            <span />
+          </div>
+          <div className="steam-stack stack-right">
+            <span />
+            <span />
+            <span />
+          </div>
+          <div className="gear-cluster gear-left">
+            <span className="sp-gear gear-xl" />
+            <span className="sp-gear gear-sm reverse" />
+          </div>
+          <div className="gear-cluster gear-right">
+            <span className="sp-gear gear-md reverse" />
+            <span className="sp-gear gear-xs" />
+          </div>
+          <span className="blue-gauge gauge-left" />
+          <span className="blue-gauge gauge-right" />
+        </div>
+        <div className={`sp-panel sp-avatar${gmSpeaking || activeSpeaker === 'gm' ? ' speaking' : ''}`}>
+          <div className="sp-panel-title avatar-panel-title">
+            <span>게임 마스터</span>
+          </div>
+          <div className={`gm-face-popup${gmSpeaking || activeSpeaker === 'gm' ? ' speaking' : ''}`}>
+            <Character3D
+              key="gm-popup"
+              registerGlobalControls={gmSpeaking || activeSpeaker === 'gm'}
+              modelPath={gmCharacter.modelPath}
+              lipGain={gmCharacter.lipGain}
+              hideTeeth={gmCharacter.hideTeeth}
+              attachTeethToHead={gmCharacter.attachTeethToHead}
+              modelRotation={gmCharacter.modelRotation}
+              modelScale={gmCharacter.modelScale}
+              modelOffset={gmCharacter.modelOffset}
+              animations={gmCharacter.animations}
+              motionIntensity={gmSpeaking || activeSpeaker === 'gm' ? gmCharacter.motionIntensity : 0.18}
+              cameraPosition={GM_POPUP_CAMERA_POS}
+              cameraTarget={GM_POPUP_CAMERA_TARGET}
+              cameraFov={25}
+            />
+          </div>
+          <div className="avatar-nameplate">
+            <div className="avatar-name">{companionName}</div>
+            <div className="avatar-role">{companionRole}</div>
+            <div className="avatar-meter" aria-hidden="true"><span /></div>
+            <p>선택은 언제든 기록되고, 톱니는 조용히 다음 장면을 돌립니다.</p>
+          </div>
         </div>
 
+        <button
+          type="button"
+          className="panel-resize-handle panel-resize-dialogue-avatar"
+          onPointerDown={(e) => startPanelResize('dialogue-avatar', e)}
+          onDoubleClick={resetPanelSizes}
+          aria-label={splitLayout ? '아바타창과 대화 로그 높이 조절' : '대화 로그와 아바타창 너비 조절'}
+          title={splitLayout ? '드래그: 아바타창/대화 로그 높이 조절 / 더블클릭: 기본 비율' : '드래그: 대화 로그/아바타창 너비 조절 / 더블클릭: 기본 비율'}
+        >
+          <span />
+        </button>
+
         <div className="sp-panel sp-dialogue">
+          <div className="sp-panel-title dialogue-panel-title">
+            <span>대화 로그</span>
+          </div>
+          <div className="dialogue-console-banner">
+            {missionPlace}에서 이어지는 기록
+          </div>
         <div className="chatlog" ref={logRef}>
           {log.map((m, i) => {
             const sp = getSpeakerPresentation(m.who)
             const side = m.who === 'player' ? 'right' : 'left'
+            const messageStyle = {
+              '--speaker-color': sp.color,
+              '--speaker-name-color': sp.nameColor || sp.color,
+              '--bubble-border-color': sp.borderColor || sp.color,
+              '--bubble-background': sp.bubbleBg || sp.tint,
+              '--bubble-glow-color': sp.glow || `${sp.color}55`,
+            }
             return (
-              <div key={`${i}-${m.text.slice(0, 8)}`} className={`msg ${side}`}>
-                <div className="role" style={{ color: sp.color }}>{sp.name}</div>
-                <div className="bubble" style={{
-                  borderColor: sp.color, background: sp.tint,
-                  boxShadow: `inset ${side === 'right' ? '-3px' : '3px'} 0 0 ${sp.color}, 0 3px 10px #0005`,
-                }}>{m.text}</div>
+              <div key={`${i}-${m.text.slice(0, 8)}`} className={`msg ${side}`} style={messageStyle}>
+                <div className="role">{sp.name}</div>
+                <div className="bubble">{m.text}</div>
               </div>
             )
           })}
@@ -2209,11 +2601,44 @@ export default function Dialogue({
               placeholder={bgLoading ? 'AI가 새 장소를 그리는 중… 잠시만 기다려 주세요'
                 : (session?.id ? '메시지를 입력하세요' : '타이틀에서 게임을 시작해 주세요')}
             />
-            <button className="send" onClick={send} disabled={sending || bgLoading || !session?.id}>▶</button>
+            <button
+              className="send"
+              onClick={send}
+              disabled={sending || bgLoading || !session?.id}
+              aria-label="메시지 보내기"
+              title="메시지 보내기"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M4.4 11.8 19.7 4.7l-5.5 15.1-3.1-6.1-6.7-1.9Z" />
+                <path d="m11.1 13.7 8.6-9" />
+              </svg>
+            </button>
           </div>
         </div>
 
+        <button
+          type="button"
+          className="panel-resize-handle panel-resize-choices-dialogue"
+          onPointerDown={(e) => startPanelResize('choices-dialogue', e)}
+          onDoubleClick={resetPanelSizes}
+          aria-label={splitLayout ? '대화 로그와 임무 선택창 높이 조절' : '임무 선택창과 대화 로그 너비 조절'}
+          title={splitLayout ? '드래그: 대화 로그/임무 선택창 높이 조절 / 더블클릭: 기본 비율' : '드래그: 임무 선택창/대화 로그 너비 조절 / 더블클릭: 기본 비율'}
+        >
+          <span />
+        </button>
+
         <div className="sp-panel sp-choices">
+        <div className="sp-panel-title choices-panel-title">
+          <span>임무 & 선택</span>
+        </div>
+        <div className="mission-console-card">
+          <div className="mission-kicker">진행 중 임무</div>
+          <div className="mission-current">
+            <span className="mission-index">01</span>
+            <span>{missionTitle}</span>
+          </div>
+          <div className="mission-hint">대화를 선택하세요</div>
+        </div>
         {choiceMode && choicesCollapsed && (
           <div className="choice-minibar">
             <button type="button" className="choice-restore" onClick={() => setChoicesCollapsed(false)}>선택지 펼치기</button>
@@ -2266,7 +2691,6 @@ export default function Dialogue({
             <div className="choice-note">또는 아래 입력창에 자유롭게 행동을 적어도 됩니다.</div>
           </div>
         )}
-
         </div>
       </div>
     </div>

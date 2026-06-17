@@ -113,6 +113,9 @@ def _ensure_depth_service() -> None:
 AUDIO_DEBUG_DIR.mkdir(exist_ok=True)
 cosyvoice_client = None
 cosyvoice_lock = threading.Lock()
+# 개발/시연 기본은 Edge/Supertone만 사용한다.
+# CosyVoice 모델은 로드 비용이 커서 실수로 켜지지 않도록 서버에서 강제로 비활성화한다.
+COSYVOICE_DISABLED = True
 COSYVOICE_REPO_DIR = BASE_DIR / "external" / "CosyVoice"
 COSYVOICE_MATCHA_DIR = COSYVOICE_REPO_DIR / "third_party" / "Matcha-TTS"
 
@@ -369,6 +372,9 @@ class CharacterAnswersRequest(BaseModel):
 
 
 def get_cosyvoice_client():
+    if COSYVOICE_DISABLED:
+        raise HTTPException(status_code=503, detail="CosyVoice is disabled in this build.")
+
     global cosyvoice_client
     if cosyvoice_client is not None:
         return cosyvoice_client
@@ -430,7 +436,8 @@ def _preload_cosyvoice_client() -> None:
         logger.exception("CosyVoice preload failed")
 
 
-app.on_event("startup")(_preload_cosyvoice_client)
+# CosyVoice preload는 개발 중 렉/메모리 사용을 막기 위해 등록하지 않는다.
+# app.on_event("startup")(_preload_cosyvoice_client)
 
 
 def _cosyvoice_speaker(req: TTSRequest) -> str:
@@ -544,7 +551,8 @@ def _warmup_cosyvoice_cache() -> None:
     threading.Thread(target=worker, name="cosyvoice-warmup", daemon=True).start()
 
 
-app.on_event("startup")(_warmup_cosyvoice_cache)
+# CosyVoice warmup도 자동 실행하지 않는다.
+# app.on_event("startup")(_warmup_cosyvoice_cache)
 
 
 def _cosyvoice3_text(text: str, instruction: str) -> str:
@@ -1069,7 +1077,10 @@ def _json_safe(value: Any) -> Any:
 
 
 def _tts_provider() -> str:
-    if TTS_PROVIDER in {"cosyvoice", "edge", "supertone"}:
+    if TTS_PROVIDER == "cosyvoice" and COSYVOICE_DISABLED:
+        logger.warning("TTS_PROVIDER=cosyvoice requested, but CosyVoice is disabled; using edge")
+        return "edge"
+    if TTS_PROVIDER in {"edge", "supertone"}:
         return TTS_PROVIDER
     logger.warning("Unknown TTS_PROVIDER=%s; using edge", TTS_PROVIDER)
     return "edge"
@@ -1093,6 +1104,8 @@ def _tts_extension(provider: str) -> str:
 
 def _synthesize_tts_provider(req: TTSRequest, provider: str, out_path: Path) -> str:
     if provider == "cosyvoice":
+        if COSYVOICE_DISABLED:
+            raise HTTPException(status_code=503, detail="CosyVoice is disabled in this build.")
         return synthesize_cosyvoice(req, out_path)
     if provider == "supertone":
         return synthesize_supertone_tts(req, out_path)

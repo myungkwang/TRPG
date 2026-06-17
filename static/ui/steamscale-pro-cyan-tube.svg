@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 360">
+  <defs>
+    <linearGradient id="tube" x1="0" x2="1">
+      <stop offset="0" stop-color="#050706"/>
+      <stop offset=".25" stop-color="#6b421b"/>
+      <stop offset=".5" stop-color="#e5a84c"/>
+      <stop offset=".75" stop-color="#2d1b0b"/>
+      <stop offset="1" stop-color="#020202"/>
+    </linearGradient>
+    <radialGradient id="cyan" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="18%" stop-color="#a8fff8"/>
+      <stop offset="42%" stop-color="#11e9dd"/>
+      <stop offset="100%" stop-color="#023432"/>
+    </radialGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect x="42" y="0" width="36" height="360" rx="18" fill="url(#tube)"/>
+  <rect x="30" y="26" width="60" height="308" rx="24" fill="#070808" stroke="#b57b35" stroke-width="5"/>
+  <rect x="39" y="44" width="42" height="272" rx="18" fill="url(#cyan)" filter="url(#glow)" opacity=".92"/>
+  <rect x="51" y="62" width="12" height="236" rx="6" fill="#eaffff" opacity=".8"/>
+  <g fill="#0b0b09" stroke="#d49a47" stroke-width="4">
+    <rect x="24" y="28" width="72" height="22" rx="6"/>
+    <rect x="24" y="310" width="72" height="22" rx="6"/>
+    <rect x="22" y="148" width="76" height="18" rx="6"/>
+    <rect x="22" y="190" width="76" height="18" rx="6"/>
+  </g>
+</svg>
