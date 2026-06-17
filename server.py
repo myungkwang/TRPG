@@ -328,6 +328,8 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 class ChatRequest(BaseModel):
     session_id: str
     message: str
+    # 1:1 대화 상대 NPC speaker id(프론트 activeSpeaker). 있으면 GM이 그 NPC 대사를 가로채지 않는다.
+    focus_npc: str | None = None
 
 
 class MoveRequest(BaseModel):
@@ -1531,14 +1533,15 @@ def chat(
 
     assert_session_owner(req.session_id, user_id)
 
-    result = gm_reply(req.session_id, message)
+    focus_npc = req.focus_npc if req.focus_npc and req.focus_npc != "gm" else None
+    result = gm_reply(req.session_id, message, focus_npc)
     answer = result["answer"]
     choices = result.get("choices", [])
 
     return {
         "answer": answer,
         "choices": choices,
-        "segments": dialogue.split_segments(answer),
+        "segments": dialogue.split_segments(answer, focus_npc),
         "session": public_session(req.session_id),
         "story": story.current_scene(req.session_id),
     }
@@ -1561,13 +1564,15 @@ def chat_stream(
 
     assert_session_owner(req.session_id, user_id)
 
+    focus_npc = req.focus_npc if req.focus_npc and req.focus_npc != "gm" else None
+
     def events():
         # TTFB(가이드 §2-1): 요청~첫 응답 청크 시각차. 평가 하네스(eval/metrics_system.py)가 로그를 집계한다.
         import time as _time
         t_start = _time.time()
         first_emitted = False
         try:
-            for event in gm_reply_stream(req.session_id, message):
+            for event in gm_reply_stream(req.session_id, message, focus_npc):
                 event_type = event.get("type", "message")
                 if not first_emitted:
                     first_emitted = True

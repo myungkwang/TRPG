@@ -84,7 +84,7 @@ def _push(segments: list[dict], role: str, speaker: str | None, body: str) -> No
     segments.append({"role": role, "speaker": speaker, "text": body})
 
 
-def _split_quoted_speech(text: str) -> list[dict]:
+def _split_quoted_speech(text: str, current_npc: str | None = None) -> list[dict]:
     source = (text or "").strip()
     if not source:
         return []
@@ -108,18 +108,28 @@ def _split_quoted_speech(text: str) -> list[dict]:
         speaker = _infer_speaker_from_context(source[:i])
         quote = source[i + 1:end]
         if speaker:
+            # 인용문 직전 문맥에서 추론된 화자(다른 NPC 인용 포함)는 그대로 존중.
             _push(segments, "npc", speaker, quote)
+        elif current_npc:
+            # 1:1 대화 중 화자 미추론 인용문은 GM이 가로채지 않고 현재 NPC 발화로 귀속.
+            _push(segments, "npc", current_npc, quote)
         else:
             _push(segments, "gm", None, quote)
 
         cursor = end + 1
         i = end + 1
 
+    # 인용 없는 순수 서술 prose는 장면 묘사로 보고 GM 유지.
     _push(segments, "gm", None, source[cursor:])
     return segments or [{"role": "gm", "speaker": None, "text": source}]
 
 
-def split_segments(text: str) -> list[dict]:
+def split_segments(text: str, current_npc: str | None = None) -> list[dict]:
+    """LLM 답변을 GM/NPC 세그먼트로 분리.
+
+    current_npc 가 주어지면(프론트 activeSpeaker 기반 1:1 대화 상대) 화자를 추론하지
+    못한 인용문을 GM 대신 그 NPC 발화로 귀속한다. None 이면 기존 동작 그대로.
+    """
     source = (text or "").strip()
     if not source:
         return []
@@ -151,7 +161,7 @@ def split_segments(text: str) -> list[dict]:
     segments: list[dict] = []
     for segment in raw_segments:
         if segment["role"] == "gm":
-            for quoted in _split_quoted_speech(segment["text"]):
+            for quoted in _split_quoted_speech(segment["text"], current_npc):
                 _push(segments, quoted["role"], quoted.get("speaker"), quoted["text"])
         else:
             _push(segments, segment["role"], segment.get("speaker"), segment["text"])

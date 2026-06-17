@@ -367,9 +367,34 @@ def _stream_boundary_index(buffer: str) -> int | None:
     return None
 
 
-def _segments_from_stream_piece(piece: str) -> list[dict]:
+def _focus_npc_name(focus_npc: str) -> str:
+    """NPC speaker id('gail' 등)를 프롬프트용 한글 이름('가일')으로 변환."""
+    for name, sid in dialogue.NPC_SPEAKERS.items():
+        if sid == focus_npc:
+            return name
+    return focus_npc
+
+
+def _focus_system_message(focus_npc: str | None) -> dict | None:
+    """1:1 대화 상대가 있으면 GM이 그 NPC 대사를 가로채지 않도록 지시하는 system 메시지."""
+    if not focus_npc:
+        return None
+    name = _focus_npc_name(focus_npc)
+    return {
+        "role": "system",
+        "content": (
+            f"[1:1 대화 모드] 지금 플레이어는 '{name}'와(과) 직접 대화 중이다. "
+            f"'{name}'이(가) 하는 말은 반드시 「{name}: ...」 라벨이나 따옴표로 표기하고, "
+            f"그 대사를 GM 서술로 대신 풀어 쓰지 마라. "
+            f"순수한 장면 묘사·행동 서술만 GM(나레이션)으로 작성한다. "
+            f"문맥상 다른 인물이 말하는 부분은 그 인물 이름으로 표기한다."
+        ),
+    }
+
+
+def _segments_from_stream_piece(piece: str, current_npc: str | None = None) -> list[dict]:
     segments = []
-    for segment in dialogue.split_segments(piece):
+    for segment in dialogue.split_segments(piece, current_npc):
         text = (segment.get("text") or "").strip()
         if not text:
             continue
@@ -382,7 +407,7 @@ def _segments_from_stream_piece(piece: str) -> list[dict]:
     return segments
 
 
-def _drain_stream_segments(buffer: str, final: bool = False) -> tuple[list[dict], str]:
+def _drain_stream_segments(buffer: str, final: bool = False, current_npc: str | None = None) -> tuple[list[dict], str]:
     pending = buffer or ""
     drained: list[dict] = []
 
@@ -393,7 +418,7 @@ def _drain_stream_segments(buffer: str, final: bool = False) -> tuple[list[dict]
         piece = pending[:boundary].strip()
         pending = pending[boundary:].lstrip()
         if piece:
-            drained.extend(_segments_from_stream_piece(piece))
+            drained.extend(_segments_from_stream_piece(piece, current_npc))
         if final:
             break
 
@@ -403,7 +428,7 @@ def _drain_stream_segments(buffer: str, final: bool = False) -> tuple[list[dict]
 def _finalize_gm_answer(session_id: str, user_input: str, answer: str, contexts: list, tool_log: list) -> dict:
     if os.getenv("GM_DEBUG") and tool_log:
         for t in tool_log:
-            print(f"   쨌 [?꾧뎄] {t['tool']}({t['args']}) ??{t['result']}", flush=True)
+            print(f"   · [도구] {t['tool']}({t['args']}) → {t['result']}", flush=True)
 
     if not any(t.get("tool") == "set_location" for t in tool_log):
         moved = _detect_move_target(user_input)
@@ -426,12 +451,12 @@ def _finalize_gm_answer(session_id: str, user_input: str, answer: str, contexts:
     return {"answer": body, "choices": choices}
 
 
-def gm_reply_stream(session_id: str, user_input: str):
+def gm_reply_stream(session_id: str, user_input: str, focus_npc: str | None = None):
     session = load_session(session_id)
     contexts = retrieve_context(user_input, limit=5)
 
     context_text = "\n\n".join(
-        f"[異쒖쿂:{c['document_title']} / {c['section_title']} / ?좎궗??{c['similarity']:.3f}]\n{c['content']}"
+        f"[출처:{c['document_title']} / {c['section_title']} / 유사도:{c['similarity']:.3f}]\n{c['content']}"
         for c in contexts
     )
 
@@ -442,10 +467,10 @@ def gm_reply_stream(session_id: str, user_input: str):
             "mp": session["mp"],
             "stamina": session["stamina"],
             "stats": {
-                "??": session["str"],
-                "誘쇱꺽": session["dex"],
-                "吏??": session["int_stat"],
-                "留ㅻ젰": session["cha"],
+                "힘": session["str"],
+                "민첩": session["dex"],
+                "지능": session["int_stat"],
+                "매력": session["cha"],
             },
             "talent_grade": session["talent_grade"],
             "job": session["job"],
@@ -460,11 +485,14 @@ def gm_reply_stream(session_id: str, user_input: str):
     messages: list = [
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "system", "content": PERSONA_CONTEXT},
-        {"role": "system", "content": f"?꾩옱 ?몄뀡 ?곹깭:\n{state_text}"},
-        {"role": "system", "content": f"RAG 而⑦뀓?ㅽ듃:\n{context_text}"},
+        {"role": "system", "content": f"현재 세션 상태:\n{state_text}"},
+        {"role": "system", "content": f"RAG 컨텍스트:\n{context_text}"},
         *recent_history(session_id),
         {"role": "user", "content": user_input},
     ]
+    _focus_msg = _focus_system_message(focus_npc)
+    if _focus_msg:
+        messages.insert(-1, _focus_msg)
 
     tool_log: list = []
     answer_parts: list[str] = []
@@ -513,7 +541,7 @@ def gm_reply_stream(session_id: str, user_input: str):
                 body_buffer = body_buffer[:choice_match.start()]
                 choices_started = True
 
-            segments, body_buffer = _drain_stream_segments(body_buffer)
+            segments, body_buffer = _drain_stream_segments(body_buffer, current_npc=focus_npc)
             for segment in segments:
                 emitted_segments.append(segment)
                 yield {"type": "segment", "segment": segment}
@@ -557,12 +585,12 @@ def gm_reply_stream(session_id: str, user_input: str):
             if choice_match:
                 body_buffer = body_buffer[:choice_match.start()]
                 choices_started = True
-            segments, body_buffer = _drain_stream_segments(body_buffer)
+            segments, body_buffer = _drain_stream_segments(body_buffer, current_npc=focus_npc)
             for segment in segments:
                 emitted_segments.append(segment)
                 yield {"type": "segment", "segment": segment}
 
-    for segment in _drain_stream_segments(body_buffer, final=True)[0]:
+    for segment in _drain_stream_segments(body_buffer, final=True, current_npc=focus_npc)[0]:
         emitted_segments.append(segment)
         yield {"type": "segment", "segment": segment}
 
@@ -572,7 +600,7 @@ def gm_reply_stream(session_id: str, user_input: str):
         "type": "final",
         "answer": result["answer"],
         "choices": result["choices"],
-        "segments": emitted_segments or dialogue.split_segments(result["answer"]),
+        "segments": emitted_segments or dialogue.split_segments(result["answer"], focus_npc),
     }
 
 
@@ -592,7 +620,7 @@ def _humanize_inventory(inventory) -> dict:
     return out
 
 
-def gm_reply(session_id: str, user_input: str) -> dict:
+def gm_reply(session_id: str, user_input: str, focus_npc: str | None = None) -> dict:
     session = load_session(session_id)
     contexts = retrieve_context(user_input, limit=5)
 
@@ -631,6 +659,9 @@ def gm_reply(session_id: str, user_input: str) -> dict:
         *recent_history(session_id),
         {"role": "user", "content": user_input},
     ]
+    _focus_msg = _focus_system_message(focus_npc)
+    if _focus_msg:
+        messages.insert(-1, _focus_msg)
 
     # 툴 호출 루프: GM이 roll_check/set_flag 를 부르면 실행해 결과를 돌려주고,
     # 더 부를 게 없으면(최종 서술) 빠져나온다.

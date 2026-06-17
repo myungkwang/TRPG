@@ -346,6 +346,7 @@ export default function EvalPanel({ onClose }) {
               animations={sweepModel.animations}
               motionIntensity={sweepModel.motionIntensity}
               hideTeeth={sweepModel.hideTeeth}
+              attachTeethToHead={sweepModel.attachTeethToHead}
               disableProceduralMotion={sweepModel.disableProceduralMotion}
               lipGain={sweepModel.lipGain}
             />

@@ -108,25 +108,25 @@ export async function apiLoadSession(sessionId) {
   })
 }
 
-export async function apiChat(sessionId, message) {
+export async function apiChat(sessionId, message, focusNpc = null) {
   return fetchJson('/api/chat', {
     method: 'POST',
     headers: {
       ...JSON_HEADERS,
       ...authHeaders(),
     },
-    body: JSON.stringify({ session_id: sessionId, message }),
+    body: JSON.stringify({ session_id: sessionId, message, focus_npc: focusNpc }),
   })
 }
 
-export async function apiChatStream(sessionId, message, onEvent) {
+export async function apiChatStream(sessionId, message, onEvent, focusNpc = null) {
   const response = await fetch('/api/chat/stream', {
     method: 'POST',
     headers: {
       ...JSON_HEADERS,
       ...authHeaders(),
     },
-    body: JSON.stringify({ session_id: sessionId, message }),
+    body: JSON.stringify({ session_id: sessionId, message, focus_npc: focusNpc }),
   })
 
   if (response.status === 401) {
