@@ -1307,11 +1307,19 @@ export default function Character3D({
         normalizeModel(modelRoot)
         collectMorphMeshes(modelRoot)
         collectMotionBones(modelRoot)
-        // 이빨이 별도 메시인 모델(Gail/Lin: Low_Teeth*)은 hideTeeth로 그 메시만 숨긴다.
-        // (단일 본체 메시에 이빨이 합쳐진 모델은 코드로 분리 불가 — 모델 수정 필요)
+        // 이름이 teeth/tooth인 별도 메시(Gail/Lin: Low_Teeth*) + 머티리얼명이 inner-mouth
+        // (Teeth / Teeth Flesh / Mouth Inside)인 서브메시(GM_v3_27: 본체 메시가 material별로
+        // primitive 분리됨)를 함께 숨긴다. GM_v3_27의 'Teeth Flesh'(적갈색)는 스킨 웨이트 불량으로
+        // idle 애니가 적용되면 입 앞으로 튀어나와 '갈색 공'처럼 보였다. 입모양은 morph로 구동하므로
+        // 안쪽 입 메시는 숨겨도 무방하다.
         if (hideTeeth) {
+          const isInnerMouth = (obj) => {
+            if (/teeth|tooth/i.test(obj.name || '')) return true
+            const mat = obj.material?.name || ''
+            return /^teeth/i.test(mat) || /mouth\s*inside/i.test(mat)
+          }
           modelRoot.traverse((obj) => {
-            if (obj.isMesh && /teeth|tooth/i.test(obj.name || '')) obj.visible = false
+            if (obj.isMesh && isInnerMouth(obj)) obj.visible = false
           })
         }
         // 별도 이빨 메시(일반 Mesh)는 skinning 안 돼 head본 회전을 안 따라간다.

@@ -216,7 +216,7 @@ export const CHARACTER_MODELS = [
     speaker: 'gm',
     personaId: 'gm',
     name: SPEAKERS.gm?.name || 'GM',
-    modelPath: '/static/models/GM_v3_17.glb',
+    modelPath: '/static/models/GM_v3_27.glb',
     modelScale: 0.75,
     modelOffset: [0, -130, 0],
     animations: {
@@ -224,6 +224,7 @@ export const CHARACTER_MODELS = [
       talk: '/static/animations/npc/gm_acknowledging.glb',
     },
     motionIntensity: 0.6,
+    hideTeeth: true,  // GM_v3_27 안쪽 입(Teeth Flesh) 서브메시가 idle 애니 때 입 앞으로 튀어 '갈색 공'으로 보임 → 숨김
   },
   {
     speaker: 'lin',
@@ -2369,6 +2370,7 @@ export default function Dialogue({
             <Character3D
               key={`inspect-${inspectCharacter.speaker}`}
               modelPath={inspectCharacter.modelPath}
+              hideTeeth={inspectCharacter.hideTeeth}
               modelRotation={inspectCharacter.modelRotation}
               modelScale={inspectCharacter.modelScale}
               modelOffset={inspectCharacter.modelOffset}

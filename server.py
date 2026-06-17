@@ -163,25 +163,25 @@ COSYVOICE_SPEED = max(0.75, min(1.35, COSYVOICE_SPEED))
 COSYVOICE_SPEAKERS = {
     # 값(value)은 반드시 모델 spk2info.pt 에 실제 존재하는 화자 ID 여야 한다.
     # eval_model 보유 화자: char_doctor/char_gail/char_gm/char_kargas/char_marta/
-    #   char_miner/char_nurse/char_rin/char_tavern_clerk/char_toby (린=char_rin, 토비=char_toby)
+    #   char_miner/char_nurse/char_lin/char_tavern_clerk/char_tobi (린=char_lin, 토비=char_tobi)
     "doctor": "char_doctor",
     "gm": COSYVOICE_GM_SPEAKER,
     "gail": "char_gail",
     "kargas": "char_kargas",
     "marta": "char_marta",
-    "lin": "char_rin",
-    "rin": "char_rin",
-    "tobi": "char_toby",
-    "toby": "char_toby",
+    "lin": "char_lin",
+    "rin": "char_lin",
+    "tobi": "char_tobi",
+    "toby": "char_tobi",
     "nurse": "char_nurse",
     "miner": "char_miner",
     "tavern": "char_tavern_clerk",
     "tavern_clerk": "char_tavern_clerk",
     "char_gm": "char_gm",
-    "char_rin": "char_rin",
-    "char_toby": "char_toby",
-    "char_lin": "char_rin",
-    "char_tobi": "char_toby",
+    "char_rin": "char_lin",
+    "char_toby": "char_tobi",
+    "char_lin": "char_lin",
+    "char_tobi": "char_tobi",
 }
 
 TTS_PROVIDER = os.getenv("TTS_PROVIDER", "edge").strip().lower()
@@ -2021,7 +2021,8 @@ def me(user_id: str = Depends(get_user_id_from_token)):
 EVAL_JOBS: dict[str, dict[str, Any]] = {}
 EVAL_WHISPER_MODEL = os.getenv("EVAL_WHISPER_MODEL", "large-v3").strip() or "large-v3"
 EVAL_JUDGE_MODEL = os.getenv("EVAL_JUDGE_MODEL", "gpt-4o").strip() or "gpt-4o"
-EVAL_JUDGE_REPEAT = int(os.getenv("EVAL_JUDGE_REPEAT", "3") or "3")
+# 무료 등급(Gemini 등) RPM 제한 대비 기본 1회. 안정적인 평균이 필요하면 .env 에서 2~3 으로 올린다.
+EVAL_JUDGE_REPEAT = int(os.getenv("EVAL_JUDGE_REPEAT", "1") or "1")
 
 
 def _eval_completion_rate() -> dict[str, Any]:
@@ -2043,12 +2044,11 @@ def _eval_worker(job_id: str) -> None:
     job = EVAL_JOBS[job_id]
     try:
         import llm
-        from openai import OpenAI
         import whisper
 
         job["stage"] = "loading_whisper"
         whisper_model = whisper.load_model(EVAL_WHISPER_MODEL)
-        judge = OpenAI()
+        judge = eval_service.make_judge_client()   # EVAL_JUDGE_BASE_URL 설정 시 Gemini 등으로 전환
         provider = _tts_provider()
         ext = _tts_extension(provider)
         out_dir = EVAL_OUT_DIR / job_id
@@ -2071,15 +2071,39 @@ def _eval_worker(job_id: str) -> None:
             wav_path = out_dir / f"{npc['key']}.{ext}"
             _synthesize_tts_provider(TTSRequest(text=line, speaker=npc["voice"]), provider, wav_path)
             speech = eval_service.cer_score(whisper_model, str(wav_path), line)
+            # 4) 음성 화자정합: 방금 합성한 wav 의 f0 로 성별 대역/발화내 안정성 측정(추가 합성 없음)
+            expected_gender = eval_service.SPEAKER_GENDER.get(npc["key"], "male")
+            voice = eval_service.voice_metrics(str(wav_path), expected_gender)
 
             results.append({
                 "key": npc["key"], "name": npc["name"], "label": npc["label"],
                 "voice": npc["voice"], "line": line,
-                "g_eval": g_eval, "speech": speech,
+                "g_eval": g_eval, "speech": speech, "voice_metrics": voice,
                 "lipsync": {"status": "pending_client"},   # 클라이언트 실측 대기
                 "audio_url": f"/static/eval/{job_id}/{wav_path.name}",
             })
             job["results"] = results
+
+        # (B)(C) 견고성·멀티턴은 실제 게임 응답경로(gm_reply)로 측정한다.
+        #  - 세션 생성 + RAG 검색 + 툴 호출 포함 → 프록시(llm.chat)보다 충실.
+        #  - make_responder(): 새 세션에 묶인 respond(text)->str 팩토리.
+        #    견고성=프로브마다 새 세션(독립), 멀티턴=한 세션 유지(맥락).
+        from gm_cli import create_session as _create_session, gm_reply as _gm_reply
+        try:
+            from gm_cli import SYSTEM_PROMPT as _GM_PROMPT
+        except Exception:  # noqa: BLE001
+            _GM_PROMPT = "한국어 AI TRPG '증기와 비늘'의 게임마스터. 화자 라벨과 선택지 형식을 지킨다."
+
+        def _make_session_responder():
+            sid = _create_session()
+            def respond(text: str) -> str:
+                return (_gm_reply(sid, text) or {}).get("answer", "")
+            return respond
+
+        job["stage"] = "robustness"
+        job["robustness"] = eval_service.run_robustness(_make_session_responder, judge, EVAL_JUDGE_MODEL, _GM_PROMPT, EVAL_JUDGE_REPEAT)
+        job["stage"] = "multiturn"
+        job["multiturn"] = eval_service.run_multiturn(_make_session_responder, judge, EVAL_JUDGE_MODEL, _GM_PROMPT, EVAL_JUDGE_REPEAT)
 
         job["stage"] = "rendering_charts"
         charts = eval_service.render_charts(results, out_dir)
@@ -2107,6 +2131,8 @@ def eval_run(user_id: str = Depends(get_user_id_from_token)) -> dict[str, Any]:
         "results": [],
         "charts": {},
         "summary": None,
+        "robustness": None,
+        "multiturn": None,
         "completion": None,
         "error": None,
     }

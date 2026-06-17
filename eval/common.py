@@ -53,3 +53,51 @@ def read_json(path: Path):
 
 def env(name: str, default: str = "") -> str:
     return os.getenv(name, default).strip()
+
+
+def make_judge_client():
+    """채점관용 OpenAI 호환 클라이언트.
+
+    EVAL_JUDGE_BASE_URL 을 주면 Gemini 등 OpenAI 호환 엔드포인트로 전환된다.
+    - Gemini 무료키: EVAL_JUDGE_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/
+                     EVAL_JUDGE_API_KEY=<AI Studio 키>,  EVAL_JUDGE_MODEL=gemini-2.0-flash
+    키는 EVAL_JUDGE_API_KEY 우선, 없으면 OPENAI_API_KEY.
+    """
+    from openai import OpenAI
+    base_url = env("EVAL_JUDGE_BASE_URL")
+    api_key = env("EVAL_JUDGE_API_KEY") or env("OPENAI_API_KEY")
+    kwargs = {}
+    if api_key:
+        kwargs["api_key"] = api_key
+    if base_url:
+        kwargs["base_url"] = base_url
+    return OpenAI(**kwargs)
+
+
+def _extract_json(text: str) -> dict:
+    """모델 출력에서 JSON 추출. 코드펜스/잡설이 섞여도 첫 {...} 블록을 파싱."""
+    import re
+    t = (text or "").strip()
+    if t.startswith("```"):
+        t = re.sub(r"^```[a-zA-Z]*\n?", "", t)
+        t = re.sub(r"\n?```$", "", t).strip()
+    try:
+        return json.loads(t)
+    except Exception:  # noqa: BLE001
+        m = re.search(r"\{.*\}", t, re.DOTALL)
+        if m:
+            return json.loads(m.group(0))
+        raise
+
+
+def judge_json(client, model: str, prompt: str) -> dict:
+    """채점관 호출 + JSON 파싱. response_format(json_object) 미지원 모델이면 옵션을 빼고 자동 재시도."""
+    msgs = [{"role": "user", "content": prompt}]
+    try:
+        r = client.chat.completions.create(
+            model=model, messages=msgs, temperature=0,
+            response_format={"type": "json_object"})
+        return _extract_json(r.choices[0].message.content)
+    except Exception:  # noqa: BLE001
+        r = client.chat.completions.create(model=model, messages=msgs, temperature=0)
+        return _extract_json(r.choices[0].message.content)

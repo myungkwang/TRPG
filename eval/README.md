@@ -12,11 +12,17 @@
    ▼
 [제품 = 블랙박스]  gm_reply(LLM) · CosyVoice/Edge TTS · Character3D 립싱크
    │ 텍스트 ───────► (A) GPT-4o Judge      → run_dialogue.py + g_eval.py
+   │ 텍스트(멀티턴)► (A') 멀티턴 일관성 채점 → run_multiturn.py + g_eval_multiturn.py
    │ 음성   ───────► (B) Whisper STT        → synth_tts.py + speech_eval.py
+   │ 음성(화자정합)► (E) f0 성별/안정성/구분 → voice_eval.py
    │ 립싱크 ───────► (C) mouth_open↔RMS 상관 → lipsync_eval.py
    ▼
 화면      ◄──────── (D) 서버 로그/DB         → metrics_system.py (TTFB·완료율·FPS)
 ```
+
+> (A') 멀티턴·(E) 화자정합은 단일턴 G-Eval(텍스트)·CER(발음)이 못 잡는 축을 보강한다.
+> - (A') 긴 대화에서 페르소나 드리프트/맥락 유지 — 오프토픽·역할해제 요구에 흔들리는지.
+> - (E) "남자가 여자 목소리/발화 중 톤 바뀜/전 화자 동일 목소리" 같은 음성 정합 문제.
 
 ## 설치
 
@@ -35,16 +41,25 @@ pip install -r eval/requirements.txt
 산출물은 모두 `eval/outputs/` 에 떨어진다.
 
 ```bash
-# 0) 테스트셋은 eval/testset.jsonl 에 이미 있음 (30문, 일상40/전문30/엣지20/위험10)
+# 0) 테스트셋: eval/testset.jsonl (38문 — 일상12/전문9/엣지6/위험3/오프토픽4/탈주4)
+#            eval/testset_multiturn.jsonl (멀티턴 대화 3건)
 
 # A) 대화 품질 (G-Eval) -----------------------------------------
 python eval/run_dialogue.py        # testset → 제품 gm_reply → outputs/dialogue.jsonl (TTFB도 같이 잰다)
 python eval/g_eval.py              # GPT-4o 채점관(temperature=0, 3회 평균) → outputs/g_eval.json
 
+# A') 멀티턴 일관성 -------------------------------------------
+python eval/run_multiturn.py       # 한 세션에서 여러 턴 → outputs/dialogue_multiturn.jsonl
+python eval/g_eval_multiturn.py    # 전사 전체를 일관성/드리프트저항/맥락유지로 채점 → outputs/g_eval_multiturn.json
+
 # B) 음성 품질 (CER/WER) ----------------------------------------
 #    서버를 띄우고(EVAL_BASE_URL), 로그인 토큰을 EVAL_TOKEN 에 넣는다.
 python eval/synth_tts.py           # dialogue 응답 → /api/tts → outputs/audio/*.wav
 python eval/speech_eval.py         # Whisper 되받아쓰기 → CER/WER → outputs/speech.json
+
+# E) 화자 음성 정합 (성별/안정성/구분도) ------------------------
+#    서버+토큰 필요(화자별 프로브를 /api/tts 로 합성). 이미 합성된 wav 만 분석하려면 --analyze-only.
+python eval/voice_eval.py          # 화자별 f0 → 성별 대역/발화내 안정성/화자 구분도 → outputs/voice.json
 
 # C) 립싱크 (§5-B) ----------------------------------------------
 #    브라우저에서 window.__LIPSYNC_LOG__=true 로 켜고 발화시킨 뒤,
@@ -75,6 +90,9 @@ python eval/report.py              # 위 결과 전부 모아 outputs/report.md 
 | 지표 | 목표 |
 |---|---|
 | G-Eval 일관성/유용성/자연스러움 (1~5) | ≥ 4.0 |
+| 멀티턴 일관성/드리프트저항/맥락유지 (1~5) | ≥ 4.0 |
+| 음성 성별 정합률 | = 1.0 (전 화자 기대 성별 대역 내) |
+| 음성 발화내 톤 불안정 화자수 / 거의 같은 목소리 쌍 | 0 |
 | CER | ≤ 0.10 |
 | 립싱크 상관계수 | ≥ 0.7 |
 | 립싱크 지연 | ±100ms 이내 |
