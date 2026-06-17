@@ -451,9 +451,13 @@ export default function Character3D({
       // 본 이름에 _N 접미사가 있으면 중복 골격 export(three.js dedup 흔적)
       const suffixed = primary.skeleton.bones.some((b) => baseBoneName(b.name) !== b.name)
       if (!suffixed) return   // 정상 모델(가일·GM·린·의사 등) → 손대지 않음(회귀 없음)
-      if (skinned.length > 1) {
-        skinned.forEach((m) => { if (m !== primary) m.removeFromParent() })
-        console.log('[Character3D Dedup] 겹친 SkinnedMesh', skinned.length, '벌 →', primary.name, '1벌만 유지')
+      // 같은 골격(=같은 bones[0])을 공유하는 SkinnedMesh는 본체의 primitive(몸·이빨·입안 등)이므로 유지.
+      // bones[0]이 다른 것만 '겹친 복제 골격 사본'이라 제거한다. (이빨 primitive가 지워지던 버그 수정)
+      const primaryRoot = primary.skeleton.bones[0]
+      const dups = skinned.filter((m) => m !== primary && m.skeleton.bones[0] !== primaryRoot)
+      if (dups.length) {
+        dups.forEach((m) => m.removeFromParent())
+        console.log('[Character3D Dedup] 복제 골격 사본', dups.length, '개 제거 (primitive는 유지)')
       }
       animNameMap = {}
       primary.skeleton.bones.forEach((b) => { animNameMap[baseBoneName(b.name)] = b.name })

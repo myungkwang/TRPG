@@ -1486,6 +1486,18 @@ _LOC_SCENES: list[tuple[str, str, str]] = [
     ("광산", "a foggy mine entrance carved into a rocky mountainside, a timber-framed adit, ore carts and rails, "
              "scattered mining gear, drifting grey fog, gloomy",
              "interior hall, pagoda, asian temple, bright, sunny, clear sky"),
+    ("봉우리", "a windswept ash-grey mountain summit shrouded in drifting grey fog, jagged rocky peaks and a high "
+              "cliff ledge, a great dragon nest of broken timber bones and stone, glowing pale-blue spirit-stone veins, ominous gloom",
+              "pagoda, asian temple, building interior, bright, sunny, clear blue sky, lush green forest"),
+    ("정상", "a windswept ash-grey mountain summit shrouded in drifting grey fog, jagged rocky peaks and a high "
+            "cliff ledge, a great dragon nest of broken timber and stone, glowing pale-blue spirit-stone veins, ominous gloom",
+            "pagoda, asian temple, building interior, bright, sunny, clear blue sky, lush green forest"),
+    ("카르가스", "a windswept ash-grey mountain summit with a vast dragon nest of broken timber and bone, jagged "
+               "peaks, drifting grey fog, glowing pale-blue spirit-stone veins, ominous gloom",
+               "pagoda, asian temple, building interior, bright, sunny, clear blue sky, lush green"),
+    ("둥지", "a vast dragon nest atop an ash-grey mountain crag, ringed by broken timber bones and stone, drifting "
+            "grey fog, glowing pale-blue spirit-stone veins, ominous gloom",
+            "pagoda, asian temple, building interior, bright, sunny, clear blue sky, lush green"),
     ("암시장", "a narrow back-alley night bazaar packed wall-to-wall with crowded covered market stalls, contraband "
               "crates and barrels, hanging lanterns and goods overhead, caged pale-blue spirit-stone shards, hushed illicit gloom",
               "empty street, plain houses, pagoda, daytime, bright, clean, festival"),
