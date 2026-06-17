@@ -278,8 +278,11 @@ export const CHARACTER_MODELS = [
     modelPath: '/static/models/Doctor_09_textureFixed.glb',
     modelScale: 0.75,
     modelOffset: [0, 40, 0],
-    preferEmbeddedAnimations: true,
-    motionIntensity: 0.45,
+    // 의사 GLB엔 내장 idle 클립이 없어 T포즈로 떴음. 골격이 mixamorig 공용 NPC 골격(가일과 동일,
+    // 34/41본 일치·나머지는 말단 leaf본)이라 가일/마르타/토비가 쓰는 NPC_ANIMS로 idle을 입힌다.
+    // 애니는 본 회전만 바꾸므로 modelScale 0.75(=현재 비율)은 그대로 유지된다.
+    animations: NPC_ANIMS,
+    disableProceduralMotion: true,
     attachTeethToHead: true,   // 의사도 별도 이빨 메시를 head본에 attach → 얼굴 따라감
   },
   {

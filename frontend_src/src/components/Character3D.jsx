@@ -412,9 +412,10 @@ export default function Character3D({
       oh_viseme: 0,
       oo_viseme: 0,
       viseme_PP: 0,
-      mouthClose: 0,
+      mouthFrimlyClose: 0,
       mouthPucker: 0,
-      mouthFunnel: 0,
+      mouthNarrow: 0,
+      mouthWideOpen: 0,
       mouthSmile_L: 0,
       mouthSmile_R: 0,
     }
@@ -434,6 +435,41 @@ export default function Character3D({
           console.log('[Character3D Morph Mesh]', obj.name, obj.morphTargetDictionary)
         }
       })
+    }
+
+    // 애니마다 armature가 딸려 export된 모델(Marta/Tobi 등)은 동일 메시·골격이 여러 벌 겹쳐 들어온다.
+    // three.js는 중복 본 이름에 _N 접미사를 붙여(mixamorig:Hips → mixamorigHips_2), 단일 골격으로
+    // 구운 외부 idle 클립(트랙명 mixamorigHips …)이 이름 불일치로 바인딩되지 않아 T포즈가 된다.
+    // → (1) 겹친 SkinnedMesh 사본을 1벌만 남기고, (2) 외부 클립 트랙을 남긴 골격의 실제 본 이름으로 리타깃.
+    let animNameMap = null   // {base 본이름 → 실제(접미사 포함) 본이름}. null이면 정상 모델(리타깃 불필요).
+    const baseBoneName = (n) => n.replace(/_\d+$/, '')
+    const dedupeSkeletons = (root) => {
+      const skinned = []
+      root.traverse((o) => { if (o.isSkinnedMesh && o.skeleton?.bones?.length) skinned.push(o) })
+      if (!skinned.length) return
+      const primary = skinned.find((m) => m.morphTargetDictionary) || skinned[0]
+      // 본 이름에 _N 접미사가 있으면 중복 골격 export(three.js dedup 흔적)
+      const suffixed = primary.skeleton.bones.some((b) => baseBoneName(b.name) !== b.name)
+      if (!suffixed) return   // 정상 모델(가일·GM·린·의사 등) → 손대지 않음(회귀 없음)
+      if (skinned.length > 1) {
+        skinned.forEach((m) => { if (m !== primary) m.removeFromParent() })
+        console.log('[Character3D Dedup] 겹친 SkinnedMesh', skinned.length, '벌 →', primary.name, '1벌만 유지')
+      }
+      animNameMap = {}
+      primary.skeleton.bones.forEach((b) => { animNameMap[baseBoneName(b.name)] = b.name })
+    }
+    // 외부 클립(단일 골격으로 구운 NPC_ANIMS) 트랙명을 이 모델의 실제 본 이름으로 바꿔 바인딩되게 한다.
+    const retargetClip = (clip) => {
+      if (!clip || !animNameMap) return clip
+      const out = clip.clone()
+      out.tracks.forEach((t) => {
+        const dot = t.name.indexOf('.')
+        if (dot < 0) return
+        const node = t.name.slice(0, dot)
+        const real = animNameMap[node]
+        if (real && real !== node) t.name = real + t.name.slice(dot)
+      })
+      return out
     }
 
     const collectMotionBones = (root) => {
@@ -547,9 +583,10 @@ export default function Character3D({
         uh_viseme: 0,
         sh_viseme: 0,
         viseme_PP: 0,
-        mouthClose: 0,
+        mouthFrimlyClose: 0,
         mouthPucker: 0,
-        mouthFunnel: 0,
+        mouthNarrow: 0,
+        mouthWideOpen: 0,
         mouthSmile_L: 0,
         mouthSmile_R: 0,
       }
@@ -565,7 +602,7 @@ export default function Character3D({
       }
     }
 
-    const CLOSURE_KEYS = new Set(['viseme_PP', 'mbp_viseme', 'mouthClose'])
+    const CLOSURE_KEYS = new Set(['viseme_PP', 'mbp_viseme', 'mouthFrimlyClose'])
     const applyStableLipMorphs = (targets, amount = 1) => {
       Object.keys(lipMorphState).forEach((name) => {
         const targetValue = (targets[name] || 0) * amount
@@ -581,30 +618,35 @@ export default function Character3D({
       })
     }
 
-    // 양순음 폐쇄 강도를 입 다묾 shape(viseme_PP/mbp_viseme/mouthClose)로 변환한다.
-    // 모델마다 폐쇄 shape 이름이 다르므로(GM_v3_17은 mbp_viseme) 호환 위해 모두 세팅한다.
+    // 양순음 폐쇄 강도를 입 다묾 shape(viseme_PP/mbp_viseme/mouthFrimlyClose)로 변환한다.
+    // 모델마다 폐쇄 shape 이름이 다르므로(GM_v3_27·의사·린·토비는 mouthFrimlyClose 보유) 호환 위해 모두 세팅한다.
+    // setMorph는 없는 키엔 no-op이므로 가일·마르타(=mouthFrimlyClose 없음)는 mbp_viseme로만 닫혀도 안전하다.
     const closureTargets = (closeAmt) => {
       const t = {}
       if (closeAmt > 0.01) {
         t.viseme_PP = closeAmt
         t.mbp_viseme = closeAmt
-        t.mouthClose = closeAmt * 0.9
+        t.mouthFrimlyClose = closeAmt * 0.9
       }
       return t
     }
 
-    // 모음 가중치에서 입술의 둥글림(pucker/funnel)·좌우당김(smile)을 파생해 자연스러움을 더한다.
+    // 모음 가중치에서 입술의 둥글림(pucker/narrow)·좌우당김(smile)·강세 벌림(wideOpen)을 파생해 자연스러움을 더한다.
+    // mouthPucker·mouthSmile_L/R은 대부분 보유, mouthNarrow·mouthWideOpen은 GM(GM_v3_27) 보유(없는 모델은 no-op).
     const applyAuxShapes = (targets, gate = 1) => {
       const oo = targets.oo_viseme || 0
       const oh = targets.oh_viseme || 0
       const ee = targets.ee_viseme || 0
       const eh = targets.eh_viseme || 0
+      const aa = targets.aa_viseme || 0
       const pucker = Math.min(0.72, oo * 1.0 + oh * 0.55) * gate
-      const funnel = Math.min(0.55, oh * 0.7 + oo * 0.35) * gate
+      const narrow = Math.min(0.55, oh * 0.7 + oo * 0.35) * gate          // ㅗ·ㅜ 오므림(funnel 역할) → mouthNarrow
       const smile = Math.min(0.5, ee * 1.0 + eh * 0.45) * gate
+      const wide = Math.min(0.45, Math.max(0, aa - 0.45) * 1.4) * gate     // 큰 ㅏ 강세 입벌림 → mouthWideOpen
       if (pucker > 0.02) targets.mouthPucker = pucker
-      if (funnel > 0.02) targets.mouthFunnel = funnel
+      if (narrow > 0.02) targets.mouthNarrow = narrow
       if (smile > 0.02) { targets.mouthSmile_L = smile; targets.mouthSmile_R = smile }
+      if (wide > 0.02) targets.mouthWideOpen = wide
     }
 
     const stopAudioLipSync = () => {
@@ -759,17 +801,21 @@ export default function Character3D({
         }
 
         if (mouth > 0.045 && visemeTimeline.length) {
-          const spokenRate = 5.6 + mouth * 3.2
-          speechCarry += dt * spokenRate * (0.55 + mouth * 0.45)
-          speechCursor += Math.floor(speechCarry)
-          speechCarry %= 1
-
-          if (audio.duration && Number.isFinite(audio.duration)) {
+          if (audio.duration && Number.isFinite(audio.duration) && audio.duration > 0) {
+            // 입모양(viseme) 진행을 실제 오디오 재생 위치에 직접 맞춘다.
+            // → 발화속도=립싱크속도. TTS provider(Edge/CosyVoice)나 rate가 달라도
+            //   타임라인이 오디오와 정확히 같이 끝난다. (예전엔 고정 spokenRate로 free-run +
+            //   0.25 약보정이라, 느린 provider에서 입모양이 먼저 끝났다.)
             const expectedCursor = (audio.currentTime / audio.duration) * Math.max(0, visemeTimeline.length - 1)
-            // 매 프레임 오디오 재생 위치 쪽으로 끌어당겨 긴 문장에서 누적 드리프트를 막는다.
-            // (예전엔 ±4~6 프레임 벗어날 때만 약하게 보정해, 긴 대사 후반부가 오디오와 어긋났다.)
-            speechCursor += (expectedCursor - speechCursor) * 0.25
-            if (Math.abs(speechCursor - expectedCursor) > 4) speechCursor = expectedCursor
+            speechCursor += (expectedCursor - speechCursor) * 0.5
+            if (Math.abs(speechCursor - expectedCursor) > 2) speechCursor = expectedCursor
+            speechCarry = speechCursor - Math.floor(speechCursor)  // 프레임 간 블렌딩(부드러운 전이) 유지
+          } else {
+            // 오디오 길이를 아직 모를 때만(스트리밍/메타데이터 미로딩) 가정 속도로 진행.
+            const spokenRate = 5.6 + mouth * 3.2
+            speechCarry += dt * spokenRate * (0.55 + mouth * 0.45)
+            speechCursor += Math.floor(speechCarry)
+            speechCarry %= 1
           }
 
           speechCursor = THREE.MathUtils.clamp(speechCursor, 0, Math.max(0, visemeTimeline.length - 1))
@@ -1213,7 +1259,8 @@ export default function Character3D({
       const isGltf = /\.gl(b|tf)$/i.test(path)
       const onLoaded = (animations) => {
         const clip = firstClipFrom(animations, name)
-        if (clip) clips.set(name, clip)
+        // 중복 골격 모델이면 외부 클립 트랙명을 실제 본 이름으로 리타깃(아니면 그대로).
+        if (clip) clips.set(name, retargetClip(clip))
         resolve(Boolean(clip))
       }
       if (isGltf) {
@@ -1305,6 +1352,8 @@ export default function Character3D({
         model.add(modelRoot)
         model.rotation.set(...modelRotation)
         normalizeModel(modelRoot)
+        // 겹친 중복 SkinnedMesh를 먼저 1벌로 정리(아니면 사본들이 T포즈로 겹쳐 보임) → 그 다음 morph 수집.
+        dedupeSkeletons(modelRoot)
         collectMorphMeshes(modelRoot)
         collectMotionBones(modelRoot)
         // 이름이 teeth/tooth인 별도 메시(Gail/Lin: Low_Teeth*) + 머티리얼명이 inner-mouth
