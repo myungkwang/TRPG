@@ -1,7 +1,7 @@
 ﻿import React, { useEffect, useRef, useState } from 'react'
 import { SPEAKERS, FLAVOR_CHOICE, CHOICES } from '../data.js'
 import D12 from './D12.jsx'
-import Character3D from './Character3D.jsx'
+import Character3D, { detectEmotion } from './Character3D.jsx'
 import ParallaxBackground from './ParallaxBackground.jsx'
 import EvalPanel from './EvalPanel.jsx'
 import { apiChat, apiChatStream, apiTTS, apiTTSStream, apiDebugEnding, apiStoryChoice, apiGenerateBackground } from '../api.js'
@@ -140,27 +140,29 @@ export const CHARACTER_MODELS = [
     framingScale: 0.82,
     animations: NPC_ANIMS,
     disableProceduralMotion: true,
-    hideTeeth: true,   // 가일은 별도 이빨 메시(Low_Teeth*)를 숨긴다
+    attachTeethToHead: true,   // 가일은 별도 이빨 메시(Low_Teeth*)를 head본에 attach → 얼굴 따라감
   },
   {
     speaker: 'marta',
     personaId: 'marta',
     name: PERSONAS.marta.name,
-    modelPath: '/static/models/Marta_01.glb',
+    modelPath: '/static/models/Marta_13_FinFixed.glb',
     modelScale: 0.75,
     modelOffset: [0, 40, 0],
     animations: NPC_ANIMS,
     disableProceduralMotion: true,
+    attachTeethToHead: true,   // 마르타는 별도 이빨 메시를 head본에 attach → 얼굴 따라감
   },
   {
     speaker: 'tobi',
     personaId: 'tobi',
     name: PERSONAS.tobi.name,
-    modelPath: '/static/models/Tobi_01.glb',
+    modelPath: '/static/models/Tobi_13.glb',
     modelScale: 0.75,
     modelOffset: [0, 40, 0],
     animations: NPC_ANIMS,
     disableProceduralMotion: true,
+    attachTeethToHead: true,   // 토비는 별도 이빨 메시를 head본에 attach → 얼굴 따라감
   },
   {
     speaker: 'doctor',
@@ -168,9 +170,10 @@ export const CHARACTER_MODELS = [
     name: PERSONAS.doctor.name,
     modelPath: '/static/models/Doctor_09_textureFixed.glb',
     modelScale: 0.75,
-    modelOffset: [0, -120, 0],
+    modelOffset: [0, 40, 0],
     preferEmbeddedAnimations: true,
     motionIntensity: 0.45,
+    attachTeethToHead: true,   // 의사도 별도 이빨 메시를 head본에 attach → 얼굴 따라감
   },
   {
     speaker: 'kargas',
@@ -358,6 +361,9 @@ const getTtsInstructions = (persona, emotion) => {
   return `${base} ${extra}`.trim()
 }
 
+// 감정 기반 애니 제외 대상: 카르가스·광부는 발화해도 항상 'talk' 모션만.
+const EMOTION_ANIM_EXCLUDED = new Set(['kargas', 'miner'])
+
 // 텍스트에서 인라인 톤 지시문 (괄호/대괄호) 추출.
 // 반환: { cleanText: 지시문 제거된 발화 텍스트, toneHint: 지시문들을 합친 문자열 }
 const extractToneHint = (text) => {
@@ -395,10 +401,17 @@ const prepareTtsSegment = (segment) => {
     ? `${getTtsInstructions(persona)} ${toneHint}`.trim()
     : getTtsInstructions(persona)
 
+  // 지시어(톤힌트) 우선, 없으면 발화 텍스트에서 감정 추론 → 애니 emotion 키.
+  // 카르가스·광부는 제외(항상 talk).
+  const emotion = EMOTION_ANIM_EXCLUDED.has(segment.speaker)
+    ? 'talk'
+    : detectEmotion(toneHint || spokenText)
+
   return {
     segment,
     persona,
     spokenText,
+    emotion,
     cleanSegment: { ...segment, text: spokenText },
     ttsInstructions,
     fallbackDuration: estimateSpeechDuration(spokenText),
@@ -424,7 +437,7 @@ const playAudioUrl = async (data, spokenText, runId, options = {}) => {
 
   audio.onplay = () => {
     if (options.startPerformance !== false) {
-      window.playLinPerformance?.(spokenText, data.emotion || 'talk', audio.duration)
+      window.playLinPerformance?.(spokenText, options.emotion || data.emotion || 'talk', audio.duration)
     }
     window.startLinLipSync?.(audio, spokenText)
   }
@@ -531,6 +544,7 @@ async function playServerTtsStream(prepared, runId, state = null) {
     const chunk = chunks.shift()
     await playAudioUrl(chunk, spokenText, runId, {
       startPerformance: !performanceStarted,
+      emotion: prepared.emotion,
     })
     performanceStarted = true
     playedChunks += 1
@@ -544,7 +558,7 @@ async function playServerTtsStream(prepared, runId, state = null) {
   await producer
   if (streamState.streamError) throw streamState.streamError
   if (!playedChunks) {
-    window.playLinPerformance?.(spokenText, 'talk', fallbackDuration)
+    window.playLinPerformance?.(spokenText, prepared.emotion || 'talk', fallbackDuration)
     window.startLinFallbackLipSync?.(spokenText, fallbackDuration)
     await new Promise(resolve => setTimeout(resolve, fallbackDuration * 1000))
     window.stopLinLipSync?.()
@@ -634,8 +648,11 @@ const speakWithBrowserTts = (segment, fallbackDuration) => new Promise((resolve,
     resolve()
   }
 
+  const browserEmotion = EMOTION_ANIM_EXCLUDED.has(segment.speaker)
+    ? 'talk'
+    : detectEmotion(segment.text)
   utterance.onstart = () => {
-    window.playLinPerformance?.(segment.text, 'talk', fallbackDuration)
+    window.playLinPerformance?.(segment.text, browserEmotion, fallbackDuration)
     window.startLinFallbackLipSync?.(segment.text, fallbackDuration)
   }
   utterance.onend = done
@@ -1014,7 +1031,7 @@ async function speakNpc(text, speaker = 'gm', options = {}) {
         currentAudio = audio
 
         audio.onplay = () => {
-          window.playLinPerformance?.(spokenText, data.emotion, audio.duration)
+          window.playLinPerformance?.(spokenText, prepared.emotion || data.emotion || 'talk', audio.duration)
           window.startLinLipSync?.(audio, spokenText)
         }
 
@@ -1047,7 +1064,7 @@ async function speakNpc(text, speaker = 'gm', options = {}) {
         } catch (browserFallbackErr) {
           console.warn('Browser TTS fallback failed:', segment.speaker, browserFallbackErr)
         }
-        window.playLinPerformance?.(spokenText, 'talk', fallbackDuration)
+        window.playLinPerformance?.(spokenText, prepared.emotion || 'talk', fallbackDuration)
         window.startLinFallbackLipSync?.(spokenText, fallbackDuration)
         await new Promise(resolve => setTimeout(resolve, fallbackDuration * 1000))
         window.stopLinLipSync?.()
@@ -1101,7 +1118,7 @@ async function playPreparedTtsItem(prepared, ttsPromise, runId, options = {}, tt
     const data = ttsResult.data
     revealSegment()
     if (runId !== speechRunId) return
-    await playAudioUrl(data, spokenText, runId)
+    await playAudioUrl(data, spokenText, runId, { emotion: prepared.emotion })
   } catch (segmentErr) {
     console.warn('Streaming TTS segment error:', segment.speaker, segmentErr)
     window.stopLinLipSync?.()
@@ -1115,7 +1132,7 @@ async function playPreparedTtsItem(prepared, ttsPromise, runId, options = {}, tt
       await speakWithBrowserTts(cleanSegment, fallbackDuration)
     } catch (browserFallbackErr) {
       console.warn('Browser TTS fallback failed:', segment.speaker, browserFallbackErr)
-      window.playLinPerformance?.(spokenText, 'talk', fallbackDuration)
+      window.playLinPerformance?.(spokenText, prepared.emotion || 'talk', fallbackDuration)
       window.startLinFallbackLipSync?.(spokenText, fallbackDuration)
       await new Promise(resolve => setTimeout(resolve, fallbackDuration * 1000))
       window.stopLinLipSync?.()
@@ -1737,6 +1754,9 @@ export default function Dialogue({
         setChoices(storyChoicesRef.current)
       }
 
+      // 1:1 대화 상대: 화면 속 NPC(activeSpeaker)가 GM이 아니면 focus로 보내 GM 가로채기를 막는다.
+      const focusNpc = activeSpeaker && activeSpeaker !== 'gm' ? activeSpeaker : null
+
       let finalData = null
       try {
         finalData = await apiChatStream(session.id, text, (eventName, payload) => {
@@ -1751,13 +1771,13 @@ export default function Dialogue({
 
           receivedStreamSegment = true
           streamedSegments.push(normalized)
-        })
+        }, focusNpc)
       } catch (streamErr) {
         console.warn('Streaming chat failed; falling back to non-stream chat:', streamErr)
       }
 
       if (!finalData) {
-        finalData = await apiChat(session.id, text)
+        finalData = await apiChat(session.id, text, focusNpc)
         revealResponse(finalData, finalData.segments, false)
         return
       }
@@ -2070,6 +2090,7 @@ export default function Dialogue({
                     modelPath={character.modelPath}
                     lipGain={character.lipGain}
                     hideTeeth={character.hideTeeth}
+                    attachTeethToHead={character.attachTeethToHead}
                     modelRotation={character.modelRotation}
                     modelScale={character.modelScale}
                     modelOffset={character.modelOffset}
@@ -2100,6 +2121,7 @@ export default function Dialogue({
                     modelPath={character.modelPath}
                     lipGain={character.lipGain}
                     hideTeeth={character.hideTeeth}
+                    attachTeethToHead={character.attachTeethToHead}
                     modelRotation={character.modelRotation}
                     modelScale={character.modelScale}
                     modelOffset={character.modelOffset}
@@ -2123,6 +2145,7 @@ export default function Dialogue({
               modelPath={activeCharacter.modelPath}
               lipGain={activeCharacter.lipGain}
               hideTeeth={activeCharacter.hideTeeth}
+              attachTeethToHead={activeCharacter.attachTeethToHead}
               modelRotation={activeCharacter.modelRotation}
               modelScale={activeCharacter.modelScale}
               modelOffset={activeCharacter.modelOffset}

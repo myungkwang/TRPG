@@ -252,7 +252,7 @@ const MOTION_EMOTION_KEYWORDS = [
   { anim: 'sigh', keywords: ['relief', 'sad', 'sigh', '한숨', '안도', '슬픔', '피곤', '유감', '실망', '지쳤', '긴장'] },
   { anim: 'cocky', keywords: ['cocky', '비웃', '능청', '거만', '도발', '자신만만', '하찮'] },
 ]
-function detectEmotion(text) {
+export function detectEmotion(text) {
   const s = String(text || '').toLowerCase()
   if (EMOTION_ALIASES[s]) return EMOTION_ALIASES[s]
   for (const item of MOTION_EMOTION_KEYWORDS) {
@@ -351,6 +351,7 @@ export default function Character3D({
   registerGlobalControls = false,
   lipGain = 1,
   hideTeeth = false,
+  attachTeethToHead = false,  // 별도 이빨 메시를 head본에 reparent → 얼굴 움직임 따라감(의사·가일)
   apiRef = null,            // [평가용] 이 인스턴스의 lip-sync API를 외부에 노출(정량검사 립싱크 측정)
   onModelReady = null,      // [평가용] 모델 로드 완료 콜백
 }) {
@@ -1312,6 +1313,17 @@ export default function Character3D({
           modelRoot.traverse((obj) => {
             if (obj.isMesh && /teeth|tooth/i.test(obj.name || '')) obj.visible = false
           })
+        }
+        // 별도 이빨 메시(일반 Mesh)는 skinning 안 돼 head본 회전을 안 따라간다.
+        // head본에 reparent(attach)하면 얼굴 움직임을 그대로 따라간다.
+        if (attachTeethToHead && motionBones.head) {
+          const head = motionBones.head
+          const teeth = []
+          modelRoot.traverse((obj) => {
+            // SkinnedMesh는 스켈레톤이 이미 구동하므로 제외, 일반 Mesh만 attach
+            if (obj.isMesh && !obj.isSkinnedMesh && /teeth|tooth/i.test(obj.name || '')) teeth.push(obj)
+          })
+          teeth.forEach((mesh) => head.attach(mesh)) // 월드 트랜스폼 보존하며 head본 자식으로 이동
         }
         model.visible = false // Keep hidden until the idle pose is applied (prevents a T-pose flash).
         scene.add(model)
