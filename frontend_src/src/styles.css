@@ -481,7 +481,8 @@ button{font-family:var(--font-body);cursor:pointer}
 
 /* 좌 패널 = GM 아바타 (테두리 안을 꽉 채움) */
 .sp-avatar{padding:0}
-.sp-avatar .gm-face-popup{position:absolute;inset:0;
+/* 아바타 3D 영역은 nameplate('GM' 글씨) 위까지만 차지 → 겹침 방지(하단 공간 확보) */
+.sp-avatar .gm-face-popup{position:absolute;top:0;left:0;right:0;bottom:100px;
   width:auto;height:auto;border:none;border-radius:0;overflow:hidden;background:transparent;
   box-shadow:none;animation:none}
 .sp-avatar.speaking{
@@ -493,7 +494,7 @@ button{font-family:var(--font-body);cursor:pointer}
 .sp-dialogue{padding:4px 6px}
 .sp-dialogue .chatlog{flex:1 1 auto;min-height:0;overflow-y:auto;margin:0;padding:6px 10px}
 .sp-dialogue .inputbar{flex:0 0 auto;margin:0;padding:8px 4px 2px;gap:8px;align-items:center}
-.sp-dialogue .inputbar input{padding:9px 14px;font-size:13.5px}
+.sp-dialogue .inputbar input{padding:9px 14px;font-size:13px}
 .sp-dialogue .send{width:40px;height:40px;font-size:15px}
 
 /* 우 패널 = 선택지 (초록 램프 악센트) */
@@ -501,8 +502,8 @@ button{font-family:var(--font-body);cursor:pointer}
 .sp-choices .choice-block{flex:1 1 auto;margin:0;padding:2px;border:none;background:transparent;
   overflow-y:auto;min-height:0}
 .sp-choices .choice-minibar{flex:0 0 auto;margin:0;padding:2px;border:none;background:transparent}
-.sp-choices .choice-row{font-size:12.5px;padding:7px 9px;margin:5px 0}
-.sp-choices .choice-flavor{font-size:12.5px;margin:2px 0 7px}
+.sp-choices .choice-row{font-size:12px;padding:7px 9px;margin:5px 0}
+.sp-choices .choice-flavor{font-size:11.5px;margin:2px 0 7px}
 .sp-choices::before{content:'';position:absolute;top:-9px;right:18px;width:15px;height:15px;border-radius:50%;z-index:3;
   background:radial-gradient(circle at 38% 33%,#d7ffd0,#3fae4a 60%,#176b22);
   border:1px solid #0c3a14;animation:sp-lamp 2.6s ease-in-out infinite}
@@ -548,9 +549,9 @@ button{font-family:var(--font-body);cursor:pointer}
 .msg{max-width:78%;animation:pop .3s both}
 @keyframes pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 .msg.right{margin-left:auto;text-align:right}
-.role{font-size:13px;margin:0 0 4px 6px;font-family:var(--font-disp)}
-.bubble{display:inline-block;text-align:left;padding:12px 16px;border-radius:14px;line-height:1.6;
-  font-size:15.5px;border:1px solid;box-shadow:0 3px 10px #0005}
+.role{font-size:12.5px;margin:0 0 4px 6px;font-family:var(--font-disp)}
+.bubble{display:inline-block;text-align:left;padding:10px 14px;border-radius:14px;line-height:1.55;
+  font-size:13.5px;border:1px solid;box-shadow:0 3px 10px #0005}
 
 /* 선택지 블록 (채팅 섹션 안) */
 .choice-block{padding:8px 26px 6px;border-top:1px solid #3a2c1d;animation:pop .25s both}
@@ -1131,18 +1132,18 @@ body.resizing-chat,body.resizing-chat *{
 .mission-kicker{
   margin-bottom:8px;
   color:#b78b51;
-  font-size:12px;
+  font-size:11px;
   text-align:center;
 }
 .mission-current{
   display:flex;
   align-items:center;
   gap:10px;
-  min-height:46px;
+  min-height:42px;
   padding:8px 10px;
   color:#f1dec0;
-  font-size:13px;
-  line-height:1.45;
+  font-size:10.5px;
+  line-height:1.4;
   border:1px solid rgba(207,152,77,.5);
   border-radius:6px;
   background:linear-gradient(180deg,rgba(21,25,22,.92),rgba(11,10,8,.96));
@@ -1162,7 +1163,7 @@ body.resizing-chat,body.resizing-chat *{
 .mission-hint{
   margin-top:10px;
   color:#af9065;
-  font-size:12px;
+  font-size:11px;
   text-align:center;
 }
 .sp-choices .choice-block{
@@ -1290,9 +1291,9 @@ body.resizing-chat,body.resizing-chat *{
 }
 .avatar-nameplate{
   position:absolute;
-  left:18px;
-  right:18px;
-  bottom:16px;
+  left: 0px;
+  right:10px;
+  bottom:0px;
   z-index:6;
   padding:10px 12px;
   text-align:center;
@@ -1302,13 +1303,13 @@ body.resizing-chat,body.resizing-chat *{
 .avatar-name{
   color:#f4d9a2;
   font-family:var(--font-disp);
-  font-size:18px;
+  font-size:12px;
   letter-spacing:1px;
 }
 .avatar-role{
   margin-top:2px;
   color:#bd8d55;
-  font-size:12px;
+  font-size:10px;
 }
 .avatar-meter{
   height:8px;
@@ -1329,8 +1330,8 @@ body.resizing-chat,body.resizing-chat *{
 .avatar-nameplate p{
   margin:0;
   color:#c6ae83;
-  font-size:12px;
-  line-height:1.45;
+  font-size:10.5px;
+  line-height:1.4;
 }
 .dialogue.layout-split .sp-panel{
   padding-top:46px;
@@ -1519,10 +1520,10 @@ body.resizing-chat,body.resizing-chat *{
     inset 0 0 40px rgba(0,0,0,.72);
 }
 .dialogue.layout-stacked .sp-avatar .gm-face-popup{
-  inset:56px 14px 100px;
+  inset:10px 0px 100px;
 }
 .dialogue.layout-stacked .avatar-nameplate{
-  bottom:12px;
+  bottom: 0px;
 }
 .dialogue.layout-stacked .mission-console-card,
 .dialogue.layout-stacked .dialogue-console-banner,
@@ -1758,7 +1759,7 @@ body.resizing-chat,body.resizing-chat *{
 .stat-chip i{font-style:normal;color:var(--muted)}
 .stat-chip b{color:var(--gold-soft);font-weight:600}
 .equip-choice-desc{color:var(--muted)!important;font-size:11px!important;line-height:1.4;
-  white-space:normal;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+  white-space:normal;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical}
 .equip-choice-act{flex:none;align-self:center;font-size:12px;color:var(--gold-soft);font-family:var(--font-disp)}
 /* 장비 가능한 아이템이 없을 때 */
 .equip-empty{font-style:italic;color:#8a7d6a;text-align:center;padding:18px 8px;font-size:13.5px}
@@ -2449,8 +2450,9 @@ body.resizing-panel-vertical *{
 .dialogue.layout-stacked .avatar-nameplate,
 .dialogue.layout-split .avatar-nameplate{
   border-color:rgba(207,146,70,.44);
+  /* 아바타가 비치지 않게 불투명 처리 → 'GM' 글씨와 아바타 겹쳐 보이는 문제 해소 */
   background:
-    linear-gradient(180deg,rgba(7,8,7,.18),rgba(2,2,2,.82)),
+    linear-gradient(180deg,rgba(12,11,9,.96),rgba(3,3,3,.99)),
     radial-gradient(80% 100% at 50% 0%,rgba(196,139,66,.08),transparent 62%);
 }
 .dialogue .gear-cluster{
@@ -2675,9 +2677,9 @@ body.resizing-panel-vertical *{
   content:'';
   position:absolute;
   right:16px;
-  top:14px;
-  width:48px;
-  height:48px;
+  top:8px;
+  width:30px;
+  height:30px;
   z-index:3;
   border-radius:50%;
   background:

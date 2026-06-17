@@ -224,7 +224,7 @@ export const CHARACTER_MODELS = [
       talk: '/static/animations/npc/gm_acknowledging.glb',
     },
     motionIntensity: 0.6,
-    hideTeeth: true,  // GM_v3_27 안쪽 입(Teeth Flesh) 서브메시가 idle 애니 때 입 앞으로 튀어 '갈색 공'으로 보임 → 숨김
+    hideTeeth: false,  // (되돌림) 안쪽 입(Teeth Flesh) 서브메시 다시 표시 — '갈색 공' 재생성
   },
   {
     speaker: 'lin',
@@ -345,9 +345,8 @@ const LOCATION_BACKGROUNDS = [
   { aliases: ['여관', '주점', '여우길', 'tavern', 'inn'], path: '/static/backgrounds/inn.png' },
   { aliases: ['정재소', '정제소', 'refinery'], path: '/static/backgrounds/refinery-new.png' },
   { aliases: ['주둔소', '영석공사', '가일', 'garrison'], path: '/static/backgrounds/garrison.png' },
-  { aliases: ['봉우리', '정상', '둥지', '카르가스', 'peak'], path: '/static/backgrounds/peak.png' },
+  // 봉우리(peak.png)·갱도(mine.png)는 고정 이미지가 삭제됨 → 매핑 제외해 AI 배경 생성으로 폴백시킨다.
   { aliases: ['오두막', '산기슭', '마르타', 'hut', 'cabin'], path: '/static/backgrounds/hut.png' },
-  { aliases: ['갱도', '갱도사무소', '광산입구', '갱도입구', '광산', 'mine', 'mineshaft'], path: '/static/backgrounds/mine.png' },
   { aliases: ['광장', 'square'], path: '/static/backgrounds/square.png' },
 ]
 
@@ -579,8 +578,9 @@ let _onGmSpeakChange = null
 // GM 팝업 카메라 값은 모듈 상수로 고정한다. 인라인 배열로 넘기면 매 렌더 새 참조가 되어
 // Character3D effect(deps: cameraPosition/cameraTarget)가 재실행 → 모델이 매번 재로드되고
 // 립싱크 상태/등록이 날아가 "두 번째 발화부터 입이 멈추는" 버그가 난다.
-const GM_POPUP_CAMERA_POS = [0, 160, 420]
-const GM_POPUP_CAMERA_TARGET = [0, 160, 0]
+// 우측 GM 패널: nameplate 위 영역에 얼굴+어깨가 들어오게 프레이밍.
+const GM_POPUP_CAMERA_POS = [0, 174, 442]
+const GM_POPUP_CAMERA_TARGET = [0, 130, 0]
 
 const estimateSpeechDuration = (text) => {
   const length = Array.from(String(text || '')).length
@@ -2233,19 +2233,32 @@ export default function Dialogue({
   // 배경: 핵심 장소=고정 이미지, 그 외=AI 즉석 생성(+gen 깊이맵으로 2.5D)
   const [genBg, setGenBg] = useState({})
   const [bgLoading, setBgLoading] = useState(false)
+  const [brokenBg, setBrokenBg] = useState(() => new Set())  // 파일이 없는(404) 고정 배경 경로
   const bgTriedRef = useRef(new Set())
   const pendingRevealRef = useRef(null)   // 배경 생성 중 보류한 GM 대사(생성 후 음성과 함께 공개)
   // 배경은 '실제 게임 위치'를 따른다. story.location(멈춰있는 인트로 씬)은 배경 결정에서 제외 —
   // 안 그러면 자유 이동해도 인트로 씬 위치(진료소)가 계속 덮어 AI 배경 생성이 안 됨.
   const curLoc = stageLocation || session?.location
-  const locationBackground = getLocationBackground(curLoc) || (curLoc ? genBg[curLoc] : null) || null
+  const fixedBg = getLocationBackground(curLoc)
+  const fixedBgReady = !!fixedBg && !brokenBg.has(fixedBg)   // 파일이 살아있는 고정 배경만 사용
+  const locationBackground = (fixedBgReady ? fixedBg : (curLoc ? genBg[curLoc] : null)) || null
   const missionTitle = story?.title || story?.objective || story?.name || curLoc || '잃어버린 단서를 추적한다'
   const missionPlace = curLoc || '현재 위치 미상'
   const companionName = gmCharacter.name || SPEAKERS.gm?.name || 'GM'
   const companionRole = gmSpeaking || activeSpeaker === 'gm' ? '서술자 · 세계 안내자' : '상황을 관찰하는 동행자'
+  // 고정 배경 이미지가 실제로 로드되는지 확인 — 파일이 삭제돼 404면 broken으로 표시해
+  // AI 배경 생성으로 폴백시킨다. (매핑엔 있는데 PNG가 없는 장소 자동 대응)
+  useEffect(() => {
+    if (!fixedBg || brokenBg.has(fixedBg)) return
+    let alive = true
+    const img = new Image()
+    img.onerror = () => { if (alive) setBrokenBg(prev => new Set(prev).add(fixedBg)) }
+    img.src = fixedBg
+    return () => { alive = false }
+  }, [fixedBg, brokenBg])
   useEffect(() => {
     if (!curLoc || !session?.id) return
-    if (getLocationBackground(curLoc)) return            // 고정 배경 있으면 생성 안 함
+    if (fixedBgReady) return                              // 살아있는 고정 배경 있으면 생성 안 함(없거나 404면 생성)
     if (genBg[curLoc] || bgTriedRef.current.has(curLoc)) return
     bgTriedRef.current.add(curLoc)
     setBgLoading(true)
@@ -2261,7 +2274,7 @@ export default function Dialogue({
           storyChoicesRef.current = pr.choices
         }
       })
-  }, [curLoc, session?.id])
+  }, [curLoc, session?.id, fixedBgReady])
   const locationBgm = getLocationBgm([
     sceneContext.storyId,
     stageLocation || story?.location || session?.location,
@@ -2547,7 +2560,7 @@ export default function Dialogue({
               motionIntensity={gmSpeaking || activeSpeaker === 'gm' ? gmCharacter.motionIntensity : 0.18}
               cameraPosition={GM_POPUP_CAMERA_POS}
               cameraTarget={GM_POPUP_CAMERA_TARGET}
-              cameraFov={25}
+              cameraFov={27}
             />
           </div>
           <div className="avatar-nameplate">
