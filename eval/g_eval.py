@@ -51,8 +51,7 @@ def _persona_summary() -> str:
 
 
 def _make_judge():
-    from openai import OpenAI
-    return OpenAI()
+    return common.make_judge_client()
 
 
 def _score_once(client, model, persona, item) -> dict:
@@ -62,13 +61,7 @@ def _score_once(client, model, persona, item) -> dict:
         input=item.get("input", ""),
         output=item.get("output", ""),
     )
-    r = client.chat.completions.create(
-        model=model,
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0,
-        response_format={"type": "json_object"},
-    )
-    return json.loads(r.choices[0].message.content)
+    return common.judge_json(client, model, prompt)
 
 
 def _avg(vals: list[float]) -> float | None:
@@ -79,7 +72,7 @@ def _avg(vals: list[float]) -> float | None:
 def run() -> None:
     common.ensure_dirs()
     model = common.env("EVAL_JUDGE_MODEL", "gpt-4o")
-    repeat = int(common.env("EVAL_JUDGE_REPEAT", "3") or "3")
+    repeat = int(common.env("EVAL_JUDGE_REPEAT", "1") or "1")
     persona = _persona_summary()
     client = _make_judge()
 

@@ -58,9 +58,9 @@ http://127.0.0.1:8023
 - `char_marta`
 - `char_miner`
 - `char_nurse`
-- `char_rin`
+- `char_lin`
 - `char_tavern_clerk`
-- `char_toby`
+- `char_tobi`
 
 ## Common Problems
 

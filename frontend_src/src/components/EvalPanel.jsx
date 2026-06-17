@@ -11,6 +11,8 @@ const STAGE_LABEL = {
   start: '준비 중',
   loading_whisper: 'Whisper 음성모델 로딩 중',
   evaluating: '평가 중',
+  robustness: '오프토픽/탈주 견고성 평가 중',
+  multiturn: '멀티턴 일관성 평가 중',
   rendering_charts: '그래프 생성 중',
   done: '대화·음성 평가 완료',
 }
@@ -282,7 +284,7 @@ export default function EvalPanel({ onClose }) {
                 <tr>
                   <th>NPC</th>
                   <th>일관성</th><th>유용성</th><th>자연스러움</th>
-                  <th>CER</th><th>립싱크 상관</th><th>지연(ms)</th>
+                  <th>CER</th><th>음성 f0/성별</th><th>립싱크 상관</th><th>지연(ms)</th>
                 </tr>
               </thead>
               <tbody>
@@ -294,6 +296,10 @@ export default function EvalPanel({ onClose }) {
                     : hasKey === false
                       ? 'shape key 없음 ⚠️'
                       : `${fmt(lip.correlation, 3)} ${verdict(lip.correlation, TARGET.corr)}`
+                  const vm = r.voice_metrics || {}
+                  const voiceCell = vm.median_f0 == null
+                    ? '—'
+                    : `${Math.round(vm.median_f0)}Hz ${vm.gender_match ? '✅' : '⚠️성별'}${vm.stable === false ? ' ⚠️불안정' : ''}`
                   return (
                     <tr key={r.key}>
                       <td className="eval-npc">{r.name}</td>
@@ -301,6 +307,7 @@ export default function EvalPanel({ onClose }) {
                       <td>{fmt(r.g_eval?.usefulness)} {verdict(r.g_eval?.usefulness, TARGET.geval)}</td>
                       <td>{fmt(r.g_eval?.naturalness)} {verdict(r.g_eval?.naturalness, TARGET.geval)}</td>
                       <td>{fmt(r.speech?.CER, 3)} {verdict(r.speech?.CER, TARGET.cer, true)}</td>
+                      <td>{voiceCell}</td>
                       <td>{lipCell}</td>
                       <td>{hasKey === false ? '—' : (lip.lag_ms == null ? '—' : lip.lag_ms)}</td>
                     </tr>
@@ -316,7 +323,47 @@ export default function EvalPanel({ onClose }) {
             <span>평균 일관성 <b>{fmt(summary.consistency_avg)}</b></span>
             <span>평균 CER <b>{fmt(summary.CER_avg, 3)}</b></span>
             <span>평균 립싱크 <b>{fmt(summary.lipsync_corr_avg, 3)}</b></span>
+            {summary.voice_gender_match_rate != null && (
+              <span>성별 정합률 <b>{Math.round(summary.voice_gender_match_rate * 100)}%</b> {verdict(summary.voice_gender_match_rate, 1.0)}</span>
+            )}
+            {summary.voice_near_identical_pairs && summary.voice_near_identical_pairs.length > 0 && (
+              <span>⚠️ 거의 같은 목소리 {summary.voice_near_identical_pairs.length}쌍</span>
+            )}
             {completion?.rate_pct != null && <span>완료율 <b>{completion.rate_pct}%</b> {verdict(completion.rate_pct, 80)}</span>}
+          </div>
+        )}
+
+        {job?.robustness?.summary && (
+          <div className="eval-block">
+            <h3>🛡 견고성 (오프토픽·탈주 입력에 역할 유지)</h3>
+            <div className="eval-summary">
+              <span>역할 유지 <b>{fmt(job.robustness.summary.in_role_avg)}</b> {verdict(job.robustness.summary.in_role_avg, TARGET.geval)}</span>
+              <span>거절/환기 <b>{fmt(job.robustness.summary.refusal_avg)}</b> {verdict(job.robustness.summary.refusal_avg, TARGET.geval)}</span>
+            </div>
+            <table className="eval-table">
+              <thead><tr><th>유형</th><th>입력</th><th>역할유지</th><th>거절</th></tr></thead>
+              <tbody>
+                {(job.robustness.items || []).map((it, i) => (
+                  <tr key={i}>
+                    <td>{it.kind}</td>
+                    <td className="eval-probe">{it.input}</td>
+                    <td>{fmt(it.in_role)} {verdict(it.in_role, TARGET.geval)}</td>
+                    <td>{fmt(it.refusal)} {verdict(it.refusal, TARGET.geval)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {job?.multiturn?.summary && (
+          <div className="eval-block">
+            <h3>🔁 멀티턴 일관성 ({job.multiturn.transcript?.length || 0}턴)</h3>
+            <div className="eval-summary">
+              <span>일관성 <b>{fmt(job.multiturn.summary.consistency)}</b> {verdict(job.multiturn.summary.consistency, TARGET.geval)}</span>
+              <span>드리프트 저항 <b>{fmt(job.multiturn.summary.drift_resistance)}</b> {verdict(job.multiturn.summary.drift_resistance, TARGET.geval)}</span>
+              <span>맥락 유지 <b>{fmt(job.multiturn.summary.context_retention)}</b> {verdict(job.multiturn.summary.context_retention, TARGET.geval)}</span>
+            </div>
           </div>
         )}
 
@@ -324,6 +371,7 @@ export default function EvalPanel({ onClose }) {
           <div className="eval-charts">
             {charts.g_eval && <img src={charts.g_eval} alt="G-Eval per NPC" />}
             {charts.cer && <img src={charts.cer} alt="CER per NPC" />}
+            {charts.voice && <img src={charts.voice} alt="Voice f0 per NPC" />}
             {charts.lipsync && <img src={charts.lipsync} alt="Lip-sync per NPC" />}
           </div>
         )}

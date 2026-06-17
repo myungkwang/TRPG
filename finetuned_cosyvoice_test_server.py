@@ -38,9 +38,9 @@ SPEAKERS = [
     "char_marta",
     "char_miner",
     "char_nurse",
-    "char_rin",
+    "char_lin",
     "char_tavern_clerk",
-    "char_toby",
+    "char_tobi",
 ]
 
 

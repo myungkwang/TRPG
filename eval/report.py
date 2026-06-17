@@ -35,6 +35,8 @@ def run() -> None:
     s = _load("speech.json")
     lip = _load("lipsync.json")
     sysm = _load("system.json")
+    voice = _load("voice.json")
+    gmt = _load("g_eval_multiturn.json")
 
     rows: list[tuple] = []  # (레이어, 지표, 결과, 목표, 판정)
 
@@ -45,6 +47,20 @@ def run() -> None:
         rows.append(("대화", "G-Eval 일관성(1~5)", c, "≥4.0", _verdict(c, 4.0)))
         rows.append(("대화", "G-Eval 유용성(1~5)", u, "≥4.0", _verdict(u, 4.0)))
         rows.append(("대화", "G-Eval 자연스러움(1~5)", n, "≥4.0", _verdict(n, 4.0)))
+    if gmt:
+        mc = _g(gmt, "summary", "consistency_avg")
+        md = _g(gmt, "summary", "drift_resistance_avg")
+        mr = _g(gmt, "summary", "context_retention_avg")
+        rows.append(("대화(멀티턴)", "일관성(1~5)", mc, "≥4.0", _verdict(mc, 4.0)))
+        rows.append(("대화(멀티턴)", "드리프트 저항(1~5)", md, "≥4.0", _verdict(md, 4.0)))
+        rows.append(("대화(멀티턴)", "맥락 유지(1~5)", mr, "≥4.0", _verdict(mr, 4.0)))
+    if voice:
+        gmr = _g(voice, "summary", "gender_match_rate")
+        nun = _g(voice, "summary", "n_unstable")
+        npair = len(_g(voice, "summary", "near_identical_pairs", default=[]) or [])
+        rows.append(("음성(화자정합)", "성별 정합률", gmr, "=1.0", _verdict(gmr, 1.0)))
+        rows.append(("음성(화자정합)", "발화내 톤 불안정 화자수", nun, "0", _verdict(nun, 0, lower_is_better=True)))
+        rows.append(("음성(화자정합)", "거의 같은 목소리 쌍", npair, "0", _verdict(npair, 0, lower_is_better=True)))
     if s:
         cer = _g(s, "CER_avg")
         rows.append(("음성", "CER", cer, "≤0.10", _verdict(cer, 0.10, lower_is_better=True)))
@@ -81,6 +97,9 @@ def run() -> None:
     lines += ["", "## 개선 메모", "",
               "> 숫자만이 아니라 '그래서 무엇을 개선할지'까지 적어야 점수가 높다(가이드 §7).",
               "- 유용성/일관성이 낮은 카테고리를 보고 few-shot·프롬프트를 보강한다.",
+              "- '오프토픽/탈주' 카테고리 점수가 낮으면 거절·세계관 환기 지침을 SYSTEM_PROMPT 에 강화한다.",
+              "- 멀티턴 드리프트/맥락유지가 낮으면 대화 기억 주입(요약·핀)과 역할 고정 지침을 보강한다.",
+              "- 음성 성별 정합률<1.0 또는 '거의 같은 목소리 쌍'이 있으면 SUPERTONE_*_VOICE_ID 환경변수를 화자별로 설정한다(미설정 시 전원 기본 voice 로 동일해짐).",
               "- CER 이 높으면 발음이 뭉개지는 화자/문장 패턴을 추려 TTS 텍스트를 다듬는다.",
               "- 립싱크 상관이 낮거나 지연이 크면 Character3D 의 smoothing/openGate 파라미터를 조정한다.",
               "",

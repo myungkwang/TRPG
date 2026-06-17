@@ -110,7 +110,7 @@ export const CHARACTER_MODELS = [
     speaker: 'gm',
     personaId: 'gm',
     name: SPEAKERS.gm?.name || 'GM',
-    modelPath: '/static/models/GM_v3_17.glb',
+    modelPath: '/static/models/GM_v3_27.glb',
     modelScale: 0.75,
     modelOffset: [0, -130, 0],
     animations: {
