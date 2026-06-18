@@ -325,6 +325,22 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def _revalidate_swappable_assets(request, call_next):
+    """모델(.glb)·생성 배경(.png)은 같은 파일명으로 자주 교체된다.
+    StaticFiles 기본은 Cache-Control 미설정 → 브라우저가 옛 파일을 휴리스틱 캐싱해
+    파일을 바꿔도 구버전이 계속 나오는 문제가 생긴다.
+    이 경로들에 'no-cache'(매 요청 ETag 재검증)를 붙여 바뀐 파일을 즉시 받게 한다.
+    (no-store가 아니라 변경이 없으면 304로 캐시 재사용 → 대역폭 낭비 없음.)"""
+    response = await call_next(request)
+    path = request.url.path
+    if path.startswith("/static/models/") or path.startswith("/static/backgrounds/gen/"):
+        response.headers["Cache-Control"] = "no-cache"
+    return response
+
+
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 

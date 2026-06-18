@@ -8,6 +8,7 @@ import { apiChat, apiChatStream, apiTTS, apiTTSStream, apiDebugEnding, apiStoryC
 import { PERSONAS, getPersona } from '../personas.js'
 import { applyBgmVolume, applyMasterVolume, applySpeechVolume } from '../audioSettings.js'
 import { loadSettings, subscribeSettings } from '../settings.js'
+import { shouldBlockForBackground } from '../dialoguePause.js'
 
 const CHAT_SIZE_KEY = 'trpg_chat_section_size'
 const DEFAULT_CHAT_SIZE = { stacked: 42, split: 40 }
@@ -1708,8 +1709,15 @@ export default function Dialogue({
     }
   }
 
+  const shouldGenerateBackgroundForLocation = (location) => {
+    if (!location) return false
+    const fixed = getLocationBackground(location)
+    const ready = !!fixed && !brokenBg.has(fixed)
+    return !ready && !genBg[location] && !bgTriedRef.current.has(location)
+  }
+
   const advanceOnMap = (dest, opts = {}) => {
-    if (!runMapStep || mappingRef.current) return
+    if (!runMapStep || mappingRef.current || gamePausedForBackground) return
     mappingRef.current = true
     runMapStep(dest).then(({ ending, aborted, kind }) => {
       mappingRef.current = false
@@ -1721,7 +1729,16 @@ export default function Dialogue({
         push('gm', '안갯속 길의 끝. 봉우리의 둥지가 모습을 드러낸다. (엔딩 노드 도달)', { speak: true })
         return
       }
-      push('gm', `안개를 헤치고 '${kind}' 발판에 닿았다. 다시 이야기가 이어진다.`, { speak: true })
+      const answer = `안개를 헤치고 '${kind}' 발판에 닿았다. 다시 이야기가 이어진다.`
+      if (shouldGenerateBackgroundForLocation(nextLocation)) {
+        pendingRevealRef.current = {
+          answer,
+          segments: normalizeStorySegments(null, answer, 'gm'),
+          choices: storyChoicesRef.current,
+        }
+        return
+      }
+      push('gm', answer, { speak: true })
     })
   }
 
@@ -1766,6 +1783,7 @@ export default function Dialogue({
   }, [inspectMode])
 
   const triggerJudge = (dc = 11, stat = '지각', opts = {}) => {
+    if (gamePausedForBackground) return
     judgeRef.current = {
       dc, stat, after: opts.after,
       onSuccess: opts.onSuccess || 'shop', onFail: opts.onFail || 'event', success: null,
@@ -1880,7 +1898,7 @@ export default function Dialogue({
 
   const sendText = async (raw) => {
     const text = String(raw || '').trim()
-    if (!text || sending || bgLoading) return   // AI 배경 생성 중엔 대화 진행 차단
+    if (!text || sending || gamePausedForBackground) return   // AI 배경 생성 중엔 대화 진행 차단
 
     stopSpeaking()
     push('player', text)
@@ -2015,7 +2033,7 @@ export default function Dialogue({
 
   const [endingJumping, setEndingJumping] = useState(false)
   const jumpEnding = async (kind) => {
-    if (!session?.id || endingJumping) return
+    if (!session?.id || endingJumping || gamePausedForBackground) return
     stopSpeaking()
     setEndingJumping(true)
     setSending(true)
@@ -2034,6 +2052,7 @@ export default function Dialogue({
   }
 
   const pickChoice = (c) => {
+    if (sending || gamePausedForBackground) return
     push('player', `[선택] ${c.text}`)
     setChoiceMode(false)
     if (c.judge) {
@@ -2048,7 +2067,7 @@ export default function Dialogue({
 
   const chooseVisibleChoice = async (choice) => {
     const normalized = normalizeChoices([choice])[0]
-    if (!normalized || sending) return
+    if (!normalized || sending || gamePausedForBackground) return
 
     if (normalized.kind !== 'story') {
       sendText(normalized.text)
@@ -2082,18 +2101,30 @@ export default function Dialogue({
       const data = await apiStoryChoice(session.id, normalized.id, roll)
       onSessionChange?.(data.session, data.scene)
       onStoryChange?.(data.scene)
-      if (data.scene?.location) setStageLocation(data.scene.location)
+      const nextLocation = data.scene?.location
+      if (nextLocation) setStageLocation(nextLocation)
       if (data.ending_reached) pendingEndingRef.current = data.ending_reached
       if (data.roll?.note) {
         push('gm', `D12 ${data.roll.value} - ${data.roll.note}`, { speak: false })
       }
       const spokenAnswer = withoutRollLog(data.answer)
-      push('gm', spokenAnswer, {
-        speak: true,
-        segments: normalizeStorySegments(null, spokenAnswer, 'gm'),
-      })
       const nextChoices = normalizeChoices(data.choices)
       storyChoicesRef.current = nextChoices
+      const answerSegments = normalizeStorySegments(null, spokenAnswer, 'gm')
+      if (shouldGenerateBackgroundForLocation(nextLocation)) {
+        pendingRevealRef.current = {
+          answer: spokenAnswer,
+          segments: answerSegments,
+          choices: nextChoices,
+        }
+        holdChoicesRef.current = false
+        revealAfterSpeech = true
+        return
+      }
+      push('gm', spokenAnswer, {
+        speak: true,
+        segments: answerSegments,
+      })
       revealAfterSpeech = true
     } catch (err) {
       push('gm', `오류: ${err.message}`, { speak: false })
@@ -2242,6 +2273,13 @@ export default function Dialogue({
   const fixedBg = getLocationBackground(curLoc)
   const fixedBgReady = !!fixedBg && !brokenBg.has(fixedBg)   // 파일이 살아있는 고정 배경만 사용
   const locationBackground = (fixedBgReady ? fixedBg : (curLoc ? genBg[curLoc] : null)) || null
+  const gamePausedForBackground = shouldBlockForBackground({
+    location: curLoc,
+    fixedBackgroundReady: fixedBgReady,
+    generatedBackgrounds: genBg,
+    triedLocations: bgTriedRef.current,
+    isLoading: bgLoading,
+  })
   const missionTitle = story?.title || story?.objective || story?.name || curLoc || '잃어버린 단서를 추적한다'
   const missionPlace = curLoc || '현재 위치 미상'
   const companionName = gmCharacter.name || SPEAKERS.gm?.name || 'GM'
@@ -2274,7 +2312,7 @@ export default function Dialogue({
           storyChoicesRef.current = pr.choices
         }
       })
-  }, [curLoc, session?.id, fixedBgReady])
+  }, [curLoc, session?.id, fixedBgReady, genBg])
   const locationBgm = getLocationBgm([
     sceneContext.storyId,
     stageLocation || story?.location || session?.location,
@@ -2324,7 +2362,7 @@ export default function Dialogue({
       style={dialogueStyle}
     >
       {locationBackground && <ParallaxBackground image={locationBackground} fx={getFx(curLoc)} />}
-      {bgLoading && (
+      {gamePausedForBackground && (
         <div className="bg-gen-loading">
           <div className="bg-gen-spinner" />
           <div className="bg-gen-title">AI가 새 장소를 그리는 중…</div>
@@ -2356,17 +2394,17 @@ export default function Dialogue({
 
       <div className="vn-stage">
         <div className="stage-tools">
-          <button onClick={() => setChoiceMode(v => !v)}>선택지</button>
-          <button onClick={() => triggerJudge(11, '지각')}>판정</button>
-          <button onClick={() => advanceOnMap()}>지도</button>
-          <button onClick={runNpcDialogueTest} disabled={testStageRunning}>
+          <button onClick={() => setChoiceMode(v => !v)} disabled={gamePausedForBackground}>선택지</button>
+          <button onClick={() => triggerJudge(11, '지각')} disabled={gamePausedForBackground}>판정</button>
+          <button onClick={() => advanceOnMap()} disabled={gamePausedForBackground}>지도</button>
+          <button onClick={runNpcDialogueTest} disabled={testStageRunning || gamePausedForBackground}>
             {npcTestRunning ? '대화중' : 'NPC 테스트'}
           </button>
-          <button onClick={runShortTtsTest} disabled={testStageRunning}>
+          <button onClick={runShortTtsTest} disabled={testStageRunning || gamePausedForBackground}>
             {shortTtsTestRunning ? 'TTS중' : '짧은TTS'}
           </button>
           {['노멀', '트루', '히든', '베드'].map(k => (
-            <button key={k} onClick={() => jumpEnding(k)} disabled={endingJumping || !session?.id}
+            <button key={k} onClick={() => jumpEnding(k)} disabled={endingJumping || !session?.id || gamePausedForBackground}
               title={`${k} 엔딩으로 즉시 점프 (테스트)`}>
               {endingJumping ? '…' : `▶${k}`}
             </button>
@@ -2611,16 +2649,16 @@ export default function Dialogue({
           <div className="inputbar">
             <input
               value={input}
-              disabled={sending || bgLoading || !session?.id}
+              disabled={sending || gamePausedForBackground || !session?.id}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && send()}
-              placeholder={bgLoading ? 'AI가 새 장소를 그리는 중… 잠시만 기다려 주세요'
+              placeholder={gamePausedForBackground ? 'AI가 새 장소를 그리는 중… 잠시만 기다려 주세요'
                 : (session?.id ? '메시지를 입력하세요' : '타이틀에서 게임을 시작해 주세요')}
             />
             <button
               className="send"
               onClick={send}
-              disabled={sending || bgLoading || !session?.id}
+              disabled={sending || gamePausedForBackground || !session?.id}
               aria-label="메시지 보내기"
               title="메시지 보내기"
             >
@@ -2670,7 +2708,8 @@ export default function Dialogue({
             {CHOICES.map(c => (
               <button key={c.id}
                 className={'choice-row' + (c.tag && c.tag.includes('위험') ? ' danger' : '')}
-                onClick={() => pickChoice(c)}>
+                onClick={() => pickChoice(c)}
+                disabled={gamePausedForBackground}>
                 <span className="cn">{c.id}</span>
                 <span>{c.text}</span>
                 {c.tag && <span className="ctag">{c.tag}</span>}
@@ -2687,7 +2726,7 @@ export default function Dialogue({
             </div>
           )}
 
-          {choices.length > 0 && !sending && !choicesCollapsed && !bgLoading && (
+          {choices.length > 0 && !sending && !choicesCollapsed && !gamePausedForBackground && (
           <div className="choice-block">
             <div className="choice-head">
               <div className="choice-flavor">{FLAVOR_CHOICE}</div>
